@@ -23,7 +23,7 @@ class AnnotationType(Enum):
 
 class ReviewDataAnnotation:
     
-    def __init__(self, name, 
+    def __init__(self, 
                  annot_type: AnnotationType, 
                  options: []=[], 
                  validate_input=None,
@@ -32,7 +32,6 @@ class ReviewDataAnnotation:
         '''
         validate_input: a custom function to verify input. Returns a boolean
         '''
-        self.name = name
         self.annot_type = annot_type
         self.options = options
         self.validate_input = validate_input
@@ -54,11 +53,11 @@ class ReviewData:
     def __init__(self, 
                  review_dir: str, # path to directory to save info
                  df: pd.DataFrame, # optional if directory above already exists. 
-                 annotate_data: [ReviewDataAnnotation], # dictionary naming column and type of data (text, float, checkbox, radio)
+                 annotate_data: {str: ReviewDataAnnotation}, # dictionary naming column and type of data (text, float, checkbox, radio)
                 ):
         # check df index
         
-        annotate_cols = [ann.name for ann in annotate_data]
+        annotate_cols = list(annotate_data.keys())
         self.annotate_data = annotate_data
         
         self.review_dir = review_dir
@@ -83,9 +82,9 @@ class ReviewData:
         new_annot_cols = [c for c in annotate_cols if c not in self.annot.columns]
         self.annot[new_annot_cols] = np.nan
         
-        for annot in self.annotate_data:
+        for annot_name, annot in self.annotate_data.items():
             if annot.annot_type in [AnnotationType.CHECKLIST, AnnotationType.RADIOITEM]:
-                self.annot[annot_col] = self.annot[annot_col].astype(object)
+                self.annot[annot_name] = self.annot[annot_name].astype(object)
         
         # Add additional columns to table
         if not df.equals(self.data):
@@ -100,7 +99,17 @@ class ReviewData:
                               f'If you intend to change the ReviewData.data attribute, make a new session directory and prefill the annotation data')
             
     def pre_fill_annot(df: pd.DataFrame):
-        self.annot.loc[df.index, [c for c in df.columns if c in self.annot.columns]] = df
+        # TODO: check index already exists. Use _update()
+        valid_annot_cols = [c for c in df.columns if c in self.annot.columns]
+        valid_data_idx = [data_idx for data_idx in df.index if data_idx in self.annot.index]
+        for data_idx in valid_data_idx:
+            self._update(data_idx, r[valid_annot_cols])
+            
+        invalid_annot_cols = [c for c in df.columns if c not in self.annot.columns]
+        invalid_data_idx = [data_idx for data_idx in df.index if data_idx not in self.annot.index]
+        warnings.warn(f'There was extra data in your input that was not added to the ReviewData object.\n' +
+                      f'Invalid annotation cols: {invalid_annot_cols}\n' +
+                      f'Invalid data indices: {invalid_data_idx}') 
         
     def _update(self, data_idx, series):
         self.annot.loc[data_idx, list(series.keys())] = list(series.values())

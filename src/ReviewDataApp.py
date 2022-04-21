@@ -122,9 +122,9 @@ class ReviewDataApp:
         
         # history panel
         
-        def annotation_input(annot: ReviewDataAnnotation):
+        def annotation_input(annot_name, annot: ReviewDataAnnotation):
             
-            input_component_id = f"APP-{annot.name}-{annot.annot_type}-input-state"
+            input_component_id = f"APP-{annot_name}-{annot.annot_type}-input-state"
             
             if annot.annot_type == AnnotationType.TEXTAREA.value:
                 input_component = dbc.Textarea(size="lg", 
@@ -134,13 +134,13 @@ class ReviewDataApp:
             elif annot.annot_type ==  AnnotationType.TEXT.value:
                 input_component = dbc.Input(type="text", 
                                     id=input_component_id, 
-                                    placeholder=f"Enter {annot.name}",
+                                    placeholder=f"Enter {annot_name}",
                                     value=annot.default,
                                    )
             elif annot.annot_type == AnnotationType.NUMBER.value:
                 input_component = dbc.Input(type="number", 
                                     id=input_component_id, 
-                                    placeholder=f"Enter {annot.name}",
+                                    placeholder=f"Enter {annot_name}",
                                     value=annot.default,
                                    )
             elif annot.annot_type == AnnotationType.CHECKLIST.value:
@@ -158,15 +158,15 @@ class ReviewDataApp:
             else:
                 raise ValueError(f'Invalid annotation type "{annot.annot_type}"')
                 
-            return dbc.Row([dbc.Label(annot.name, html_for=input_component_id, width=2), dbc.Col(input_component)])
+            return dbc.Row([dbc.Label(annot_name, html_for=input_component_id, width=2), dbc.Col(input_component)])
         
-        panel_components = self.autofill_buttons + [annotation_input(annot) for annot in self.review_data.annotate_data] + [submit_annot_button]
+        panel_components = self.autofill_buttons + [annotation_input(annot_name, annot) for annot_name, annot in self.review_data.annotate_data.items()] + [submit_annot_button]
         panel_inputs = [Input('APP-submit-button-state', 'nclicks')]
         return AppComponent(name='APP-Panel',
                            components=panel_components, 
-                           callback_output={annot.name: Output(f"APP-{annot.name}-{annot.annot_type}-input-state", "value") for annot in self.review_data.annotate_data},
+                           callback_output={annot_name: Output(f"APP-{annot_name}-{annot.annot_type}-input-state", "value") for annot_name, annot in self.review_data.annotate_data.items()},
                            callback_input=panel_inputs,
-                           callback_state={annot.name: State(f"APP-{annot.name}-{annot.annot_type}-input-state", "value") for annot in self.review_data.annotate_data}
+                           callback_state={annot_name: State(f"APP-{annot_name}-{annot.annot_type}-input-state", "value") for annot_name, annot in self.review_data.annotate_data.items()}
                           )
         
     def gen_layout(self):
