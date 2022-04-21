@@ -71,7 +71,7 @@ def plot_cnp_histogram(fig, row, col,
                      row=row, col=col)
     fig.update_layout(showlegend=False)
     
-@functools.lru_cache(maxsize=32) # faster to reload    
+@functools.lru_cache(maxsize=10) # faster to reload    
 def gen_mut_figure(maf_fn,
                    chromosome_col='Chromosome', 
                    start_position_col='Start_position', 
@@ -79,7 +79,6 @@ def gen_mut_figure(maf_fn,
                    variant_type_col='Variant_Type',
                    alt_count_col='t_alt_count',
                    ref_count_col='t_ref_count',
-#                    csize=csize,
                    hover_data=[]  # TODO: include
                   ):
     fig = make_subplots(rows=1, cols=1)
@@ -98,7 +97,7 @@ def gen_mut_figure(maf_fn,
     return fig
 
 
-@functools.lru_cache(maxsize=32) # faster to reload
+@functools.lru_cache(maxsize=10) # faster to reload
 def gen_cnp_figure(acs_fn,
                    sigmas=True, 
                    mu_major_col='mu.major', 
@@ -136,8 +135,6 @@ def gen_absolute_component(r,
                            mu_major_col='mu.major', 
                            mu_minor_col='mu.minor', 
                            length_col='length',
-#                            csize=csize,
-#                            use_internal_callback=False
                           ):
     
     absolute_rdata_df = parse_absolute_soln(r[rdata_fn_col])
@@ -147,7 +144,6 @@ def gen_absolute_component(r,
                              mu_major_col=mu_major_col,
                              mu_minor_col=mu_minor_col,
                              length_col=length_col,
-#                                  csize=csize
                             )
     mut_fig = gen_mut_figure(r[maf_col], 
                              chromosome_col=chromosome_col, 
@@ -155,7 +151,6 @@ def gen_absolute_component(r,
                              variant_type_col=variant_type_col,
                              alt_count_col=alt_count_col,
                              ref_count_col=ref_count_col,
-#                                  csize=csize
                             )
 
     # add 1 and 0 lines
@@ -189,7 +184,7 @@ absolute_rdata_cols = ['alpha', 'tau', 'tau_hat', '0_line', '1_line',
                        'SCNA_likelihood', 
                        'Kar_likelihood', 
                        'SSNVs_likelihood']
-@functools.lru_cache(maxsize=32) # faster to reload
+@functools.lru_cache(maxsize=10) # faster to reload
 def parse_absolute_soln(rdata_path: str): # has to be a local path
     pandas2ri.activate()
     

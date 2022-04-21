@@ -27,9 +27,6 @@ class AppComponent:
                  callback_output=[], 
                  callback_input=[],
                  callback_state=[],
-#                  internal_callback=None,
-#                  internal_callback_output=[], 
-#                  internal_callback_input=[],
                 ):
         self.name = name
         self.component = html.Div(components)
@@ -38,11 +35,6 @@ class AppComponent:
         self.callback_input = callback_input
         self.callback_state = callback_state
         
-#         self.internal_callback = internal_callback
-#         self.internal_callback_output = internal_callback_output
-#         self.internal_callback_input = internal_callback_input
-        
-#         component.internal_output_index = {output_obj: np.argmax() for output_obj in internal_callback_output}
         
         # TODO: check internal callback outputs and inputs are within the original component
         
@@ -59,9 +51,19 @@ class ReviewDataApp:
         self.host = host
         self.port = port
         
-#         self.review_data_indices_dict = {'': }
+        self.reviewed_data_df = pd.DataFrame(index=self.review_data.annot.index, columns=['label'])
+        self.reviewed_data_df['label'] = self.reviewed_data_df.apply(self.gen_dropdown_labels, axis=1)
+        self.reviewed_data_df.index.name = 'value'
         
         # check component ids are not duplicated
+        
+    def gen_dropdown_labels(self, r):
+        data_history_df = self.review_data.history[self.review_data.history["index"] == r.name]
+        if not data_history_df.empty:
+            return r.name + f' (Last update: {data_history_df["timestamp"].tolist()[-1]})'
+        else:
+            return r.name
+        
         
     def run_app(self, mode, host='0.0.0.0', port=8050):
         app = JupyterDash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -69,7 +71,7 @@ class ReviewDataApp:
 
         @app.callback(output=dict(history_table=Output(f'APP-history-table', 'children'),
                                   annot_panel=self.annotation_panel_component.callback_output,
-#                                   dropdown_list=Output(f'APP-dropdown-data-state', 'options')
+                                  dropdown_list_options=Output(f'APP-dropdown-data-state', 'options'),
                                   more_component_outputs={c.name: c.callback_output for c in self.more_components}
                              ), 
                       inputs=dict(dropdown_value=Input('APP-dropdown-data-state', 'value'), 
@@ -95,6 +97,7 @@ class ReviewDataApp:
             
             output_dict = {'history_table': dash.no_update, 
                            'annot_panel': {annot_col: dash.no_update for annot_col in self.review_data.annot.columns}, 
+                           'dropdown_list_options': dash.no_update,
                            'more_component_outputs': {c.name: [dash.no_update for i in range(len(c.callback_output))] for c in self.more_components}}
             
             if prop_id == 'APP-dropdown-data-state':
@@ -111,6 +114,8 @@ class ReviewDataApp:
             elif (prop_id == 'APP-submit-button-state') & (submit_annot_button > 0):
                 self.review_data._update(dropdown_value, annot_input_state)
                 output_dict['history_table'] = dbc.Table.from_dataframe(self.review_data.history.loc[self.review_data.history['index'] == dropdown_value])
+                self.reviewed_data_df.loc[dropdown_value, 'label'] = self.gen_dropdown_labels(self.reviewed_data_df.loc[dropdown_value])
+                output_dict['dropdown_list_options'] = self.reviewed_data_df.reset_index().to_dict('records')
             elif 'APP-autofill-' in prop_id:
                 component_name = prop_id.split('APP-autofill-')[-1]
                 for autofill_annot_col, value in autofill_inputs[prop_id].items():
@@ -185,8 +190,7 @@ class ReviewDataApp:
                           )
         
     def gen_layout(self):
-        
-        dropdown = html.Div(dcc.Dropdown(options=self.review_data.data.index, 
+        dropdown = html.Div(dcc.Dropdown(options=self.reviewed_data_df.reset_index().to_dict('records'), 
                                          value=[], 
                                          id='APP-dropdown-data-state'))
         
