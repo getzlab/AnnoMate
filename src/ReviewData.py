@@ -81,6 +81,7 @@ class ReviewData:
         # Add additional annotation columns
         new_annot_cols = [c for c in annotate_cols if c not in self.annot.columns]
         self.annot[new_annot_cols] = np.nan
+        self.history[new_annot_cols] = np.nan
         
         for annot_name, annot in self.annotate_data.items():
             if annot.annot_type in [AnnotationType.CHECKLIST, AnnotationType.RADIOITEM]:

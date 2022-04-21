@@ -33,7 +33,17 @@ csize = {'1': 249250621, '2': 243199373, '3': 198022430, '4': 191154276, '5': 18
         '21': 48129895, '22': 51304566, '23': 156040895, '24': 57227415}
 
 def gen_data_summary_table(r, cols):
-    return [[html.H1(f'{r.name} Data Summary'), dbc.Table.from_dataframe(r[cols].to_frame().reset_index())]]
+    sample_data_df = r[cols].to_frame()
+    sample_data_df[r.name] = sample_data_df[r.name].astype(str)
+    sample_data_df['Console_link'] = ''
+    for attr, value in sample_data_df.iterrows():
+        if 'gs://' in value[r.name]:
+            path = value[r.name].split('/', 2)[-1]
+            sample_data_df.loc[attr, 'Console_link'] = f"https://console.cloud.google.com/storage/browser/_details/{path}"
+    sample_data_df['Console_link'] = sample_data_df['Console_link'].apply(lambda url: html.A(html.P(url),
+                                                                              href=url,
+                                                                              target="_blank"))
+    return [[html.H1(f'{r.name} Data Summary'), dbc.Table.from_dataframe(sample_data_df.reset_index())]]
 
 
 def plot_cnp_histogram(fig, row, col, 
@@ -61,19 +71,19 @@ def plot_cnp_histogram(fig, row, col,
                      row=row, col=col)
     fig.update_layout(showlegend=False)
     
-    
-def gen_mut_figure(r, maf_col, 
+@functools.lru_cache(maxsize=32) # faster to reload    
+def gen_mut_figure(maf_fn,
                    chromosome_col='Chromosome', 
                    start_position_col='Start_position', 
                    hugo_symbol_col='Hugo_Symbol',
                    variant_type_col='Variant_Type',
                    alt_count_col='t_alt_count',
                    ref_count_col='t_ref_count',
-                   csize=csize,
+#                    csize=csize,
                    hover_data=[]  # TODO: include
                   ):
     fig = make_subplots(rows=1, cols=1)
-    maf_df = pd.read_csv(r[maf_col], sep='\t')
+    maf_df = pd.read_csv(maf_fn, sep='\t')
     if maf_df[chromosome_col].dtype == 'object':
         maf_df[chromosome_col].replace({'X': 23, 'Y': 24}, inplace=True)
         maf_df[chromosome_col] = maf_df[chromosome_col].astype(str)
@@ -88,16 +98,16 @@ def gen_mut_figure(r, maf_col,
     return fig
 
 
-
-def gen_cnp_figure(r, 
-                   acs_col,
+@functools.lru_cache(maxsize=32) # faster to reload
+def gen_cnp_figure(acs_fn,
                    sigmas=True, 
                    mu_major_col='mu.major', 
                    mu_minor_col='mu.minor', 
                    length_col='length',
-                   csize=csize):
+#                    csize=csize
+                  ):
     
-    seg_df = pd.read_csv(r[acs_col], sep='\t')
+    seg_df = pd.read_csv(acs_fn, sep='\t')
     layout = go.Layout(
             plot_bgcolor='rgba(0,0,0,0)',
         )
@@ -113,6 +123,7 @@ def gen_cnp_figure(r,
     return cnp_fig
 
 def gen_absolute_component(r, 
+                           selected_row_array, # dash app parameters come first
                            acs_col, 
                            maf_col,
                            rdata_fn_col,
@@ -125,33 +136,50 @@ def gen_absolute_component(r,
                            mu_major_col='mu.major', 
                            mu_minor_col='mu.minor', 
                            length_col='length',
-                           csize=csize,
+#                            csize=csize,
 #                            use_internal_callback=False
                           ):
     
-    absolute_rdata_data = parse_absolute_soln(r[rdata_fn_col])
-    
-    cnp_fig = gen_cnp_figure(r, 
-                             acs_col,
+    absolute_rdata_df = parse_absolute_soln(r[rdata_fn_col])
+
+    cnp_fig = gen_cnp_figure(r[acs_col], 
                              sigmas=sigmas, 
                              mu_major_col=mu_major_col,
                              mu_minor_col=mu_minor_col,
                              length_col=length_col,
-                             csize=csize)
-    mut_fig = gen_mut_figure(r, maf_col, 
+#                                  csize=csize
+                            )
+    mut_fig = gen_mut_figure(r[maf_col], 
                              chromosome_col=chromosome_col, 
                              start_position_col=start_position_col,
                              variant_type_col=variant_type_col,
                              alt_count_col=alt_count_col,
                              ref_count_col=ref_count_col,
-                             csize=csize
+#                                  csize=csize
                             )
-    
-    return [absolute_rdata_data, cnp_fig, mut_fig]
 
-def update_absolute_component(table_data, selected_row, cnp_fig, mut_fig):
-    cnp_fig.update_layout(title=f'{table_data[selected_row]["0_line"]}')
-    return cnp_fig, mut_fig
+    # add 1 and 0 lines
+    cnp_fig_with_lines = go.Figure(cnp_fig)
+    solution_data = absolute_rdata_df.iloc[selected_row_array[0]]
+    i = 0
+    line_height = solution_data['0_line']
+    while line_height < 2:
+        line_height = solution_data['0_line'] + (solution_data['step_size'] * i)
+        cnp_fig_with_lines.add_hline(y=line_height, 
+                                     line_dash="dash", 
+                                     line_color='black',
+                                     line_width=1
+                                    )
+        i += 1
+#     cnp_fig_with_lines.add_hline(y=absolute_rdata_df.iloc[selected_row_array[0]]['1_line'], line_dash="dash", line_color='blue')
+
+    return [absolute_rdata_df.to_dict('records'), 
+            cnp_fig_with_lines, 
+            mut_fig,
+            solution_data['alpha'],
+            solution_data['tau_hat']
+           ]
+
 
 
 absolute_rdata_cols = ['alpha', 'tau', 'tau_hat', '0_line', '1_line',
@@ -161,6 +189,7 @@ absolute_rdata_cols = ['alpha', 'tau', 'tau_hat', '0_line', '1_line',
                        'SCNA_likelihood', 
                        'Kar_likelihood', 
                        'SSNVs_likelihood']
+@functools.lru_cache(maxsize=32) # faster to reload
 def parse_absolute_soln(rdata_path: str): # has to be a local path
     pandas2ri.activate()
     
@@ -178,14 +207,14 @@ def parse_absolute_soln(rdata_path: str): # has to be a local path
     mod_tab_df['tau_hat'] = mode_tab[:, 7]
     mod_tab_df['0_line'] = mode_tab[:, 3]
     mod_tab_df['step_size'] = mode_tab[:, 4] * 2
-    mod_tab_df['1_line'] = mod_tab_df['step_size'] * 2 + mod_tab_df['0_line']
+    mod_tab_df['1_line'] = mod_tab_df['step_size'] + mod_tab_df['0_line']
     mod_tab_df['sigma_H'] = mode_tab[:, 8]
     mod_tab_df['theta_Q'] = mode_tab[:, 11]
     mod_tab_df['lambda'] = mode_tab[:, 12]
     mod_tab_df['SCNA_likelihood'] = mode_tab[:, 15]
     mod_tab_df['Kar_likelihood'] = mode_tab[:, 17]
     mod_tab_df['SSNVs_likelihood'] = mode_tab[:, 20]
-    return mod_tab_df.to_dict('records')
+    return mod_tab_df
     
 
 class MatchedPurityReviewer(Reviewer):
@@ -214,17 +243,6 @@ class MatchedPurityReviewer(Reviewer):
 
         app = ReviewDataApp(review_data_obj)
 
-
-        app.add_custom_component('sample-info-component', 
-                                  html.Div(children=[html.H1('Data Summary'), 
-                                                     dbc.Table.from_dataframe(df=pd.DataFrame())],
-                                           id='sample-info-component'
-                                          ), 
-                                  callback_output=[Output('sample-info-component', 'children')],
-                                  func=gen_data_summary_table, 
-                                  cols=sample_info_cols)
-        
-        # For now just plot copy number profile
         app.add_custom_component('cnp-plot',
                                  html.Div(children=[html.H1('Absolute Solutions'), 
                                                     html.H2('Absolute Solutions Table'), 
@@ -247,18 +265,41 @@ class MatchedPurityReviewer(Reviewer):
                                                                         page_current= 0,
                                                                         page_size= 5),
                                                     html.H2('Copy Number Profile'), 
+                                                    html.Div([html.P('Purity: ', 
+                                                                     style={'display': 'inline'}), 
+                                                              html.P(0, id='absolute-purity', 
+                                                                     style={'display': 'inline'})]), 
+                                                    html.Div([html.P('Ploidy: ', 
+                                                                     style={'display': 'inline'}), 
+                                                              html.P(0, id='absolute-ploidy', 
+                                                                     style={'display': 'inline'})]), 
                                                     dcc.Graph(id='cnp-graph', figure={}),
                                                     dcc.Graph(id='mut-graph', figure={})
                                                    ]),
-#                                  callback_input=[Input()]
+                                 func=gen_absolute_component,
+                                 callback_input=[Input('absolute-rdata-select-table', 'selected_rows')],
                                  callback_output=[Output('absolute-rdata-select-table', 'data'),
                                                   Output('cnp-graph', 'figure'), 
-                                                  Output('mut-graph', 'figure')],
-                                 func=gen_absolute_component,
+                                                  Output('mut-graph', 'figure'),
+                                                  Output('absolute-purity', 'children'),
+                                                  Output('absolute-ploidy', 'children')
+                                                 ],
+                                 add_autofill=True,
+                                 autofill_dict={'purity': Input('absolute-purity', 'children'),
+                                                'ploidy': Input('absolute-ploidy', 'children')},
                                  acs_col=acs_col,
                                  maf_col=maf_col,
                                  rdata_fn_col=rdata_fn_col,
                                 )
+        
+        app.add_custom_component('sample-info-component', 
+                                  html.Div(children=[html.H1('Data Summary'), 
+                                                     dbc.Table.from_dataframe(df=pd.DataFrame())],
+                                           id='sample-info-component'
+                                          ), 
+                                  callback_output=[Output('sample-info-component', 'children')],
+                                  func=gen_data_summary_table, 
+                                  cols=sample_info_cols)
 
         return app
                     

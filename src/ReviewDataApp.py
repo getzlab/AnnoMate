@@ -59,6 +59,8 @@ class ReviewDataApp:
         self.host = host
         self.port = port
         
+#         self.review_data_indices_dict = {'': }
+        
         # check component ids are not duplicated
         
     def run_app(self, mode, host='0.0.0.0', port=8050):
@@ -67,6 +69,7 @@ class ReviewDataApp:
 
         @app.callback(output=dict(history_table=Output(f'APP-history-table', 'children'),
                                   annot_panel=self.annotation_panel_component.callback_output,
+#                                   dropdown_list=Output(f'APP-dropdown-data-state', 'options')
                                   more_component_outputs={c.name: c.callback_output for c in self.more_components}
                              ), 
                       inputs=dict(dropdown_value=Input('APP-dropdown-data-state', 'value'), 
@@ -93,7 +96,6 @@ class ReviewDataApp:
             output_dict = {'history_table': dash.no_update, 
                            'annot_panel': {annot_col: dash.no_update for annot_col in self.review_data.annot.columns}, 
                            'more_component_outputs': {c.name: [dash.no_update for i in range(len(c.callback_output))] for c in self.more_components}}
-            print(output_dict)
             
             if prop_id == 'APP-dropdown-data-state':
 
@@ -118,11 +120,9 @@ class ReviewDataApp:
                 for i in range(len(self.more_components)):
                     component = self.more_components[i]
                     if sum([c.component_id == prop_id for c in self.more_components[i].callback_input]) > 0:
-                        component_output = component.callback(self.review_data.data.loc[dropdown_value], *more_component_inputs[component.name])
+                        component_output = component.callback(self.review_data.data.loc[dropdown_value], 
+                                                              *more_component_inputs[component.name])
                         output_dict['more_component_outputs'][component.name] = component_output # force having output as array specify names in the callback outputs? Or do it by dictionary
-#                         elif isinstance(component_output, dict):
-#                             for output, new_value in component_output.items():
-#                                 output_dict['more_component_outputs'][component.name][component.internal_output_index[output]] = new_value
                 pass
             return output_dict
         
@@ -187,7 +187,7 @@ class ReviewDataApp:
     def gen_layout(self):
         
         dropdown = html.Div(dcc.Dropdown(options=self.review_data.data.index, 
-                                         value=self.review_data.data.index[0], 
+                                         value=[], 
                                          id='APP-dropdown-data-state'))
         
         self.dropdown_component = AppComponent(name='APP-dropdown-component',
@@ -230,7 +230,7 @@ class ReviewDataApp:
                              **kwargs):
         
         if add_autofill:
-            autofill_button_component = html.Button(f'Use {component_name} solution', 
+            autofill_button_component = html.Button(f'Use current {component_name} solution', 
                                                     id=f'APP-autofill-{component_name}', 
                                                     n_clicks=0)
             self.autofill_buttons += [autofill_button_component]
