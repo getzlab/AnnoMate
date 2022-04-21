@@ -1,5 +1,5 @@
-from src.ReviewData import ReviewData, ReviewDataAnnotation
-from src.ReviewDataApp import ReviewDataApp
+from getzlab_JupyterReviewer.src.ReviewData import ReviewData, ReviewDataAnnotation
+from getzlab_JupyterReviewer.src.ReviewDataApp import ReviewDataApp
 
 import pandas as pd
 import numpy as np

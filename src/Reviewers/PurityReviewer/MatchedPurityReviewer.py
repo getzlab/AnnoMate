@@ -1,5 +1,5 @@
-from src.ReviewData import ReviewData, ReviewDataAnnotation
-from src.ReviewDataApp import ReviewDataApp
+from getzlab_JupyterReviewer.src.ReviewData import ReviewData, ReviewDataAnnotation
+from getzlab_JupyterReviewer.src.ReviewDataApp import ReviewDataApp
 
 import pandas as pd
 import numpy as np
@@ -24,6 +24,8 @@ from src.lib.plot_cnp import plot_acr_interactive
 
 from rpy2.robjects import r, pandas2ri
 import rpy2.robjects as robjects
+import os
+import pickle
 
 
 csize = {'1': 249250621, '2': 243199373, '3': 198022430, '4': 191154276, '5': 180915260,
@@ -56,8 +58,12 @@ def plot_cnp_histogram(fig, row, col,
     mu_bins = np.arange(0, max_mu + step, step)
     mu_bins_counts = {b: 0 for b in mu_bins}
     for _, r in seg_df.iterrows():
-        mu_bins_counts[mu_bins[np.argmax(r[mu_major_col] < mu_bins) - 1]] = r[length_col]
-        mu_bins_counts[mu_bins[np.argmax(r[mu_minor_col] < mu_bins) - 1]] = r[length_col]
+        mu_bins_counts[mu_bins[np.argmax(r[mu_major_col] < mu_bins) - 1]] += r[length_col]
+        mu_bins_counts[mu_bins[np.argmax(r[mu_minor_col] < mu_bins) - 1]] += r[length_col]
+    
+    # add half step to make them centered around the bin
+    half_step = step / 2.0
+    mu_bins_counts = {mu_bin + half_step: val for mu_bin, val in mu_bins_counts.items()}
     
     mu_bin_counts_df = pd.DataFrame.from_dict(mu_bins_counts, 
                                               orient='index',
@@ -70,8 +76,7 @@ def plot_cnp_histogram(fig, row, col,
     fig.update_xaxes(title_text='Length Count',  
                      row=row, col=col)
     fig.update_layout(showlegend=False)
-    
-@functools.lru_cache(maxsize=10) # faster to reload    
+      
 def gen_mut_figure(maf_fn,
                    chromosome_col='Chromosome', 
                    start_position_col='Start_position', 
@@ -85,7 +90,7 @@ def gen_mut_figure(maf_fn,
     maf_df = pd.read_csv(maf_fn, sep='\t')
     if maf_df[chromosome_col].dtype == 'object':
         maf_df[chromosome_col].replace({'X': 23, 'Y': 24}, inplace=True)
-        maf_df[chromosome_col] = maf_df[chromosome_col].astype(str)
+    maf_df[chromosome_col] = maf_df[chromosome_col].astype(str)
     
     maf_df['new_position'] = maf_df.apply(lambda r: csize[r[chromosome_col]] + r[start_position_col], axis=1)
     maf_df['tumor_f'] = maf_df[alt_count_col] / (maf_df[alt_count_col] + maf_df[ref_count_col])
@@ -96,8 +101,6 @@ def gen_mut_figure(maf_fn,
     fig.update_yaxes(range=[0, 1])
     return fig
 
-
-@functools.lru_cache(maxsize=10) # faster to reload
 def gen_cnp_figure(acs_fn,
                    sigmas=True, 
                    mu_major_col='mu.major', 
@@ -110,7 +113,7 @@ def gen_cnp_figure(acs_fn,
     layout = go.Layout(
             plot_bgcolor='rgba(0,0,0,0)',
         )
-    cnp_fig = make_subplots(rows=1, cols=2, shared_yaxes=True)
+    cnp_fig = make_subplots(rows=1, cols=2, shared_yaxes=True, column_widths=[0.77, 0.25])
     plot_acr_interactive(seg_df, cnp_fig, csize, sigmas=sigmas, row=0, col=0)
     
     plot_cnp_histogram(cnp_fig, 1, 2,
@@ -123,35 +126,17 @@ def gen_cnp_figure(acs_fn,
 
 def gen_absolute_component(r, 
                            selected_row_array, # dash app parameters come first
-                           acs_col, 
-                           maf_col,
-                           rdata_fn_col,
-                           chromosome_col='Chromosome', 
-                           start_position_col='Start_position', 
-                           variant_type_col='Variant_Type',
-                           alt_count_col='t_alt_count',
-                           ref_count_col='t_ref_count',
-                           sigmas=True, 
-                           mu_major_col='mu.major', 
-                           mu_minor_col='mu.minor', 
-                           length_col='length',
+                           rdata_tsv_fn,
+                           cnp_fig_pkl_fn_col,
+                           mut_fig_pkl_fn_col
                           ):
     
-    absolute_rdata_df = parse_absolute_soln(r[rdata_fn_col])
+    absolute_rdata_df = pd.read_csv(r[rdata_tsv_fn], sep='\t')
 
-    cnp_fig = gen_cnp_figure(r[acs_col], 
-                             sigmas=sigmas, 
-                             mu_major_col=mu_major_col,
-                             mu_minor_col=mu_minor_col,
-                             length_col=length_col,
-                            )
-    mut_fig = gen_mut_figure(r[maf_col], 
-                             chromosome_col=chromosome_col, 
-                             start_position_col=start_position_col,
-                             variant_type_col=variant_type_col,
-                             alt_count_col=alt_count_col,
-                             ref_count_col=ref_count_col,
-                            )
+    cnp_fig = load_pickle(r[cnp_fig_pkl_fn_col])
+
+    mut_fig = load_pickle(r[mut_fig_pkl_fn_col])
+
 
     # add 1 and 0 lines
     cnp_fig_with_lines = go.Figure(cnp_fig)
@@ -166,14 +151,12 @@ def gen_absolute_component(r,
                                      line_width=1
                                     )
         i += 1
-#     cnp_fig_with_lines.add_hline(y=absolute_rdata_df.iloc[selected_row_array[0]]['1_line'], line_dash="dash", line_color='blue')
 
     return [absolute_rdata_df.to_dict('records'), 
             cnp_fig_with_lines, 
             mut_fig,
             solution_data['alpha'],
-            solution_data['tau_hat']
-           ]
+            solution_data['tau_hat']]
 
 
 
@@ -184,16 +167,13 @@ absolute_rdata_cols = ['alpha', 'tau', 'tau_hat', '0_line', '1_line',
                        'SCNA_likelihood', 
                        'Kar_likelihood', 
                        'SSNVs_likelihood']
-@functools.lru_cache(maxsize=10) # faster to reload
-def parse_absolute_soln(rdata_path: str): # has to be a local path
-    pandas2ri.activate()
-    
+def parse_absolute_soln(rdata_path: str): # has to be a local path   
     r_list_vector = robjects.r['load'](rdata_path)
     r_list_vector = robjects.r[r_list_vector[0]]
     r_data_id = r_list_vector.names[0]
 
     rdata_tables = r_list_vector.rx2(str(r_data_id))
-
+    
     mode_res = rdata_tables.rx2('mode.res')
     mode_tab = mode_res.rx2('mode.tab')
     mod_tab_df = pd.DataFrame(columns=absolute_rdata_cols)
@@ -209,32 +189,104 @@ def parse_absolute_soln(rdata_path: str): # has to be a local path
     mod_tab_df['SCNA_likelihood'] = mode_tab[:, 15]
     mod_tab_df['Kar_likelihood'] = mode_tab[:, 17]
     mod_tab_df['SSNVs_likelihood'] = mode_tab[:, 20]
+    end = time.time()
     return mod_tab_df
+
+
+def load_pickle(fn):
+    return pickle.load(open(fn, "rb"))
     
 
 class MatchedPurityReviewer(Reviewer):
 
 
-    def gen_review_data_object(session_dir, df: pd.DataFrame, more_annot_cols: {str: ReviewDataAnnotation}):
+    def gen_review_data_object(session_dir, 
+                               df: pd.DataFrame, 
+                               more_annot_cols: {str: ReviewDataAnnotation},
+                               acs_col,
+                               maf_col,
+                               rdata_fn_col,
+                               reload_cnp_figs=False,
+                               reload_mut_figs=False,
+                              ):
+        pandas2ri.activate()
 
         annot_data = {'purity': ReviewDataAnnotation( 'number', 
                                            validate_input=lambda x: (x <= 1.0) and (x >= 0.0)),
                       'ploidy': ReviewDataAnnotation('number', 
                                            validate_input=lambda x: x >= 0.0)}
-
+        if not os.path.exists(session_dir):
+            os.mkdir(session_dir)
+        
+        # preprocessing
+        # 1. download rdata 
+        rdata_dir = f'{session_dir}/rdata_to_tsv'
+        if not os.path.exists(rdata_dir):
+            print(f'Converting ABSOLUTE rdata into tsv files in {rdata_dir}')
+            os.mkdir(rdata_dir)
+            df[f'{rdata_fn_col}_as_tsv'] = ''
+            for i, r in df.iterrows():
+                output_fn = f'{rdata_dir}/{i}.rdata.tsv'
+                parse_absolute_soln(df.loc[i, rdata_fn_col]).to_csv(output_fn, sep='\t')
+                df.loc[i, f'{rdata_fn_col}_as_tsv'] = output_fn
+        else:
+            print(f'rdata tsv directory already exists: {rdata_dir}')
+            df[f'{rdata_fn_col}_as_tsv'] = ''
+            for i, r in df.iterrows():
+                output_fn = f'{rdata_dir}/{i}.rdata.tsv'
+                df.loc[i, f'{rdata_fn_col}_as_tsv'] = output_fn
+            
+            
+        
+        # 2. Process cnp figures
+        cnp_figs_dir = f'{session_dir}/cnp_figs'
+        if not os.path.exists(cnp_figs_dir):
+            os.mkdir(cnp_figs_dir)
+            reload_cnp_figs = True
+        else:
+            print(f'cnp figs directory already exists: {cnp_figs_dir}')
+            
+        if reload_cnp_figs:
+            print('Reloading cnp figs')
+            for i, r in df.iterrows():
+                output_fn = f'{cnp_figs_dir}/{i}.cnp_fig.pkl'
+                fig = gen_cnp_figure(df.loc[i, acs_col])
+                pickle.dump(fig, open(output_fn, "wb"))
+                df.loc[i, f'cnp_figs_pkl'] = output_fn
+                
+        mut_figs_dir = f'{session_dir}/mut_figs'
+        if not os.path.exists(mut_figs_dir):
+            os.mkdir(mut_figs_dir)
+            reload_mut_figs = True
+        else:
+            print(f'mut figs directory already exists: {mut_figs_dir}')
+      
+        if reload_mut_figs:
+            print('Reloading mut figs')
+            for i, r in df.iterrows():
+                output_fn = f'{mut_figs_dir}/{i}.cnp_fig.pkl'
+                fig = gen_mut_figure(df.loc[i, maf_col])
+                pickle.dump(fig, open(output_fn, "wb"))
+                df.loc[i, f'mut_figs_pkl'] = output_fn
+            
         # TODO: make sure there are no duplicates
-        rd = ReviewData(review_dir=session_dir,
-                        df = df, # optional if directory above already exists. 
+        purity_review_session_dir = f'{session_dir}/purity_review_session'
+        rd = ReviewData(review_dir=purity_review_session_dir,
+                        df=df, # optional if directory above already exists. 
                         annotate_data = {**annot_data, **more_annot_cols})
-
+        
+        print(f'Created purity review session in {purity_review_session_dir}')
         return rd
 
     def gen_review_data_app(review_data_obj, 
                             sample_info_cols,
-                            acs_col,
+                            acs_col, 
                             maf_col,
-                            rdata_fn_col,
+                            rdata_tsv_fn='local_absolute_rdata_as_tsv',
+                            cnp_fig_pkl_fn_col='cnp_figs_pkl',
+                            mut_fig_pkl_fn_col='mut_figs_pkl',
                            ):
+
 
         app = ReviewDataApp(review_data_obj)
 
@@ -282,9 +334,9 @@ class MatchedPurityReviewer(Reviewer):
                                  add_autofill=True,
                                  autofill_dict={'purity': Input('absolute-purity', 'children'),
                                                 'ploidy': Input('absolute-ploidy', 'children')},
-                                 acs_col=acs_col,
-                                 maf_col=maf_col,
-                                 rdata_fn_col=rdata_fn_col,
+                                 rdata_tsv_fn=rdata_tsv_fn,
+                                 cnp_fig_pkl_fn_col=cnp_fig_pkl_fn_col,
+                                 mut_fig_pkl_fn_col=mut_fig_pkl_fn_col
                                 )
         
         app.add_custom_component('sample-info-component', 

@@ -17,7 +17,7 @@ import dash
 import dash_bootstrap_components as dbc
 import functools
 
-from src.ReviewData import ReviewData, ReviewDataAnnotation, AnnotationType
+from getzlab_JupyterReviewer.src.ReviewData import ReviewData, ReviewDataAnnotation, AnnotationType
 
 class AppComponent:
     
