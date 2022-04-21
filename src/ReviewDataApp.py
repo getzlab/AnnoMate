@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import pathlib
 import os
 from IPython.display import display
@@ -164,12 +165,10 @@ class ReviewDataApp:
                                     value=annot.default,
                                    )
             elif annot.annot_type == AnnotationType.CHECKLIST.value:
-                flags = np.arange(0, 1, 0.2)
                 input_component = dbc.Checklist(options=[{"label": f, "value": f} for f in annot.options],
                                                 id=input_component_id, 
                                                 value=annot.default),
             elif annot.annot_type == AnnotationType.RADIOITEM.value:
-                # TODO: how to add in options
                 input_component = dbc.RadioItems(
                                                 options=[{"label": f, "value": f} for f in annot.options],
                                                 value=annot.default,

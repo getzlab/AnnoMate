@@ -34,8 +34,6 @@ class UnmatchedPurityReviewer(Reviewer):
                                df: pd.DataFrame, 
                                more_annot_cols: {str: ReviewDataAnnotation}):
         purity_review_session_dir = f'{session_dir}/purity_review_session'
-        if not os.path.exists(purity_review_session_dir):
-            os.mkdir(purity_review_session_dir)
         
         annot_data = {'purity': ReviewDataAnnotation( 'number', 
                                            validate_input=lambda x: (x <= 1.0) and (x >= 0.0)),
@@ -51,15 +49,32 @@ class UnmatchedPurityReviewer(Reviewer):
     
     
     def gen_review_data_app(review_data_obj: ReviewData,
-                            dfci_maf_fn_col='DFCI_local_sample_dfci_maf_fn',
-                            dfci_maf_table_cols=['Hugo_Symbol', 'Chromosome', 't_alt_count', 't_ref_count', 'Tumor_Sample_Barcode']
+                            sample_table_cols,
                            ):
         app = ReviewDataApp(review_data_obj)
         
-        app.add_table_from_path('DFCI MAF file', 
-                                'maf-component-id', 
-                                dfci_maf_fn_col, 
-                                dfci_maf_table_cols)
+        def gen_data_summary_table(r, cols):
+            sample_data_df = r[cols].to_frame()
+            sample_data_df[r.name] = sample_data_df[r.name].astype(str)
+            sample_data_df['Console_link'] = ''
+            for attr, value in sample_data_df.iterrows():
+                if 'gs://' in value[r.name]:
+                    path = value[r.name].split('/', 2)[-1]
+                    sample_data_df.loc[attr, 'Console_link'] = f"https://console.cloud.google.com/storage/browser/_details/{path}"
+            sample_data_df['Console_link'] = sample_data_df['Console_link'].apply(lambda url: html.A(html.P(url),
+                                                                                      href=url,
+                                                                                      target="_blank"))
+            return [[html.H1(f'{r.name} Data Summary'), dbc.Table.from_dataframe(sample_data_df.reset_index())]]
+
+        app.add_custom_component('sample-info-component', 
+                                  html.Div(children=[html.H1('Data Summary'), 
+                                                     dbc.Table.from_dataframe(df=pd.DataFrame())],
+                                           id='sample-info-component'
+                                          ), 
+                                  callback_output=[Output('sample-info-component', 'children')],
+                                  func=gen_data_summary_table, 
+                                  cols=sample_table_cols)
+
         
         return app
     
