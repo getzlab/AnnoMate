@@ -62,40 +62,6 @@ def plot_cnp_histogram(fig, row, col,
     fig.update_layout(showlegend=False)
     
     
-def parse_absolute_soln(rdata_path: str):
-    pandas2ri.activate()
-    
-    r_list_vector = robjects.r['load'](rdata_path)
-    r_list_vector = robjects.r[r_list_vector[0]]
-    r_data_id = r_list_vector.names[0]
-
-    rdata_tables = r_list_vector.rx2(str(r_data_id))
-
-    mode_res = rdata_tables.rx2('mode.res')
-    mode_tab = mode_res.rx2('mode.tab')
-    mod_tab_df = pd.DataFrame(columns=['alpha', 'tau', 'tau_hat', '0_line', 'comb',
-                                       'clonal_cna_filter',
-                                       # 'candidate_cna_absolute_copy_number',
-                                       'reliable_seg_absolute_copy_number',
-                                       'cna_comb_fit_score',
-                                       'clonal_driver_mutations_filtered_table_idx',
-                                       'clonal_driver_mutations_filtered'])
-    list_type_cols = ['comb',
-                      'clonal_cna_filter',
-                      'reliable_seg_absolute_copy_number',
-                      'clonal_driver_mutations_filtered_table_idx',
-                      'clonal_driver_mutations_filtered']
-    mod_tab_df[list_type_cols] = mod_tab_df[list_type_cols].astype('object')
-    mod_tab_df['alpha'] = mode_tab[:, 0]
-    err = estimate_purity_ci(mode_tab[:, 0])
-    mod_tab_df['alpha_CIL'] = mode_tab[:, 0] - err
-    mod_tab_df['alpha_CIH'] = mode_tab[:, 0] + err
-    mod_tab_df['tau'] = mode_tab[:, 1]
-    mod_tab_df['tau_hat'] = mode_tab[:, 7]
-    mod_tab_df['0_line'] = mode_tab[:, 3]
-    mod_tab_df['step_size'] = (1.0 - mod_tab_df['0_line']) / (mod_tab_df['tau'] / 2.0)
-    return mod_tab_df
-    
 def gen_mut_figure(r, maf_col, 
                    chromosome_col='Chromosome', 
                    start_position_col='Start_position', 
@@ -120,7 +86,9 @@ def gen_mut_figure(r, maf_col,
     fig.update_layout(plot_bgcolor='rgba(0,0,0,0)')
     fig.update_yaxes(range=[0, 1])
     return fig
-    
+
+
+
 def gen_cnp_figure(r, 
                    acs_col,
                    sigmas=True, 
@@ -144,19 +112,25 @@ def gen_cnp_figure(r,
     
     return cnp_fig
 
-def gen_absolute_figures(r, 
-                         acs_col, 
-                         maf_col,
-                         chromosome_col='Chromosome', 
-                         start_position_col='Start_position', 
-                         variant_type_col='Variant_Type',
-                         alt_count_col='t_alt_count',
-                         ref_count_col='t_ref_count',
-                         sigmas=True, 
-                         mu_major_col='mu.major', 
-                         mu_minor_col='mu.minor', 
-                         length_col='length',
-                         csize=csize):
+def gen_absolute_component(r, 
+                           acs_col, 
+                           maf_col,
+                           rdata_fn_col,
+                           chromosome_col='Chromosome', 
+                           start_position_col='Start_position', 
+                           variant_type_col='Variant_Type',
+                           alt_count_col='t_alt_count',
+                           ref_count_col='t_ref_count',
+                           sigmas=True, 
+                           mu_major_col='mu.major', 
+                           mu_minor_col='mu.minor', 
+                           length_col='length',
+                           csize=csize,
+#                            use_internal_callback=False
+                          ):
+    
+    absolute_rdata_data = parse_absolute_soln(r[rdata_fn_col])
+    
     cnp_fig = gen_cnp_figure(r, 
                              acs_col,
                              sigmas=sigmas, 
@@ -173,7 +147,45 @@ def gen_absolute_figures(r,
                              csize=csize
                             )
     
-    return [cnp_fig, mut_fig]
+    return [absolute_rdata_data, cnp_fig, mut_fig]
+
+def update_absolute_component(table_data, selected_row, cnp_fig, mut_fig):
+    cnp_fig.update_layout(title=f'{table_data[selected_row]["0_line"]}')
+    return cnp_fig, mut_fig
+
+
+absolute_rdata_cols = ['alpha', 'tau', 'tau_hat', '0_line', '1_line',
+                       'sigma_H', 
+                       'theta_Q', 
+                       'lambda',  
+                       'SCNA_likelihood', 
+                       'Kar_likelihood', 
+                       'SSNVs_likelihood']
+def parse_absolute_soln(rdata_path: str): # has to be a local path
+    pandas2ri.activate()
+    
+    r_list_vector = robjects.r['load'](rdata_path)
+    r_list_vector = robjects.r[r_list_vector[0]]
+    r_data_id = r_list_vector.names[0]
+
+    rdata_tables = r_list_vector.rx2(str(r_data_id))
+
+    mode_res = rdata_tables.rx2('mode.res')
+    mode_tab = mode_res.rx2('mode.tab')
+    mod_tab_df = pd.DataFrame(columns=absolute_rdata_cols)
+    mod_tab_df['alpha'] = mode_tab[:, 0]
+    mod_tab_df['tau'] = mode_tab[:, 1]
+    mod_tab_df['tau_hat'] = mode_tab[:, 7]
+    mod_tab_df['0_line'] = mode_tab[:, 3]
+    mod_tab_df['step_size'] = mode_tab[:, 4] * 2
+    mod_tab_df['1_line'] = mod_tab_df['step_size'] * 2 + mod_tab_df['0_line']
+    mod_tab_df['sigma_H'] = mode_tab[:, 8]
+    mod_tab_df['theta_Q'] = mode_tab[:, 11]
+    mod_tab_df['lambda'] = mode_tab[:, 12]
+    mod_tab_df['SCNA_likelihood'] = mode_tab[:, 15]
+    mod_tab_df['Kar_likelihood'] = mode_tab[:, 17]
+    mod_tab_df['SSNVs_likelihood'] = mode_tab[:, 20]
+    return mod_tab_df.to_dict('records')
     
 
 class MatchedPurityReviewer(Reviewer):
@@ -196,7 +208,9 @@ class MatchedPurityReviewer(Reviewer):
     def gen_review_data_app(review_data_obj, 
                             sample_info_cols,
                             acs_col,
-                            maf_col):
+                            maf_col,
+                            rdata_fn_col,
+                           ):
 
         app = ReviewDataApp(review_data_obj)
 
@@ -209,17 +223,41 @@ class MatchedPurityReviewer(Reviewer):
                                   callback_output=[Output('sample-info-component', 'children')],
                                   func=gen_data_summary_table, 
                                   cols=sample_info_cols)
-
+        
         # For now just plot copy number profile
         app.add_custom_component('cnp-plot',
-                                 html.Div(children=[html.H1('Copy Number Profile'), 
+                                 html.Div(children=[html.H1('Absolute Solutions'), 
+                                                    html.H2('Absolute Solutions Table'), 
+                                                    dash_table.DataTable(
+                                                                        id='absolute-rdata-select-table',
+                                                                        columns=[
+                                                                            {"name": i, 
+                                                                             "id": i} for i in absolute_rdata_cols
+                                                                        ],
+                                                        data=pd.DataFrame(columns=absolute_rdata_cols).to_dict('records'),
+                                                                        editable=False,
+                                                                        filter_action="native",
+                                                                        sort_action="native",
+                                                                        sort_mode="multi",
+                                                                        row_selectable="single",
+                                                                        row_deletable=False,
+                                                                        selected_columns=[],
+                                                                        selected_rows=[0],
+                                                                        page_action="native",
+                                                                        page_current= 0,
+                                                                        page_size= 5),
+                                                    html.H2('Copy Number Profile'), 
                                                     dcc.Graph(id='cnp-graph', figure={}),
                                                     dcc.Graph(id='mut-graph', figure={})
                                                    ]),
-                                 callback_output=[Output('cnp-graph', 'figure'), Output('mut-graph', 'figure')],
-                                 func=gen_absolute_figures,
+#                                  callback_input=[Input()]
+                                 callback_output=[Output('absolute-rdata-select-table', 'data'),
+                                                  Output('cnp-graph', 'figure'), 
+                                                  Output('mut-graph', 'figure')],
+                                 func=gen_absolute_component,
                                  acs_col=acs_col,
-                                 maf_col=maf_col
+                                 maf_col=maf_col,
+                                 rdata_fn_col=rdata_fn_col,
                                 )
 
         return app

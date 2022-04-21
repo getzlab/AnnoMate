@@ -23,10 +23,13 @@ class AppComponent:
     
     def __init__(self, name, 
                  components, 
-                 callback=None, 
+                 callback=None, # update everything
                  callback_output=[], 
                  callback_input=[],
                  callback_state=[],
+#                  internal_callback=None,
+#                  internal_callback_output=[], 
+#                  internal_callback_input=[],
                 ):
         self.name = name
         self.component = html.Div(components)
@@ -34,6 +37,14 @@ class AppComponent:
         self.callback_output = callback_output
         self.callback_input = callback_input
         self.callback_state = callback_state
+        
+#         self.internal_callback = internal_callback
+#         self.internal_callback_output = internal_callback_output
+#         self.internal_callback_input = internal_callback_input
+        
+#         component.internal_output_index = {output_obj: np.argmax() for output_obj in internal_callback_output}
+        
+        # TODO: check internal callback outputs and inputs are within the original component
         
         # TODO: option to update anotations
         # TODO: reset function (switching samples) and a page function
@@ -82,6 +93,7 @@ class ReviewDataApp:
             output_dict = {'history_table': dash.no_update, 
                            'annot_panel': {annot_col: dash.no_update for annot_col in self.review_data.annot.columns}, 
                            'more_component_outputs': {c.name: [dash.no_update for i in range(len(c.callback_output))] for c in self.more_components}}
+            print(output_dict)
             
             if prop_id == 'APP-dropdown-data-state':
 
@@ -107,7 +119,10 @@ class ReviewDataApp:
                     component = self.more_components[i]
                     if sum([c.component_id == prop_id for c in self.more_components[i].callback_input]) > 0:
                         component_output = component.callback(self.review_data.data.loc[dropdown_value], *more_component_inputs[component.name])
-                        output_dict['more_component_outputs'][component.name] = component_output # force having output as array specify names in the callback outputs?
+                        output_dict['more_component_outputs'][component.name] = component_output # force having output as array specify names in the callback outputs? Or do it by dictionary
+#                         elif isinstance(component_output, dict):
+#                             for output, new_value in component_output.items():
+#                                 output_dict['more_component_outputs'][component.name][component.internal_output_index[output]] = new_value
                 pass
             return output_dict
         
@@ -208,8 +223,8 @@ class ReviewDataApp:
                              component_name, 
                              component_layout,
                              func, 
-                             callback_output, 
-                             callback_input=[], 
+                             callback_output: [Output], 
+                             callback_input: [Input]=[], 
                              add_autofill=False,
                              autofill_dict={}, # annot_col: component output id
                              **kwargs):
@@ -221,11 +236,12 @@ class ReviewDataApp:
             self.autofill_buttons += [autofill_button_component]
             self.autofill_input_dict[autofill_button_component.id] = autofill_dict
             
-        component = AppComponent(component_name, component_layout, 
-                                  lambda *args: func(*args, **kwargs),
-                                  callback_output=callback_output, 
-                                  callback_input=callback_input
-                                 )
+        component = AppComponent(component_name, 
+                                 component_layout, 
+                                 callback=lambda *args: func(*args, **kwargs),
+                                 callback_output=callback_output, 
+                                 callback_input=callback_input,
+                                )
         
         self.more_components.append(component)
         
