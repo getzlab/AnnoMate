@@ -1,5 +1,5 @@
-from getzlab_JupyterReviewer.src.ReviewData import ReviewData, ReviewDataAnnotation
-from getzlab_JupyterReviewer.src.ReviewDataApp import ReviewDataApp
+from src.ReviewData import ReviewData, ReviewDataAnnotation
+from src.ReviewDataApp import ReviewDataApp
 
 import pandas as pd
 import numpy as np
@@ -34,7 +34,10 @@ csize = {'1': 249250621, '2': 243199373, '3': 198022430, '4': 191154276, '5': 18
         '16': 90354753, '17': 81195210, '18': 78077248, '19': 59128983, '20': 63025520,
         '21': 48129895, '22': 51304566, '23': 156040895, '24': 57227415}
 
-def gen_data_summary_table(r, cols):
+def gen_data_summary_table(data_df, 
+                           data_id, 
+                           cols):
+    r = data_df.loc[data_id]
     sample_data_df = r[cols].to_frame()
     sample_data_df[r.name] = sample_data_df[r.name].astype(str)
     sample_data_df['Console_link'] = ''
@@ -124,13 +127,14 @@ def gen_cnp_figure(acs_fn,
     
     return cnp_fig
 
-def gen_absolute_component(r, 
+def gen_absolute_component(data_df, 
+                           data_id, 
                            selected_row_array, # dash app parameters come first
                            rdata_tsv_fn,
                            cnp_fig_pkl_fn_col,
                            mut_fig_pkl_fn_col
                           ):
-    
+    r = data_df.loc[data_id]
     absolute_rdata_df = pd.read_csv(r[rdata_tsv_fn], sep='\t')
 
     cnp_fig = load_pickle(r[cnp_fig_pkl_fn_col])
@@ -139,6 +143,7 @@ def gen_absolute_component(r,
 
 
     # add 1 and 0 lines
+    mut_fig_with_lines = go.Figure(mut_fig)
     cnp_fig_with_lines = go.Figure(cnp_fig)
     solution_data = absolute_rdata_df.iloc[selected_row_array[0]]
     i = 0
@@ -151,10 +156,18 @@ def gen_absolute_component(r,
                                      line_width=1
                                     )
         i += 1
+        
+    half_1_line = solution_data['alpha'] / 2.0
+    mut_fig_with_lines.add_hline(y=half_1_line, 
+                                line_dash="dash", 
+                                line_color='black',
+                                line_width=1)
+
+    mut_fig_with_lines.update_yaxes(range=[0, half_1_line * 2])
 
     return [absolute_rdata_df.to_dict('records'), 
             cnp_fig_with_lines, 
-            mut_fig,
+            mut_fig_with_lines,
             solution_data['alpha'],
             solution_data['tau_hat']]
 

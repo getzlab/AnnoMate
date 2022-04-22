@@ -18,7 +18,7 @@ import dash
 import dash_bootstrap_components as dbc
 import functools
 
-from getzlab_JupyterReviewer.src.ReviewData import ReviewData, ReviewDataAnnotation, AnnotationType
+from src.ReviewData import ReviewData, ReviewDataAnnotation, AnnotationType
 
 class AppComponent:
     
@@ -106,7 +106,9 @@ class ReviewDataApp:
                 for i in range(len(self.more_components)):
                     component = self.more_components[i]
                     # reset vs row dependent
-                    component_output = component.callback(self.review_data.data.loc[dropdown_value], *more_component_inputs[component.name])
+                    component_output = component.callback(self.review_data.data, # Require call backs first two args be the dataframe and the index value
+                                                          dropdown_value, 
+                                                          *more_component_inputs[component.name])
                     output_dict['more_component_outputs'][component.name] = component_output # force this? specify names in the callback outputs?
                     
                 output_dict['history_table'] = dbc.Table.from_dataframe(self.review_data.history.loc[self.review_data.history['index'] == dropdown_value])
@@ -126,7 +128,8 @@ class ReviewDataApp:
                 for i in range(len(self.more_components)):
                     component = self.more_components[i]
                     if sum([c.component_id == prop_id for c in self.more_components[i].callback_input]) > 0:
-                        component_output = component.callback(self.review_data.data.loc[dropdown_value], 
+                        component_output = component.callback(self.review_data.data, # Require call backs first two args be the dataframe and the index value
+                                                              dropdown_value, 
                                                               *more_component_inputs[component.name])
                         output_dict['more_component_outputs'][component.name] = component_output # force having output as array specify names in the callback outputs? Or do it by dictionary
                 pass
@@ -217,7 +220,7 @@ class ReviewDataApp:
                                    id=component_name)
         table_component = AppComponent(component_name, 
                                        [html.H1(table_name), table], 
-                                       lambda r: [dbc.Table.from_dataframe(pd.read_csv(r[col], sep='\t')[table_cols])],
+                                       lambda df, idx: [dbc.Table.from_dataframe(pd.read_csv(r=df.loc[idx, col], sep='\t', encoding='iso-8859-1')[table_cols])],
                                        callback_output=[Output(component_name, 'children')], 
                                       )
         self.more_components.append(table_component)
