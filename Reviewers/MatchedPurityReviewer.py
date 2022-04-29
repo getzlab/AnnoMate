@@ -19,7 +19,7 @@ import dash
 import dash_bootstrap_components as dbc
 import functools
 
-from src.Reviewers.Reviewer import Reviewer
+from src.ReviewerTemplate import ReviewerTemplate
 from src.lib.plot_cnp import plot_acr_interactive
 
 from rpy2.robjects import r, pandas2ri
@@ -169,7 +169,24 @@ def gen_absolute_component(data_df,
             cnp_fig_with_lines, 
             mut_fig_with_lines,
             solution_data['alpha'],
-            solution_data['tau_hat']]
+            solution_data['tau_hat'], 
+            [0]]
+
+def internal_gen_absolute_component(data_df, 
+                                   data_id, 
+                                   selected_row_array, # dash app parameters come first
+                                   rdata_tsv_fn,
+                                   cnp_fig_pkl_fn_col,
+                                   mut_fig_pkl_fn_col
+                                  ):
+    output_data = gen_absolute_component(data_df, 
+                                           data_id, 
+                                           selected_row_array, # dash app parameters come first
+                                           rdata_tsv_fn,
+                                           cnp_fig_pkl_fn_col,
+                                           mut_fig_pkl_fn_col)
+    output_data[-1] = selected_row_array
+    return output_data
 
 
 
@@ -210,7 +227,7 @@ def load_pickle(fn):
     return pickle.load(open(fn, "rb"))
     
 
-class MatchedPurityReviewer(Reviewer):
+class MatchedPurityReviewer(ReviewerTemplate):
 
 
     def gen_review_data_object(session_dir, 
@@ -300,9 +317,7 @@ class MatchedPurityReviewer(Reviewer):
                             mut_fig_pkl_fn_col='mut_figs_pkl',
                            ):
 
-
         app = ReviewDataApp(review_data_obj)
-
         app.add_custom_component('cnp-plot',
                                  html.Div(children=[html.H1('Absolute Solutions'), 
                                                     html.H2('Absolute Solutions Table'), 
@@ -336,13 +351,15 @@ class MatchedPurityReviewer(Reviewer):
                                                     dcc.Graph(id='cnp-graph', figure={}),
                                                     dcc.Graph(id='mut-graph', figure={})
                                                    ]),
-                                 func=gen_absolute_component,
+                                 new_data_callback=gen_absolute_component,
+                                 internal_callback=internal_gen_absolute_component,
                                  callback_input=[Input('absolute-rdata-select-table', 'selected_rows')],
                                  callback_output=[Output('absolute-rdata-select-table', 'data'),
                                                   Output('cnp-graph', 'figure'), 
                                                   Output('mut-graph', 'figure'),
                                                   Output('absolute-purity', 'children'),
-                                                  Output('absolute-ploidy', 'children')
+                                                  Output('absolute-ploidy', 'children'),
+                                                  Output('absolute-rdata-select-table', 'selected_rows')
                                                  ],
                                  add_autofill=True,
                                  autofill_dict={'purity': Input('absolute-purity', 'children'),
@@ -358,7 +375,7 @@ class MatchedPurityReviewer(Reviewer):
                                            id='sample-info-component'
                                           ), 
                                   callback_output=[Output('sample-info-component', 'children')],
-                                  func=gen_data_summary_table, 
+                                  new_data_callback=gen_data_summary_table, 
                                   cols=sample_info_cols)
 
         return app
