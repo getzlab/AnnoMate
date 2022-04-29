@@ -1,5 +1,5 @@
-from getzlab_JupyterReviewer.src.ReviewData import ReviewData, ReviewDataAnnotation
-from getzlab_JupyterReviewer.src.ReviewDataApp import ReviewDataApp
+from ....src.ReviewData import ReviewData, ReviewDataAnnotation
+from ....src.ReviewDataApp import ReviewDataApp
 
 import pandas as pd
 import numpy as np
@@ -19,8 +19,8 @@ import dash
 import dash_bootstrap_components as dbc
 import functools
 
-from getzlab_JupyterReviewer.src.Reviewers.Reviewer import Reviewer
-from getzlab_JupyterReviewer.src.lib.plot_cnp import plot_acr_interactive
+from ....src.Reviewers.Reviewer import Reviewer
+from ....src.lib.plot_cnp import plot_acr_interactive
 
 from rpy2.robjects import r, pandas2ri
 import rpy2.robjects as robjects
@@ -53,7 +53,8 @@ class UnmatchedPurityReviewer(Reviewer):
                            ):
         app = ReviewDataApp(review_data_obj)
         
-        def gen_data_summary_table(r, cols):
+        def gen_data_summary_table(data_df, idx, cols):
+            r = data_df.loc[idx]
             sample_data_df = r[cols].to_frame()
             sample_data_df[r.name] = sample_data_df[r.name].astype(str)
             sample_data_df['Console_link'] = ''

@@ -1,5 +1,5 @@
-from src.ReviewData import ReviewData, ReviewDataAnnotation
-from src.ReviewDataApp import ReviewDataApp
+from ..ReviewData import ReviewData, ReviewDataAnnotation
+from ..ReviewDataApp import ReviewDataApp
 
 import pandas as pd
 import numpy as np

@@ -220,7 +220,7 @@ class ReviewDataApp:
                                    id=component_name)
         table_component = AppComponent(component_name, 
                                        [html.H1(table_name), table], 
-                                       lambda df, idx: [dbc.Table.from_dataframe(pd.read_csv(r=df.loc[idx, col], sep='\t', encoding='iso-8859-1')[table_cols])],
+                                       lambda df, idx: [dbc.Table.from_dataframe(pd.read_csv(df.loc[idx, col], sep='\t', encoding='iso-8859-1')[table_cols])],
                                        callback_output=[Output(component_name, 'children')], 
                                       )
         self.more_components.append(table_component)
