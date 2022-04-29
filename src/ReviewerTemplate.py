@@ -1,5 +1,5 @@
-from ..ReviewData import ReviewData, ReviewDataAnnotation
-from ..ReviewDataApp import ReviewDataApp
+from .ReviewData import ReviewData, ReviewDataAnnotation
+from .ReviewDataApp import ReviewDataApp
 
 import pandas as pd
 import numpy as np
@@ -9,7 +9,7 @@ import time
 from abc import ABC, abstractmethod
 
 
-class Reviewer(ABC):
+class ReviewerTemplate(ABC):
     
     @abstractmethod
     def gen_review_data_object(session_dir, 

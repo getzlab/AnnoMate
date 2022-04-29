@@ -24,18 +24,19 @@ class AppComponent:
     
     def __init__(self, name, 
                  components, 
-                 callback=None, # update everything
+                 new_data_callback=None, # update everything
+                 internal_callback=None, # internal changes
                  callback_output=[], 
                  callback_input=[],
-                 callback_state=[],
+                 callback_state=[]
                 ):
         self.name = name
         self.component = html.Div(components)
-        self.callback = callback
+        self.new_data_callback = new_data_callback
+        self.internal_callback = internal_callback
         self.callback_output = callback_output
         self.callback_input = callback_input
         self.callback_state = callback_state
-        
         
         # TODO: check internal callback outputs and inputs are within the original component
         
@@ -66,7 +67,7 @@ class ReviewDataApp:
             return r.name
         
         
-    def run_app(self, mode, host='0.0.0.0', port=8050):
+    def run(self, mode, host='0.0.0.0', port=8050):
         app = JupyterDash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
         app.layout = self.gen_layout()
 
@@ -106,10 +107,10 @@ class ReviewDataApp:
                 for i in range(len(self.more_components)):
                     component = self.more_components[i]
                     # reset vs row dependent
-                    component_output = component.callback(self.review_data.data, # Require call backs first two args be the dataframe and the index value
+                    component_output = component.new_data_callback(self.review_data.data, # Require call backs first two args be the dataframe and the index value
                                                           dropdown_value, 
                                                           *more_component_inputs[component.name])
-                    output_dict['more_component_outputs'][component.name] = component_output # force this? specify names in the callback outputs?
+                    output_dict['more_component_outputs'][component.name] = component_output
                     
                 output_dict['history_table'] = dbc.Table.from_dataframe(self.review_data.history.loc[self.review_data.history['index'] == dropdown_value])
                 output_dict['annot_panel'] = {annot_col: '' for annot_col in self.review_data.annot.columns} # TODO set defaults?
@@ -128,7 +129,7 @@ class ReviewDataApp:
                 for i in range(len(self.more_components)):
                     component = self.more_components[i]
                     if sum([c.component_id == prop_id for c in self.more_components[i].callback_input]) > 0:
-                        component_output = component.callback(self.review_data.data, # Require call backs first two args be the dataframe and the index value
+                        component_output = component.internal_callback(self.review_data.data, # Require call backs first two args be the dataframe and the index value
                                                               dropdown_value, 
                                                               *more_component_inputs[component.name])
                         output_dict['more_component_outputs'][component.name] = component_output # force having output as array specify names in the callback outputs? Or do it by dictionary
@@ -220,7 +221,7 @@ class ReviewDataApp:
                                    id=component_name)
         table_component = AppComponent(component_name, 
                                        [html.H1(table_name), table], 
-                                       lambda df, idx: [dbc.Table.from_dataframe(pd.read_csv(df.loc[idx, col], sep='\t', encoding='iso-8859-1')[table_cols])],
+                                       new_data_callback = lambda df, idx: [dbc.Table.from_dataframe(pd.read_csv(df.loc[idx, col], sep='\t', encoding='iso-8859-1')[table_cols])],
                                        callback_output=[Output(component_name, 'children')], 
                                       )
         self.more_components.append(table_component)
@@ -228,9 +229,10 @@ class ReviewDataApp:
     def add_custom_component(self, 
                              component_name, 
                              component_layout,
-                             func, 
+                             new_data_callback, # switching data
                              callback_output: [Output], 
                              callback_input: [Input]=[], 
+                             internal_callback=None, # within the component
                              add_autofill=False,
                              autofill_dict={}, # annot_col: component output id
                              **kwargs):
@@ -244,7 +246,8 @@ class ReviewDataApp:
             
         component = AppComponent(component_name, 
                                  component_layout, 
-                                 callback=lambda *args: func(*args, **kwargs),
+                                 new_data_callback=lambda *args: new_data_callback(*args, **kwargs),
+                                 internal_callback=lambda *args: internal_callback(*args, **kwargs),
                                  callback_output=callback_output, 
                                  callback_input=callback_input,
                                 )
