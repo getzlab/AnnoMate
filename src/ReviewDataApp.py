@@ -18,7 +18,7 @@ import dash
 import dash_bootstrap_components as dbc
 import functools
 
-from .ReviewData import ReviewData, ReviewDataAnnotation, AnnotationType
+from ReviewData import ReviewData, ReviewDataAnnotation, AnnotationType
 
 class AppComponent:
     
@@ -129,9 +129,14 @@ class ReviewDataApp:
                 for i in range(len(self.more_components)):
                     component = self.more_components[i]
                     if sum([c.component_id == prop_id for c in self.more_components[i].callback_input]) > 0:
-                        component_output = component.internal_callback(self.review_data.data, # Require call backs first two args be the dataframe and the index value
+                        try:
+                            component_output = component.internal_callback(self.review_data.data, # Require call backs first two args be the dataframe and the index value
                                                               dropdown_value, 
                                                               *more_component_inputs[component.name])
+                        except TypeError: # component.internal_callback is nonetype
+                            component_output = component.new_data_callback(self.review_data.data, 
+                                                                           dropdown_value, 
+                                                                           *more_component_inputs[component.name])
                         output_dict['more_component_outputs'][component.name] = component_output # force having output as array specify names in the callback outputs? Or do it by dictionary
                 pass
             return output_dict

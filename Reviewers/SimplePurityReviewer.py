@@ -1,5 +1,5 @@
-from ....src.ReviewData import ReviewData, ReviewDataAnnotation
-from ....src.ReviewDataApp import ReviewDataApp
+from ..src.ReviewData import ReviewData, ReviewDataAnnotation
+from ..src.ReviewDataApp import ReviewDataApp
 
 import pandas as pd
 import numpy as np
@@ -19,15 +19,15 @@ import dash
 import dash_bootstrap_components as dbc
 import functools
 
-from ....src.Reviewers.Reviewer import Reviewer
-from ....src.lib.plot_cnp import plot_acr_interactive
+from ..src.ReviewerTemplate import ReviewerTemplate
+from ..src.lib.plot_cnp import plot_acr_interactive
 
 from rpy2.robjects import r, pandas2ri
 import rpy2.robjects as robjects
 import os
 import pickle
 
-class UnmatchedPurityReviewer(Reviewer):
+class SimplePurityReviewer(ReviewerTemplate):
 
 
     def gen_review_data_object(session_dir, 
@@ -73,7 +73,7 @@ class UnmatchedPurityReviewer(Reviewer):
                                            id='sample-info-component'
                                           ), 
                                   callback_output=[Output('sample-info-component', 'children')],
-                                  func=gen_data_summary_table, 
+                                  new_data_callback=gen_data_summary_table, 
                                   cols=sample_table_cols)
 
         
