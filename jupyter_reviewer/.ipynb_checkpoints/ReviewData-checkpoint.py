@@ -62,26 +62,14 @@ class ReviewData:
         self.annotate_data = annotate_data
         
         self.review_data_fn = review_data_fn
-        # self.data_fn = f'{review_dir}/data.tsv'
-        # self.annot_fn = f'{review_dir}/annot.tsv'
-        # self.history_fn = f'{review_dir}/history.tsv'
         
         if not os.path.exists(self.review_data_fn):
-            # os.mkdir(self.review_dir)
             self.data = df
-            # self.data.to_csv(self.data_fn, sep='\t')
             self.annot = pd.DataFrame(index=df.index, columns=annotate_cols) # Add more columns. If updating an existing column, will make a new one
-            # self.annot.to_csv(self.annot_fn, sep='\t')
             self.history = pd.DataFrame(columns=annotate_cols + ['index', 'timestamp']) # track all the manual changes, including time stamp
-            # self.history.to_csv(self.history_fn, sep='\t')
             self.save()
-            # pickle.dump(self, open(self.review_data_fn, "wb" ))
         else:
             self.load()
-            # return pickle.load(open(self.review_data_fn, "rb" ))
-            # self.data = pd.read_csv(self.data_fn, sep='\t', index_col=0)
-            # self.annot = pd.read_csv(self.annot_fn, sep='\t', index_col=0)
-            # self.history = pd.read_csv(self.history_fn, sep='\t', index_col=0)
             
         # Add additional annotation columns
         new_annot_cols = [c for c in annotate_cols if c not in self.annot.columns]
@@ -136,11 +124,6 @@ class ReviewData:
         series['timestamp'] = datetime.today()
         series['index'] = data_idx
         self.history = self.history.append(series, ignore_index=True)
-        
-        # write to file
-        # self.data.to_csv(self.data_fn, sep='\t')
-        # self.annot.to_csv(self.annot_fn, sep='\t')
-        # self.history.to_csv(self.history_fn, sep='\t')
         self.save()
         
         
