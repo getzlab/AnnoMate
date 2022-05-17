@@ -12,6 +12,7 @@ from datetime import datetime
 import os
 import numpy as np
 import warnings
+import pickle
 
 from enum import Enum
 class AnnotationType(Enum):
@@ -51,7 +52,7 @@ class ReviewDataAnnotation:
 class ReviewData:
     
     def __init__(self, 
-                 review_dir: str, # path to directory to save info
+                 review_data_fn: str, # path to save object
                  df: pd.DataFrame, # optional if directory above already exists. 
                  annotate_data: {str: ReviewDataAnnotation}, # dictionary naming column and type of data (text, float, checkbox, radio)
                 ):
@@ -60,23 +61,27 @@ class ReviewData:
         annotate_cols = list(annotate_data.keys())
         self.annotate_data = annotate_data
         
-        self.review_dir = review_dir
-        self.data_fn = f'{review_dir}/data.tsv'
-        self.annot_fn = f'{review_dir}/annot.tsv'
-        self.history_fn = f'{review_dir}/history.tsv'
+        self.review_data_fn = review_data_fn
+        # self.data_fn = f'{review_dir}/data.tsv'
+        # self.annot_fn = f'{review_dir}/annot.tsv'
+        # self.history_fn = f'{review_dir}/history.tsv'
         
-        if not os.path.isdir(self.review_dir):
-            os.mkdir(self.review_dir)
+        if not os.path.exists(self.review_data_fn):
+            # os.mkdir(self.review_dir)
             self.data = df
-            self.data.to_csv(self.data_fn, sep='\t')
+            # self.data.to_csv(self.data_fn, sep='\t')
             self.annot = pd.DataFrame(index=df.index, columns=annotate_cols) # Add more columns. If updating an existing column, will make a new one
-            self.annot.to_csv(self.annot_fn, sep='\t')
+            # self.annot.to_csv(self.annot_fn, sep='\t')
             self.history = pd.DataFrame(columns=annotate_cols + ['index', 'timestamp']) # track all the manual changes, including time stamp
-            self.history.to_csv(self.history_fn, sep='\t')
+            # self.history.to_csv(self.history_fn, sep='\t')
+            self.save()
+            # pickle.dump(self, open(self.review_data_fn, "wb" ))
         else:
-            self.data = pd.read_csv(self.data_fn, sep='\t', index_col=0)
-            self.annot = pd.read_csv(self.annot_fn, sep='\t', index_col=0)
-            self.history = pd.read_csv(self.history_fn, sep='\t', index_col=0)
+            self.load()
+            # return pickle.load(open(self.review_data_fn, "rb" ))
+            # self.data = pd.read_csv(self.data_fn, sep='\t', index_col=0)
+            # self.annot = pd.read_csv(self.annot_fn, sep='\t', index_col=0)
+            # self.history = pd.read_csv(self.history_fn, sep='\t', index_col=0)
             
         # Add additional annotation columns
         new_annot_cols = [c for c in annotate_cols if c not in self.annot.columns]
@@ -99,6 +104,20 @@ class ReviewData:
                               f'Remaining columns are not going to be updated.' + 
                               f'If you intend to change the ReviewData.data attribute, make a new session directory and prefill the annotation data')
             
+    def load(self):
+        f = open(self.review_data_fn, 'rb')
+        tmp_dict = pickle.load(f)
+        f.close()          
+
+        self.__dict__.update(tmp_dict) 
+
+
+    def save(self):
+        f = open(self.review_data_fn, 'wb')
+        pickle.dump(self.__dict__, f, 2)
+        f.close()
+    
+    
     def pre_fill_annot(df: pd.DataFrame):
         # TODO: check index already exists. Use _update()
         valid_annot_cols = [c for c in df.columns if c in self.annot.columns]
@@ -119,8 +138,9 @@ class ReviewData:
         self.history = self.history.append(series, ignore_index=True)
         
         # write to file
-        self.data.to_csv(self.data_fn, sep='\t')
-        self.annot.to_csv(self.annot_fn, sep='\t')
-        self.history.to_csv(self.history_fn, sep='\t')
+        # self.data.to_csv(self.data_fn, sep='\t')
+        # self.annot.to_csv(self.annot_fn, sep='\t')
+        # self.history.to_csv(self.history_fn, sep='\t')
+        self.save()
         
         

@@ -222,7 +222,7 @@ class ReviewDataApp:
     
     def add_table_from_path(self, table_name, component_name, col, table_cols):
         
-        table = html.Div(dbc.Table.from_dataframe(pd.read_csv(self.review_data.data.iloc[0][col], sep='\t')[table_cols]), 
+        table = html.Div(dbc.Table.from_dataframe(pd.DataFrame()), 
                                    id=component_name)
         table_component = AppComponent(component_name, 
                                        [html.H1(table_name), table], 
