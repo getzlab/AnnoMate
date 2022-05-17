@@ -22,7 +22,8 @@ from .ReviewData import ReviewData, ReviewDataAnnotation, AnnotationType
 
 class AppComponent:
     
-    def __init__(self, name, 
+    def __init__(self, 
+                 name, 
                  components, 
                  new_data_callback=None, # update everything
                  internal_callback=None, # internal changes
@@ -145,7 +146,7 @@ class ReviewDataApp:
         
         
     def gen_annotation_panel_component(self):
-        annotation_data = self.review_data.annotate_data
+        annotation_data = self.review_data.review_data_annotation_list
         
         
         submit_annot_button = html.Button(id='APP-submit-button-state', n_clicks=0, children='Submit')
@@ -188,13 +189,13 @@ class ReviewDataApp:
                 
             return dbc.Row([dbc.Label(annot_name, html_for=input_component_id, width=2), dbc.Col(input_component)])
         
-        panel_components = self.autofill_buttons + [annotation_input(annot_name, annot) for annot_name, annot in self.review_data.annotate_data.items()] + [submit_annot_button]
+        panel_components = self.autofill_buttons + [annotation_input(annot.name, annot) for annot in self.review_data.review_data_annotation_list] + [submit_annot_button]
         panel_inputs = [Input('APP-submit-button-state', 'nclicks')]
         return AppComponent(name='APP-Panel',
                            components=panel_components, 
-                           callback_output={annot_name: Output(f"APP-{annot_name}-{annot.annot_type}-input-state", "value") for annot_name, annot in self.review_data.annotate_data.items()},
+                           callback_output={annot.name: Output(f"APP-{annot.name}-{annot.annot_type}-input-state", "value") for annot in self.review_data.review_data_annotation_list},
                            callback_input=panel_inputs,
-                           callback_state={annot_name: State(f"APP-{annot_name}-{annot.annot_type}-input-state", "value") for annot_name, annot in self.review_data.annotate_data.items()}
+                           callback_state={annot.name: State(f"APP-{annot.name}-{annot.annot_type}-input-state", "value") for annot in self.review_data.review_data_annotation_list}
                           )
         
     def gen_layout(self):

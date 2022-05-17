@@ -24,7 +24,8 @@ class AnnotationType(Enum):
 
 class ReviewDataAnnotation:
     
-    def __init__(self, 
+    def __init__(self,
+                 name,
                  annot_type: AnnotationType, 
                  options: []=[], 
                  validate_input=None,
@@ -33,6 +34,7 @@ class ReviewDataAnnotation:
         '''
         validate_input: a custom function to verify input. Returns a boolean
         '''
+        self.name = name
         self.annot_type = annot_type
         self.options = options
         self.validate_input = validate_input
@@ -54,16 +56,15 @@ class ReviewData:
     def __init__(self, 
                  review_data_fn: str, # path to save object
                  df: pd.DataFrame, # optional if directory above already exists. 
-                 annotate_data: {str: ReviewDataAnnotation}, # dictionary naming column and type of data (text, float, checkbox, radio)
+                 review_data_annotation_list: [ReviewDataAnnotation], # list
                 ):
         # check df index
-        
-        annotate_cols = list(annotate_data.keys())
-        self.annotate_data = annotate_data
+        self.review_data_annotation_list = review_data_annotation_list
         
         self.review_data_fn = review_data_fn
         
         if not os.path.exists(self.review_data_fn):
+            annotate_cols = [c.name for c in review_data_annotation_list]
             self.data = df
             self.annot = pd.DataFrame(index=df.index, columns=annotate_cols) # Add more columns. If updating an existing column, will make a new one
             self.history = pd.DataFrame(columns=annotate_cols + ['index', 'timestamp']) # track all the manual changes, including time stamp
@@ -71,14 +72,16 @@ class ReviewData:
         else:
             self.load()
             
-        # Add additional annotation columns
-        new_annot_cols = [c for c in annotate_cols if c not in self.annot.columns]
-        self.annot[new_annot_cols] = np.nan
-        self.history[new_annot_cols] = np.nan
+#         # Add additional annotation columns
+#         new_annot_cols = [c for c in annotate_cols if c not in self.annot.columns]
+#         self.annot[new_annot_cols] = np.nan
+#         self.history[new_annot_cols] = np.nan
         
-        for annot_name, annot in self.annotate_data.items():
-            if annot.annot_type in [AnnotationType.CHECKLIST, AnnotationType.RADIOITEM]:
-                self.annot[annot_name] = self.annot[annot_name].astype(object)
+#         for annot_name, annot in self.annotate_data.items():
+#             if annot.annot_type in [AnnotationType.CHECKLIST, AnnotationType.RADIOITEM]:
+#                 self.annot[annot_name] = self.annot[annot_name].astype(object)
+
+        self._add_annotations(review_data_annotation_list)
         
         # Add additional columns to table
         if not df.equals(self.data):
@@ -118,6 +121,35 @@ class ReviewData:
         warnings.warn(f'There was extra data in your input that was not added to the ReviewData object.\n' +
                       f'Invalid annotation cols: {invalid_annot_cols}\n' +
                       f'Invalid data indices: {invalid_data_idx}') 
+        
+    def add_annotation(self, 
+                       name,
+                       annot_type: AnnotationType, 
+                       options: []=[], 
+                       validate_input=None,
+                       default=None):
+        
+        review_annot = ReviewDataAnnotation(name=name, 
+                                            annot_type=annot_type, 
+                                            options=options, 
+                                            validate_input=validate_input, 
+                                            default=default)
+        self._add_annotations([review_annot])
+    
+    def _add_annotations(self, review_data_annotation_list):
+        
+        # Add additional annotation columns
+        new_annot_data_list = [c for c in review_data_annotation_list if c.name not in self.annot.columns]
+        new_annot_cols = [c.name for c in new_annot_data_list]
+        self.annot[new_annot_cols] = np.nan
+        self.history[new_annot_cols] = np.nan
+        self.review_data_annotation_list += new_annot_data_list
+        
+        for annot_data in new_annot_data_list:
+            if annot_data.annot_type in [AnnotationType.CHECKLIST, AnnotationType.RADIOITEM]:
+                self.annot[annot_data.name] = self.annot[annot_data.name].astype(object)
+                
+        
         
     def _update(self, data_idx, series):
         self.annot.loc[data_idx, list(series.keys())] = list(series.values())
