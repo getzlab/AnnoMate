@@ -163,8 +163,6 @@ class ReviewDataApp:
                            'more_component_outputs': {c.name: [dash.no_update for i in range(len(c.callback_output))] for c in self.more_components}}
 
             if prop_id == 'APP-dropdown-data-state':
-                if isinstance(dropdown_value, list):
-                    return output_dict
                 for i in range(len(self.more_components)):
                     component = self.more_components[i]
                     # reset vs row dependent
@@ -260,7 +258,7 @@ class ReviewDataApp:
         
     def gen_layout(self):
         dropdown = html.Div(dcc.Dropdown(options=self.reviewed_data_df.reset_index().to_dict('records'), 
-                                         value=[], 
+                                         value=None, 
                                          id='APP-dropdown-data-state'))
         
         self.dropdown_component = AppComponent(name='APP-dropdown-component',
