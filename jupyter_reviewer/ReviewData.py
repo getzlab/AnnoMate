@@ -44,11 +44,11 @@ class ReviewDataAnnotation:
         if len(self.options) > 0:
             for item in np.array([x]).flatten():
                 if item not in self.options:
-                    raise ValueError(f'Input {item} is not in the specified options {self.options} for annotation named {self.name}')
+                    raise ValueError(f'Input {item} is not in the specified options {self.options} for annotation named "{self.name}"')
                 
         if self.validate_input is not None:
             if not self.validate_input(x):
-                raise ValueError(f'Input {x} is invalid for annotation {self.name}. Check validate_input method')
+                raise ValueError(f'Input {x} is invalid for annotation "{self.name}". Check validate_input method for annotation "{self.name}"')
         
 
 class ReviewData:

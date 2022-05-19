@@ -144,6 +144,8 @@ class ReviewDataApp:
                 output_dict['annot_panel'] = {annot_col: '' for annot_col in self.review_data.annot.columns} # TODO set defaults?
                             
             elif (prop_id == 'APP-submit-button-state') & (submit_annot_button > 0):
+                for annot_type in self.review_data.review_data_annotation_list:
+                    annot_type.validate(annot_input_state[annot_type.name])
                 self.review_data._update(dropdown_value, annot_input_state)
                 output_dict['history_table'] = dbc.Table.from_dataframe(self.review_data.history.loc[self.review_data.history['index'] == dropdown_value])
                 self.reviewed_data_df.loc[dropdown_value, 'label'] = self.gen_dropdown_labels(self.reviewed_data_df.loc[dropdown_value])
@@ -193,9 +195,9 @@ class ReviewDataApp:
                                    )
             elif annot.annot_type == AnnotationType.NUMBER.value:
                 input_component = dbc.Input(type="number", 
-                                    id=input_component_id, 
-                                    placeholder=f"Enter {annot_name}",
-                                    value=annot.default,
+                                            id=input_component_id, 
+                                            placeholder=f"Enter {annot_name}",
+                                            value=annot.default,
                                    )
             elif annot.annot_type == AnnotationType.CHECKLIST.value:
                 input_component = dbc.Checklist(options=[{"label": f, "value": f} for f in annot.options],
