@@ -70,11 +70,6 @@ class ReviewDataApp:
         self.autofill_buttons = []
         self.autofill_input_dict = {} #{buttonid: {annot_col: Input(compoennt value)}}
         self.more_components = []  # TODO: set custom layout?
-#         self.review_data = review_data
-        
-#         self.reviewed_data_df = pd.DataFrame(index=self.review_data.annot.index, columns=['label'])
-#         self.reviewed_data_df['label'] = self.reviewed_data_df.apply(self.gen_dropdown_labels, axis=1)
-#         self.reviewed_data_df.index.name = 'value'
         
     def gen_dropdown_labels(self, review_data: ReviewData, r: pd.Series):
         data_history_df = review_data.history[review_data.history["index"] == r.name]
@@ -117,7 +112,7 @@ class ReviewDataApp:
                                   annot_input_state=self.annotation_panel_component.callback_state, #{annot.name: State(f"APP-{annot.name}-{annot.annot_type}-input-state", "value") for annot in self.review_data.annotate_data},
                                   more_component_inputs={c.name: c.callback_input for c in self.more_components}
                                  )
-                     ) # TODO: add back more components
+                     )
         def component_callback(dropdown_value, 
                                autofill_buttons,
                                autofill_inputs,
@@ -237,7 +232,9 @@ class ReviewDataApp:
         self.dropdown_component = AppComponent(name='APP-dropdown-component',
                                                components=[dropdown])
         
-        history_table = html.Div([dbc.Table.from_dataframe(pd.DataFrame(columns=review_data.history.columns))], id='APP-history-table')
+        history_table = html.Div([dbc.Table.from_dataframe(pd.DataFrame(columns=review_data.history.columns))], 
+                                 style={"overflow": "scroll"}, 
+                                 id='APP-history-table')
         self.history_component = AppComponent(name='APP-history-component',
                                                components=[history_table])
         
