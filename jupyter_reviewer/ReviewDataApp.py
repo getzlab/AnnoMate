@@ -65,14 +65,12 @@ class AppComponent:
         
     
 class ReviewDataApp:
-    def __init__(self, review_data: ReviewData, host='0.0.0.0', port=8051):
+    def __init__(self, review_data: ReviewData):
         self.prop = None
         self.autofill_buttons = []
         self.autofill_input_dict = {} #{buttonid: {annot_col: Input(compoennt value)}}
         self.more_components = []  # TODO: set custom layout?
         self.review_data = review_data
-        self.host = host
-        self.port = port
         
         self.reviewed_data_df = pd.DataFrame(index=self.review_data.annot.index, columns=['label'])
         self.reviewed_data_df['label'] = self.reviewed_data_df.apply(self.gen_dropdown_labels, axis=1)
