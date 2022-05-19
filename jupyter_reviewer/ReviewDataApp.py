@@ -18,11 +18,10 @@ import dash
 import dash_bootstrap_components as dbc
 import functools
 import inspect
+import enum
 
 from .ReviewData import ReviewData, ReviewDataAnnotation, AnnotationType
-
-
-
+    
 
 class AppComponent:
     
@@ -238,7 +237,7 @@ class ReviewDataApp:
                           ])
         
         all_ids = np.array(get_component_ids(layout))
-        check_duplicates(all_ids, 'component')
+        check_duplicates(all_ids, 'full component')
 
         return layout
     
@@ -279,7 +278,14 @@ class ReviewDataApp:
                                  callback_input=callback_input,
                                 )
         
+        ids_with_reserved_prefix_list = np.array(['APP-' in i for i in component.all_component_ids])
+        if ids_with_reserved_prefix_list.any():
+            raise ValueError(f'Some ids use reserved keyword "APP-". Please change the id name\n'
+                             f'Invalid component ids: {component.all_component_ids[np.argwhere(ids_with_reserved_prefix_list).flatten()]}')
+        
         self.more_components.append(component)
+        all_ids = get_component_ids([c.component for c in self.more_components])
+        check_duplicates(all_ids, f'ids found in previously added component from component named {component.name}')
         
         
 # Validation
