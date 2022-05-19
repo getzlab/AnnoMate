@@ -55,22 +55,44 @@ class ReviewData:
     
     def __init__(self, 
                  review_data_fn: str, # path to save object
-                 df: pd.DataFrame, # optional if directory above already exists. 
-                 review_data_annotation_list: [ReviewDataAnnotation], # list
+                 df: pd.DataFrame = pd.DataFrame(), # optional if file above already exists. 
+                 review_data_annotation_list: [ReviewDataAnnotation] = [], # list
+                 reuse_existing_review_data_fn: str = None, # reuse previous review data object
                 ):
         # check df index
-        self.review_data_annotation_list = review_data_annotation_list
+        self.review_data_annotation_list = review_data_annotation_list       
         
-        self.review_data_fn = review_data_fn
+        if reuse_existing_review_data_fn == review_data_fn:
+            raise ValueError(f'Inputs for review_data_fn and reuse_existing_review_data_fn are the same. '
+                             'Pass in a different file name for reuse_existing_review_data_fn\n'
+                             f'review_data_fn: {review_data_fn}\n'
+                             f'reuse_existing_review_data_fn: {reuse_existing_review_data_fn}')
         
-        if not os.path.exists(self.review_data_fn):
-            annotate_cols = [c.name for c in review_data_annotation_list]
-            self.data = df
-            self.annot = pd.DataFrame(index=df.index, columns=annotate_cols) # Add more columns. If updating an existing column, will make a new one
-            self.history = pd.DataFrame(columns=annotate_cols + ['index', 'timestamp']) # track all the manual changes, including time stamp
+        if not os.path.exists(review_data_fn):
+            if reuse_existing_review_data_fn is not None:
+                print(f'Copying from existing review session {reuse_existing_review_data_fn} ...')
+                self.load(reuse_existing_review_data_fn)
+                
+                missing_df_indices = np.array([i not in self.annot.index for i in df.index])
+                if missing_df_indices.any():
+                    raise ValueError(f'df input contains indices that does not already exist in the previous review session.\n'
+                                     f'Unavailable indices: {df.loc[missing_df_indices].index.tolist()}')
+                if df.index.shape[0] != self.data.shape[0]:
+                    warnings.warn('df input is smaller than the original review session df input. '
+                                  'New review session will only contain the previous data corresponding to newest df input')
+                self.annot = self.annot.loc[df.index]
+                self.history = self.history.loc[self.history['index'].isin(df.index)]
+            else:            
+                annotate_cols = [c.name for c in review_data_annotation_list]
+                self.annot = pd.DataFrame(index=df.index, columns=annotate_cols) # Add more columns. If updating an existing column, will make a new one
+                self.history = pd.DataFrame(columns=annotate_cols + ['index', 'timestamp']) # track all the manual changes, including time stamp    
+                
+            self.data = df # overwrite data frame.
+            self.review_data_fn = review_data_fn # change path to save object
             self.save()
         else:
-            self.load()
+            print(f'Loading existing review session {review_data_fn}...')
+            self.load(review_data_fn)
 
         self._add_annotations(review_data_annotation_list)
         
@@ -84,10 +106,12 @@ class ReviewData:
                 warnings.warn(f'Input data dataframe shares columns with existing data, but are not equal.\n' + 
                               f'Only adding columns {new_data_cols} to the ReviewData.data dataframe\n' + 
                               f'Remaining columns are not going to be updated.' + 
-                              f'If you intend to change the ReviewData.data attribute, make a new session directory and prefill the annotation data')
+                              f'If you intend to change the ReviewData.data attribute, '
+                              'make a new review data object and pass in this object\'s path to reuse_existing_review_data_fn:\n\n'
+                              f'new_rd = ReviewData(review_data_fn=new_fn, df=updated_df, reuse_existing_review_data_fn={review_data_fn})')
             
-    def load(self):
-        f = open(self.review_data_fn, 'rb')
+    def load(self, review_data_fn):
+        f = open(review_data_fn, 'rb')
         tmp_dict = pickle.load(f)
         f.close()          
 
