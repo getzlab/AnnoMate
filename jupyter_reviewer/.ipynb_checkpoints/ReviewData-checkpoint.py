@@ -55,6 +55,7 @@ class ReviewData:
     
     def __init__(self, 
                  review_data_fn: str, # path to save object
+                 description: str='', # describe data or updates
                  df: pd.DataFrame = pd.DataFrame(), # optional if file above already exists. 
                  review_data_annotation_list: [ReviewDataAnnotation] = [], # list
                  reuse_existing_review_data_fn: str = None, # reuse previous review data object
@@ -78,14 +79,14 @@ class ReviewData:
                     raise ValueError(f'df input contains indices that does not already exist in the previous review session.\n'
                                      f'Unavailable indices: {df.loc[missing_df_indices].index.tolist()}')
                 if df.index.shape[0] != self.data.shape[0]:
-                    warnings.warn('df input is smaller than the original review session df input. '
-                                  'New review session will only contain the previous data corresponding to newest df input')
+                    warnings.warn('df input has fewer indices than the original review session df input. '
+                                  'New review session will only contain the previous data corresponding to newest df indices')
                 self.annot = self.annot.loc[df.index]
                 self.history = self.history.loc[self.history['index'].isin(df.index)]
             else:            
                 annotate_cols = [c.name for c in review_data_annotation_list]
                 self.annot = pd.DataFrame(index=df.index, columns=annotate_cols) # Add more columns. If updating an existing column, will make a new one
-                self.history = pd.DataFrame(columns=annotate_cols + ['index', 'timestamp']) # track all the manual changes, including time stamp    
+                self.history = pd.DataFrame(columns=annotate_cols + ['index', 'timestamp', 'review_data_fn']) # track all the manual changes, including time stamp    
                 
             self.data = df # overwrite data frame.
             self.review_data_fn = review_data_fn # change path to save object
@@ -170,6 +171,7 @@ class ReviewData:
         self.annot.loc[data_idx, list(series.keys())] = list(series.values())
         series['timestamp'] = datetime.today()
         series['index'] = data_idx
+        series['review_data_fn'] = self.review_data_fn
         self.history = self.history.append(series, ignore_index=True)
         self.save()
         
