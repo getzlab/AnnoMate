@@ -36,17 +36,17 @@ class AppComponent:
                  internal_callback=None, # internal changes
                 ):
         
-        all_ids = np.array(self.get_component_ids(components))
-        self.check_duplicates(all_ids, 'component')
+        all_ids = np.array(get_component_ids(components))
+        check_duplicates(all_ids, 'component')
         
-        callback_output_ids = self.get_callback_io_ids(callback_output)
-        self.check_duplicates(callback_output_ids, 'callback_output')
-        self.check_callback_io_id_in_list(callback_output_ids, all_ids, ids_type='output_ids', all_ids_type='component_ids')
-        callback_input_ids = self.get_callback_io_ids(callback_input)
-        callback_state_ids = self.get_callback_io_ids(callback_state)
+        callback_output_ids = get_callback_io_ids(callback_output)
+        check_duplicates(callback_output_ids, 'callback_output')
+        check_callback_io_id_in_list(callback_output_ids, all_ids, ids_type='output_ids', all_ids_type='component_ids')
+        callback_input_ids = get_callback_io_ids(callback_input)
+        callback_state_ids = get_callback_io_ids(callback_state)
         callback_input_state_ids = callback_input_ids + callback_state_ids
-        self.check_duplicates(callback_input_state_ids, 'callback_input and callback_state')
-        self.check_callback_io_id_in_list(callback_input_state_ids, all_ids, ids_type='input_state_ids', all_ids_type='component_ids')
+        check_duplicates(callback_input_state_ids, 'callback_input and callback_state')
+        check_callback_io_id_in_list(callback_input_state_ids, all_ids, ids_type='input_state_ids', all_ids_type='component_ids')
         
         if internal_callback is not None and inspect.signature(new_data_callback) != inspect.signature(internal_callback):
             raise ValueError(f'new_data_callback and internal_callback do not have the same signature.\n'
@@ -56,49 +56,13 @@ class AppComponent:
             
         self.name = name
         self.component = html.Div(components)
+        self.all_component_ids = all_ids
         self.callback_output = callback_output
         self.callback_input = callback_input
         self.callback_state = callback_state
         self.new_data_callback = new_data_callback
         self.internal_callback = internal_callback
-        
-        
-        
-    def get_component_ids(self, component):
-        if isinstance(component, list) or isinstance(component, tuple):
-            id_list = []
-            for comp in component:
-                id_list += self.get_component_ids(comp)
-            return id_list
-        elif isinstance(component, str):
-            return []
-        elif 'children' in component.__dict__.keys(): #isinstance(component, html.Div): # TODO: include dbc rows and columns
-            children_ids = self.get_component_ids(component.children)
-            if 'id' in component.__dict__.keys():
-                children_ids += [component.id]
-            return children_ids
-        else:
-            return [component.id] if 'id' in component.__dict__.keys() else []
-        
-    def get_callback_io_ids(self, io_list):
-        # TODO: might be a dictionary
-        if isinstance(io_list, list):
-            return [item.component_id for item in io_list]
-        elif isinstance(io_list, dict):
-            return [item.component_id for k, item in io_list.items()]
-    
-    def check_callback_io_id_in_list(self, ids, all_ids, ids_type:str, all_ids_type:str):
-        ids_not_in_all_ids = np.array(ids)[np.argwhere(np.array([id_name not in all_ids for id_name in ids])).flatten()]
-        if len(ids_not_in_all_ids) > 0:
-            raise ValueError(f"{ids_type} ids not in {all_ids_type}:\n"
-                             f"{ids_type} ids: {ids_not_in_all_ids}\n"
-                             f"{all_ids_type} ids: {all_ids}"
-                            )
-        
-    def check_duplicates(self, a_list, list_type: str):
-        values, counts = np.unique(a_list, return_counts=True)
-        if (counts > 1).any():
-            raise ValueError(f"Duplicate {list_type}: {values[np.argwhere(counts > 1)].flatten()}")
+
         
     
 class ReviewDataApp:
@@ -114,8 +78,6 @@ class ReviewDataApp:
         self.reviewed_data_df = pd.DataFrame(index=self.review_data.annot.index, columns=['label'])
         self.reviewed_data_df['label'] = self.reviewed_data_df.apply(self.gen_dropdown_labels, axis=1)
         self.reviewed_data_df.index.name = 'value'
-        
-        # check component ids are not duplicated
         
     def gen_dropdown_labels(self, r):
         data_history_df = self.review_data.history[self.review_data.history["index"] == r.name]
@@ -274,6 +236,9 @@ class ReviewDataApp:
                                    ]),
                            dbc.Row([dbc.Row(c.component) for c in self.more_components])
                           ])
+        
+        all_ids = np.array(get_component_ids(layout))
+        check_duplicates(all_ids, 'component')
 
         return layout
     
@@ -317,5 +282,41 @@ class ReviewDataApp:
         self.more_components.append(component)
         
         
-        
-    
+# Validation
+
+def get_component_ids(component):
+    if isinstance(component, list) or isinstance(component, tuple):
+        id_list = []
+        for comp in component:
+            id_list += get_component_ids(comp)
+        return id_list
+    elif isinstance(component, str):
+        return []
+    elif 'children' in component.__dict__.keys(): #isinstance(component, html.Div): # TODO: include dbc rows and columns
+        children_ids = get_component_ids(component.children)
+        if 'id' in component.__dict__.keys():
+            children_ids += [component.id]
+        return children_ids
+    else:
+        return [component.id] if 'id' in component.__dict__.keys() else []
+
+def get_callback_io_ids(io_list):
+    # TODO: might be a dictionary
+    if isinstance(io_list, list):
+        return [item.component_id for item in io_list]
+    elif isinstance(io_list, dict):
+        return [item.component_id for k, item in io_list.items()]
+
+def check_callback_io_id_in_list(ids, all_ids, ids_type:str, all_ids_type:str):
+    ids_not_in_all_ids = np.array(ids)[np.argwhere(np.array([id_name not in all_ids for id_name in ids])).flatten()]
+    if len(ids_not_in_all_ids) > 0:
+        raise ValueError(f"{ids_type} ids not in {all_ids_type}:\n"
+                         f"{ids_type} ids: {ids_not_in_all_ids}\n"
+                         f"{all_ids_type} ids: {all_ids}"
+                        )
+
+def check_duplicates(a_list, list_type: str):
+    values, counts = np.unique(a_list, return_counts=True)
+    if (counts > 1).any():
+        raise ValueError(f"Duplicate {list_type}: {values[np.argwhere(counts > 1)].flatten()}")
+            
