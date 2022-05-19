@@ -176,11 +176,7 @@ class ReviewDataApp:
         
     def gen_annotation_panel_component(self):
         annotation_data = self.review_data.review_data_annotation_list
-        
-        
         submit_annot_button = html.Button(id='APP-submit-button-state', n_clicks=0, children='Submit')
-        
-        # history panel
         
         def annotation_input(annot_name, annot: ReviewDataAnnotation):
             
@@ -241,7 +237,9 @@ class ReviewDataApp:
         
         self.annotation_panel_component = self.gen_annotation_panel_component()
         
-        layout = html.Div([dbc.Row(self.dropdown_component.component, justify='end'),
+        # TODO: save current view as html
+        
+        layout = html.Div([dbc.Row([self.dropdown_component.component]),
                            dbc.Row([dbc.Col(self.annotation_panel_component.component),
                                     dbc.Col(self.history_component.component)
                                    ]),
@@ -337,4 +335,5 @@ def check_duplicates(a_list, list_type: str):
     values, counts = np.unique(a_list, return_counts=True)
     if (counts > 1).any():
         raise ValueError(f"Duplicate {list_type}: {values[np.argwhere(counts > 1)].flatten()}")
-            
+        
+        
