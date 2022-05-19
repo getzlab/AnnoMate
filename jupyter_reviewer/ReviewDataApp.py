@@ -36,11 +36,8 @@ class AppComponent:
                  internal_callback=None, # internal changes
                 ):
         
-        self.name = name
-        
         all_ids = np.array(self.get_component_ids(components))
         self.check_duplicates(all_ids, 'component')
-        self.component = html.Div(components)
         
         callback_output_ids = self.get_callback_io_ids(callback_output)
         self.check_duplicates(callback_output_ids, 'callback_output')
@@ -51,16 +48,17 @@ class AppComponent:
         self.check_duplicates(callback_input_state_ids, 'callback_input and callback_state')
         self.check_callback_io_id_in_list(callback_input_state_ids, all_ids, ids_type='input_state_ids', all_ids_type='component_ids')
         
-        self.callback_output = callback_output
-        self.callback_input = callback_input
-        self.callback_state = callback_state
-        
         if internal_callback is not None and inspect.signature(new_data_callback) != inspect.signature(internal_callback):
             raise ValueError(f'new_data_callback and internal_callback do not have the same signature.\n'
                              f'new_data_callback signature:{inspect.signature(new_data_callback)}\n'
                              f'internal_callback signature:{inspect.signature(internal_callback)}'
                             )
             
+        self.name = name
+        self.component = html.Div(components)
+        self.callback_output = callback_output
+        self.callback_input = callback_input
+        self.callback_state = callback_state
         self.new_data_callback = new_data_callback
         self.internal_callback = internal_callback
         
