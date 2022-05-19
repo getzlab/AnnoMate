@@ -71,15 +71,6 @@ class ReviewData:
             self.save()
         else:
             self.load()
-            
-#         # Add additional annotation columns
-#         new_annot_cols = [c for c in annotate_cols if c not in self.annot.columns]
-#         self.annot[new_annot_cols] = np.nan
-#         self.history[new_annot_cols] = np.nan
-        
-#         for annot_name, annot in self.annotate_data.items():
-#             if annot.annot_type in [AnnotationType.CHECKLIST, AnnotationType.RADIOITEM]:
-#                 self.annot[annot_name] = self.annot[annot_name].astype(object)
 
         self._add_annotations(review_data_annotation_list)
         
@@ -149,7 +140,7 @@ class ReviewData:
             if annot_data.annot_type in [AnnotationType.CHECKLIST, AnnotationType.RADIOITEM]:
                 self.annot[annot_data.name] = self.annot[annot_data.name].astype(object)
                 
-        
+        self.save()
         
     def _update(self, data_idx, series):
         self.annot.loc[data_idx, list(series.keys())] = list(series.values())
