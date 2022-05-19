@@ -65,28 +65,34 @@ class AppComponent:
         
     
 class ReviewDataApp:
-    def __init__(self, review_data: ReviewData):
+    def __init__(self):
         self.prop = None
         self.autofill_buttons = []
         self.autofill_input_dict = {} #{buttonid: {annot_col: Input(compoennt value)}}
         self.more_components = []  # TODO: set custom layout?
-        self.review_data = review_data
+#         self.review_data = review_data
         
-        self.reviewed_data_df = pd.DataFrame(index=self.review_data.annot.index, columns=['label'])
-        self.reviewed_data_df['label'] = self.reviewed_data_df.apply(self.gen_dropdown_labels, axis=1)
-        self.reviewed_data_df.index.name = 'value'
+#         self.reviewed_data_df = pd.DataFrame(index=self.review_data.annot.index, columns=['label'])
+#         self.reviewed_data_df['label'] = self.reviewed_data_df.apply(self.gen_dropdown_labels, axis=1)
+#         self.reviewed_data_df.index.name = 'value'
         
-    def gen_dropdown_labels(self, r):
-        data_history_df = self.review_data.history[self.review_data.history["index"] == r.name]
+    def gen_dropdown_labels(self, review_data: ReviewData, r: pd.Series):
+        data_history_df = review_data.history[review_data.history["index"] == r.name]
         if not data_history_df.empty:
             return r.name + f' (Last update: {data_history_df["timestamp"].tolist()[-1]})'
         else:
             return r.name
         
         
-    def run(self, mode, host='0.0.0.0', port=8050):
+    def run(self, review_data: ReviewData, mode='external', host='0.0.0.0', port=8050):
         app = JupyterDash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-        app.layout = self.gen_layout()
+        
+        self.reviewed_data_df = pd.DataFrame(index=review_data.annot.index, columns=['label'])
+        self.reviewed_data_df['label'] = self.reviewed_data_df.apply(lambda r: self.gen_dropdown_labels(review_data, r), 
+                                                           axis=1)
+        self.reviewed_data_df.index.name = 'value'
+        
+        app.layout = self.gen_layout(review_data)
         
         def validate_callback_outputs(component_output, 
                                       component, which_callback='callback function(s)'):
@@ -126,7 +132,7 @@ class ReviewDataApp:
                 prop_id = ctx.triggered[0]['prop_id'].split('.')[0]
             
             output_dict = {'history_table': dash.no_update, 
-                           'annot_panel': {annot_col: dash.no_update for annot_col in self.review_data.annot.columns}, 
+                           'annot_panel': {annot_col: dash.no_update for annot_col in review_data.annot.columns}, 
                            'dropdown_list_options': dash.no_update,
                            'more_component_outputs': {c.name: [dash.no_update for i in range(len(c.callback_output))] for c in self.more_components}}
 
@@ -134,21 +140,21 @@ class ReviewDataApp:
                 for i in range(len(self.more_components)):
                     component = self.more_components[i]
                     # reset vs row dependent
-                    component_output = component.new_data_callback(self.review_data.data, # Require call backs first two args be the dataframe and the index value
+                    component_output = component.new_data_callback(review_data.data, # Require call backs first two args be the dataframe and the index value
                                                           dropdown_value, 
                                                           *more_component_inputs[component.name])
                     validate_callback_outputs(component_output, component, which_callback='new_data_callback')
                     output_dict['more_component_outputs'][component.name] = component_output
                     
-                output_dict['history_table'] = dbc.Table.from_dataframe(self.review_data.history.loc[self.review_data.history['index'] == dropdown_value])
-                output_dict['annot_panel'] = {annot_col: '' for annot_col in self.review_data.annot.columns} # TODO set defaults?
+                output_dict['history_table'] = dbc.Table.from_dataframe(review_data.history.loc[review_data.history['index'] == dropdown_value])
+                output_dict['annot_panel'] = {annot_col: '' for annot_col in review_data.annot.columns} # TODO set defaults?
                             
             elif (prop_id == 'APP-submit-button-state') & (submit_annot_button > 0):
-                for annot_type in self.review_data.review_data_annotation_list:
+                for annot_type in review_data.review_data_annotation_list:
                     annot_type.validate(annot_input_state[annot_type.name])
-                self.review_data._update(dropdown_value, annot_input_state)
-                output_dict['history_table'] = dbc.Table.from_dataframe(self.review_data.history.loc[self.review_data.history['index'] == dropdown_value])
-                self.reviewed_data_df.loc[dropdown_value, 'label'] = self.gen_dropdown_labels(self.reviewed_data_df.loc[dropdown_value])
+                review_data._update(dropdown_value, annot_input_state)
+                output_dict['history_table'] = dbc.Table.from_dataframe(review_data.history.loc[review_data.history['index'] == dropdown_value])
+                self.reviewed_data_df.loc[dropdown_value, 'label'] = self.gen_dropdown_labels(review_data, self.reviewed_data_df.loc[dropdown_value])
                 output_dict['dropdown_list_options'] = self.reviewed_data_df.reset_index().to_dict('records')
             elif 'APP-autofill-' in prop_id:
                 component_name = prop_id.split('APP-autofill-')[-1]
@@ -162,7 +168,7 @@ class ReviewDataApp:
                         if component.internal_callback is None:
                             raise ValueError(f'Component ({component.name}) has Inputs that change, but no internal_callback defined to handle it')
 
-                        component_output = component.internal_callback(self.review_data.data, # Require call backs first two args be the dataframe and the index value
+                        component_output = component.internal_callback(review_data.data, # Require call backs first two args be the dataframe and the index value
                                                                        dropdown_value, 
                                                                        *more_component_inputs[component.name])
 
@@ -174,8 +180,8 @@ class ReviewDataApp:
         app.run_server(mode=mode, host=host, port=port, debug=True) 
         
         
-    def gen_annotation_panel_component(self):
-        annotation_data = self.review_data.review_data_annotation_list
+    def gen_annotation_panel_component(self, review_data):
+        annotation_data = review_data.review_data_annotation_list
         submit_annot_button = html.Button(id='APP-submit-button-state', n_clicks=0, children='Submit')
         
         def annotation_input(annot_name, annot: ReviewDataAnnotation):
@@ -214,16 +220,16 @@ class ReviewDataApp:
                 
             return dbc.Row([dbc.Label(annot_name, html_for=input_component_id, width=2), dbc.Col(input_component)])
         
-        panel_components = self.autofill_buttons + [annotation_input(annot.name, annot) for annot in self.review_data.review_data_annotation_list] + [submit_annot_button]
+        panel_components = self.autofill_buttons + [annotation_input(annot.name, annot) for annot in review_data.review_data_annotation_list] + [submit_annot_button]
         panel_inputs = [Input('APP-submit-button-state', 'nclicks')]
         return AppComponent(name='APP-Panel',
                            components=panel_components, 
-                           callback_output={annot.name: Output(f"APP-{annot.name}-{annot.annot_type}-input-state", "value") for annot in self.review_data.review_data_annotation_list},
+                           callback_output={annot.name: Output(f"APP-{annot.name}-{annot.annot_type}-input-state", "value") for annot in review_data.review_data_annotation_list},
                            callback_input=panel_inputs,
-                           callback_state={annot.name: State(f"APP-{annot.name}-{annot.annot_type}-input-state", "value") for annot in self.review_data.review_data_annotation_list}
+                           callback_state={annot.name: State(f"APP-{annot.name}-{annot.annot_type}-input-state", "value") for annot in review_data.review_data_annotation_list}
                           )
         
-    def gen_layout(self):
+    def gen_layout(self, review_data: ReviewData):
         dropdown = html.Div(dcc.Dropdown(options=self.reviewed_data_df.reset_index().to_dict('records'), 
                                          value=None, 
                                          id='APP-dropdown-data-state'))
@@ -231,11 +237,11 @@ class ReviewDataApp:
         self.dropdown_component = AppComponent(name='APP-dropdown-component',
                                                components=[dropdown])
         
-        history_table = html.Div([dbc.Table.from_dataframe(pd.DataFrame(columns=self.review_data.history.columns))], id='APP-history-table')
+        history_table = html.Div([dbc.Table.from_dataframe(pd.DataFrame(columns=review_data.history.columns))], id='APP-history-table')
         self.history_component = AppComponent(name='APP-history-component',
                                                components=[history_table])
         
-        self.annotation_panel_component = self.gen_annotation_panel_component()
+        self.annotation_panel_component = self.gen_annotation_panel_component(review_data)
         
         # TODO: save current view as html
         
@@ -306,7 +312,7 @@ def get_component_ids(component):
         for comp in component:
             id_list += get_component_ids(comp)
         return id_list
-    elif isinstance(component, str):
+    elif isinstance(component, str) or isinstance(component, int) or isinstance(component, float):
         return []
     elif 'children' in component.__dict__.keys(): #isinstance(component, html.Div): # TODO: include dbc rows and columns
         children_ids = get_component_ids(component.children)
