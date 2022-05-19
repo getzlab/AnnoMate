@@ -240,17 +240,7 @@ class ReviewDataApp:
         check_duplicates(all_ids, 'full component')
 
         return layout
-    
-    def add_table_from_path(self, table_name, component_name, col, table_cols):
-        
-        table = html.Div(dbc.Table.from_dataframe(pd.DataFrame()), 
-                                   id=component_name)
-        table_component = AppComponent(component_name, 
-                                       [html.H1(table_name), table], 
-                                       new_data_callback = lambda df, idx: [dbc.Table.from_dataframe(pd.read_csv(df.loc[idx, col], sep='\t', encoding='iso-8859-1')[table_cols])],
-                                       callback_output=[Output(component_name, 'children')], 
-                                      )
-        self.more_components.append(table_component)
+
         
     def add_custom_component(self, 
                              component_name, 
@@ -286,6 +276,16 @@ class ReviewDataApp:
         self.more_components.append(component)
         all_ids = get_component_ids([c.component for c in self.more_components])
         check_duplicates(all_ids, f'ids found in previously added component from component named {component.name}')
+        
+    def add_table_from_path(self, table_name, component_name, col, table_cols):
+        
+        table = html.Div(dbc.Table.from_dataframe(pd.DataFrame()), 
+                                   id=component_name)
+        self.add_custom_component(component_name, 
+                                  [html.H1(table_name), table],
+                                  new_data_callback = lambda df, idx: [dbc.Table.from_dataframe(pd.read_csv(df.loc[idx, col], sep='\t', encoding='iso-8859-1')[table_cols])],
+                                  callback_output=[Output(component_name, 'children')]
+                                 )
         
         
 # Validation
