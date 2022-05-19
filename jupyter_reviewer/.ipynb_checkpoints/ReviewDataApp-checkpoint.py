@@ -17,32 +17,91 @@ from dash import Dash, dash_table
 import dash
 import dash_bootstrap_components as dbc
 import functools
+import inspect
 
 from .ReviewData import ReviewData, ReviewDataAnnotation, AnnotationType
+
+
+
 
 class AppComponent:
     
     def __init__(self, 
                  name, 
                  components, 
-                 new_data_callback=None, # update everything
-                 internal_callback=None, # internal changes
                  callback_output=[], 
                  callback_input=[],
-                 callback_state=[]
+                 callback_state=[],
+                 new_data_callback=None, # update everything
+                 internal_callback=None, # internal changes
                 ):
+        
         self.name = name
+        
+        all_ids = np.array(self.get_component_ids(components))
+        self.check_duplicates(all_ids, 'component')
         self.component = html.Div(components)
-        self.new_data_callback = new_data_callback
-        self.internal_callback = internal_callback
+        
+        callback_output_ids = self.get_callback_io_ids(callback_output)
+        self.check_duplicates(callback_output_ids, 'callback_output')
+        self.check_callback_io_id_in_list(callback_output_ids, all_ids, ids_type='output_ids', all_ids_type='component_ids')
+        callback_input_ids = self.get_callback_io_ids(callback_input)
+        callback_state_ids = self.get_callback_io_ids(callback_state)
+        callback_input_state_ids = callback_input_ids + callback_state_ids
+        self.check_duplicates(callback_input_state_ids, 'callback_input and callback_state')
+        self.check_callback_io_id_in_list(callback_input_state_ids, all_ids, ids_type='input_state_ids', all_ids_type='component_ids')
+        
         self.callback_output = callback_output
         self.callback_input = callback_input
         self.callback_state = callback_state
         
-        # TODO: check internal callback outputs and inputs are within the original component
+        if internal_callback is not None and inspect.signature(new_data_callback) != inspect.signature(internal_callback):
+            raise ValueError(f'new_data_callback and internal_callback do not have the same signature.\n'
+                             f'new_data_callback signature:{inspect.signature(new_data_callback)}\n'
+                             f'internal_callback signature:{inspect.signature(internal_callback)}'
+                            )
+            
+        self.new_data_callback = new_data_callback
+        self.internal_callback = internal_callback
         
-        # TODO: option to update anotations
-        # TODO: reset function (switching samples) and a page function
+        
+        
+    def get_component_ids(self, component):
+        if isinstance(component, list) or isinstance(component, tuple):
+            id_list = []
+            for comp in component:
+                id_list += self.get_component_ids(comp)
+            return id_list
+        elif isinstance(component, str):
+            return []
+        elif 'children' in component.__dict__.keys(): #isinstance(component, html.Div): # TODO: include dbc rows and columns
+            children_ids = self.get_component_ids(component.children)
+            if 'id' in component.__dict__.keys():
+                children_ids += [component.id]
+            return children_ids
+        else:
+            return [component.id] if 'id' in component.__dict__.keys() else []
+        
+    def get_callback_io_ids(self, io_list):
+        # TODO: might be a dictionary
+        if isinstance(io_list, list):
+            return [item.component_id for item in io_list]
+        elif isinstance(io_list, dict):
+            return [item.component_id for k, item in io_list.items()]
+    
+    def check_callback_io_id_in_list(self, ids, all_ids, ids_type:str, all_ids_type:str):
+        ids_not_in_all_ids = np.array(ids)[np.argwhere(np.array([id_name not in all_ids for id_name in ids])).flatten()]
+        if len(ids_not_in_all_ids) > 0:
+            raise ValueError(f"{ids_type} ids not in {all_ids_type}:\n"
+                             f"{ids_type} ids: {ids_not_in_all_ids}\n"
+                             f"{all_ids_type} ids: {all_ids}"
+                            )
+        
+    def check_duplicates(self, a_list, list_type: str):
+        values, counts = np.unique(a_list, return_counts=True)
+        if (counts > 1).any():
+            raise ValueError(f"Duplicate {list_type}: {values[np.argwhere(counts > 1)].flatten()}")
+        
     
 class ReviewDataApp:
     def __init__(self, review_data: ReviewData, host='0.0.0.0', port=8051):
@@ -102,9 +161,10 @@ class ReviewDataApp:
                            'annot_panel': {annot_col: dash.no_update for annot_col in self.review_data.annot.columns}, 
                            'dropdown_list_options': dash.no_update,
                            'more_component_outputs': {c.name: [dash.no_update for i in range(len(c.callback_output))] for c in self.more_components}}
-            
-            if prop_id == 'APP-dropdown-data-state':
 
+            if prop_id == 'APP-dropdown-data-state':
+                if isinstance(dropdown_value, list):
+                    return output_dict
                 for i in range(len(self.more_components)):
                     component = self.more_components[i]
                     # reset vs row dependent
