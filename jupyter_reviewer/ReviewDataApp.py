@@ -89,7 +89,18 @@ class ReviewDataApp:
     def run(self, mode, host='0.0.0.0', port=8050):
         app = JupyterDash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
         app.layout = self.gen_layout()
-
+        
+        def validate_callback_outputs(component_output, 
+                                      component, which_callback='callback function(s)'):
+            if not isinstance(component_output, list) or (len(component.callback_output) != len(component_output)):
+                raise ValueError(f'Component ({component.name}) {which_callback} does not return '
+                                 'the same length output as component\'s callback_output.\n'
+                                 'Make sure your output from the callback function is a list, '
+                                 'and the values correspond to your defined callback_outputs list\n'
+                                 f'Expected output: {component.callback_output}\n'
+                                 f'Runtime callback output: {component_output}\n')
+            return
+        
         @app.callback(output=dict(history_table=Output(f'APP-history-table', 'children'),
                                   annot_panel=self.annotation_panel_component.callback_output,
                                   dropdown_list_options=Output(f'APP-dropdown-data-state', 'options'),
@@ -128,6 +139,7 @@ class ReviewDataApp:
                     component_output = component.new_data_callback(self.review_data.data, # Require call backs first two args be the dataframe and the index value
                                                           dropdown_value, 
                                                           *more_component_inputs[component.name])
+                    validate_callback_outputs(component_output, component, which_callback='new_data_callback')
                     output_dict['more_component_outputs'][component.name] = component_output
                     
                 output_dict['history_table'] = dbc.Table.from_dataframe(self.review_data.history.loc[self.review_data.history['index'] == dropdown_value])
@@ -147,14 +159,14 @@ class ReviewDataApp:
                 for i in range(len(self.more_components)):
                     component = self.more_components[i]
                     if sum([c.component_id == prop_id for c in self.more_components[i].callback_input]) > 0:
-                        try:
-                            component_output = component.internal_callback(self.review_data.data, # Require call backs first two args be the dataframe and the index value
-                                                              dropdown_value, 
-                                                              *more_component_inputs[component.name])
-                        except TypeError: # component.internal_callback is nonetype
-                            component_output = component.new_data_callback(self.review_data.data, 
-                                                                           dropdown_value, 
-                                                                           *more_component_inputs[component.name])
+                        if component.internal_callback is None:
+                            raise ValueError(f'Component ({component.name}) has Inputs that change, but no internal_callback defined to handle it')
+
+                        component_output = component.internal_callback(self.review_data.data, # Require call backs first two args be the dataframe and the index value
+                                                                       dropdown_value, 
+                                                                       *more_component_inputs[component.name])
+
+                        validate_callback_outputs(component_output, component, which_callback='internal_callback')
                         output_dict['more_component_outputs'][component.name] = component_output # force having output as array specify names in the callback outputs? Or do it by dictionary
                 pass
             return output_dict
