@@ -50,6 +50,8 @@ class ReviewDataAnnotation:
             if not self.validate_input(x):
                 raise ValueError(f'Input {x} is invalid for annotation "{self.name}". Check validate_input method for annotation "{self.name}"')
         
+    def __str__(self):
+        return str(self.__dict__)
 
 class ReviewData:
     
