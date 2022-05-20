@@ -33,17 +33,18 @@ class AppComponent:
                  callback_state=[],
                  new_data_callback=None, # update everything
                  internal_callback=None, # internal changes
+                 callback_states_for_autofill: [str]=[], # list of States in the component available for autofill ie. State(id, children)
                  **kwargs
                 ):
         
         all_ids = np.array(get_component_ids(components))
         check_duplicates(all_ids, 'component')
         
-        callback_output_ids = get_callback_io_ids(callback_output)
+        callback_output_ids = get_callback_io_ids(callback_output, expected_io_type=Output)
         check_duplicates(callback_output_ids, 'callback_output')
         check_callback_io_id_in_list(callback_output_ids, all_ids, ids_type='output_ids', all_ids_type='component_ids')
-        callback_input_ids = get_callback_io_ids(callback_input)
-        callback_state_ids = get_callback_io_ids(callback_state)
+        callback_input_ids = get_callback_io_ids(callback_input, expected_io_type=Input)
+        callback_state_ids = get_callback_io_ids(callback_state, expected_io_type=State)
         callback_input_state_ids = callback_input_ids + callback_state_ids
         check_duplicates(callback_input_state_ids, 'callback_input and callback_state')
         check_callback_io_id_in_list(callback_input_state_ids, all_ids, ids_type='input_state_ids', all_ids_type='component_ids')
@@ -53,6 +54,10 @@ class AppComponent:
                              f'new_data_callback signature:{inspect.signature(new_data_callback)}\n'
                              f'internal_callback signature:{inspect.signature(internal_callback)}'
                             )
+        
+        callback_states_for_autofill_ids = get_callback_io_ids(callback_states_for_autofill, expected_io_type=State)
+        check_duplicates(callback_states_for_autofill_ids, 'callback_output')
+        check_callback_io_id_in_list(callback_states_for_autofill_ids, all_ids, ids_type='callback_states_for_autofill_ids', all_ids_type='component_ids')
             
         self.name = name
         self.component = html.Div(components)
@@ -65,14 +70,14 @@ class AppComponent:
         
         self.new_data_callback= lambda *args: new_data_callback(*args, **kwargs)
         self.internal_callback= lambda *args: internal_callback(*args, **kwargs)
+        
+        self.callback_states_for_autofill = callback_states_for_autofill
 
         
     
 class ReviewDataApp:
     def __init__(self):
         self.prop = None
-        self.autofill_buttons = []
-        self.autofill_input_dict = {} #{buttonid: {annot_col: Input(compoennt value)}}
         self.more_components = []  # TODO: set custom layout?
         
     def gen_dropdown_labels(self, review_data: ReviewData, r: pd.Series):
@@ -81,17 +86,37 @@ class ReviewDataApp:
             return r.name + f' (Last update: {data_history_df["timestamp"].tolist()[-1]})'
         else:
             return r.name
+       
+    def gen_autofill_buttons_and_inputs(self, autofill_dict):
+        # Autofill buttons
+        autofill_buttons = []
+        autofill_input_dict = {}
+        for component_name, autofill in autofill_dict.items():
+            autofill_button_component = html.Button(f'Use current {component.name} solution', 
+                                                    id=f'APP-autofill-{component.name}', 
+                                                    n_clicks=0)
+            autofill_comp_id_missing = np.array([k not in component.all_component_ids for k in autofill_dict.values()])
+            if autofill_comp_id_missing.any():
+                raise ValueError(f'Following ids do not exist to autofill: {np.array(list(autofill_dict.values()))[np.argwhere(autofill_comp_id_missing).flatten()]}')
+
+        self.autofill_buttons += [autofill_button_component]
+        self.autofill_input_dict[autofill_button_component.id] = autofill_dict
         
-        
-    def run(self, review_data: ReviewData, mode='external', host='0.0.0.0', port=8050):
+    def run(self, 
+            review_data: ReviewData, 
+            mode='external', 
+            host='0.0.0.0', 
+            port=8050,
+            autofill_dict={}, # {component name: {annot, id}}
+           ):
         app = JupyterDash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
         
-        self.reviewed_data_df = pd.DataFrame(index=review_data.annot.index, columns=['label'])
-        self.reviewed_data_df['label'] = self.reviewed_data_df.apply(lambda r: self.gen_dropdown_labels(review_data, r), 
+        reviewed_data_df = pd.DataFrame(index=review_data.annot.index, columns=['label'])
+        reviewed_data_df['label'] = reviewed_data_df.apply(lambda r: self.gen_dropdown_labels(review_data, r), 
                                                            axis=1)
-        self.reviewed_data_df.index.name = 'value'
+        reviewed_data_df.index.name = 'value'
         
-        app.layout = self.gen_layout(review_data)
+        app.layout, annotation_panel_component, autofill_buttons, autofill_states = self.gen_layout(review_data, reviewed_data_df, autofill_dict)
         
         def validate_callback_outputs(component_output, 
                                       component, which_callback='callback function(s)'):
@@ -105,21 +130,21 @@ class ReviewDataApp:
             return
         
         @app.callback(output=dict(history_table=Output(f'APP-history-table', 'children'),
-                                  annot_panel=self.annotation_panel_component.callback_output,
+                                  annot_panel=annotation_panel_component.callback_output,
                                   dropdown_list_options=Output(f'APP-dropdown-data-state', 'options'),
                                   more_component_outputs={c.name: c.callback_output for c in self.more_components}
                              ), 
                       inputs=dict(dropdown_value=Input('APP-dropdown-data-state', 'value'), 
-                                  autofill_buttons=[Input(b.id, 'n_clicks') for b in self.autofill_buttons],
-                                  autofill_inputs=self.autofill_input_dict,
+                                  autofill_buttons=[Input(b.id, 'n_clicks') for b in autofill_buttons],
+                                  autofill_states=autofill_states,
                                   submit_annot_button=Input('APP-submit-button-state', 'n_clicks'),
-                                  annot_input_state=self.annotation_panel_component.callback_state, #{annot.name: State(f"APP-{annot.name}-{annot.annot_type}-input-state", "value") for annot in self.review_data.annotate_data},
+                                  annot_input_state=annotation_panel_component.callback_state, #{annot.name: State(f"APP-{annot.name}-{annot.annot_type}-input-state", "value") for annot in self.review_data.annotate_data},
                                   more_component_inputs={c.name: c.callback_input for c in self.more_components}
                                  )
                      )
         def component_callback(dropdown_value, 
                                autofill_buttons,
-                               autofill_inputs,
+                               autofill_states,
                                submit_annot_button, 
                                annot_input_state, 
                                more_component_inputs):
@@ -153,11 +178,11 @@ class ReviewDataApp:
                     annot_type.validate(annot_input_state[annot_type.name])
                 review_data._update(dropdown_value, annot_input_state)
                 output_dict['history_table'] = dbc.Table.from_dataframe(review_data.history.loc[review_data.history['index'] == dropdown_value])
-                self.reviewed_data_df.loc[dropdown_value, 'label'] = self.gen_dropdown_labels(review_data, self.reviewed_data_df.loc[dropdown_value])
-                output_dict['dropdown_list_options'] = self.reviewed_data_df.reset_index().to_dict('records')
+                reviewed_data_df.loc[dropdown_value, 'label'] = self.gen_dropdown_labels(review_data, reviewed_data_df.loc[dropdown_value])
+                output_dict['dropdown_list_options'] = reviewed_data_df.reset_index().to_dict('records')
             elif 'APP-autofill-' in prop_id:
                 component_name = prop_id.split('APP-autofill-')[-1]
-                for autofill_annot_col, value in autofill_inputs[prop_id].items():
+                for autofill_annot_col, value in autofill_states[prop_id].items():
                     output_dict['annot_panel'][autofill_annot_col] = value
             else:
                 # identify component that changed and which outputs are changed
@@ -179,9 +204,26 @@ class ReviewDataApp:
         app.run_server(mode=mode, host=host, port=port, debug=True) 
         
         
-    def gen_annotation_panel_component(self, review_data):
+    def gen_annotation_panel_component(self, 
+                                       review_data: ReviewData, 
+                                       autofill_dict: dict):
         annotation_data = review_data.review_data_annotation_list
         submit_annot_button = html.Button(id='APP-submit-button-state', n_clicks=0, children='Submit')
+        
+        # get buttons
+        component_names = [c.name for c in self.more_components]
+            
+        for component_name, autofill_annot_dict in autofill_dict.items():
+            # check component_name in more components
+            if component_name not in component_names:
+                raise ValueError(f'Autofill component name {component_name} does not exist in the app.')
+            # check keys in autofill_annot_dict are in ReviewData annot columns
+            # annot_keys = autofill_annot_dict.keys()
+            
+            # check values in autofill_annot_dict are ids in component name
+            
+        autofill_buttons = []
+        autofill_states = {}
         
         def annotation_input(annot_name, annot: ReviewDataAnnotation):
             
@@ -219,36 +261,43 @@ class ReviewDataApp:
                 
             return dbc.Row([dbc.Label(annot_name, html_for=input_component_id, width=2), dbc.Col(input_component)])
         
-        panel_components = self.autofill_buttons + [annotation_input(annot.name, annot) for annot in review_data.review_data_annotation_list] + [submit_annot_button]
+        
+        panel_components = autofill_buttons + [annotation_input(annot.name, annot) for annot in review_data.review_data_annotation_list] + [submit_annot_button]
         panel_inputs = [Input('APP-submit-button-state', 'nclicks')]
         return AppComponent(name='APP-Panel',
                            components=panel_components, 
                            callback_output={annot.name: Output(f"APP-{annot.name}-{annot.annot_type}-input-state", "value") for annot in review_data.review_data_annotation_list},
                            callback_input=panel_inputs,
                            callback_state={annot.name: State(f"APP-{annot.name}-{annot.annot_type}-input-state", "value") for annot in review_data.review_data_annotation_list}
-                          )
+                          ), autofill_buttons, autofill_states
+    
+    
         
-    def gen_layout(self, review_data: ReviewData):
-        dropdown = html.Div(dcc.Dropdown(options=self.reviewed_data_df.reset_index().to_dict('records'), 
+    def gen_layout(self, 
+                   review_data: ReviewData, 
+                   reviewed_data_df: pd.DataFrame,
+                   autofill_dict: dict,
+                  ):
+        dropdown = html.Div(dcc.Dropdown(options=reviewed_data_df.reset_index().to_dict('records'), 
                                          value=None, 
                                          id='APP-dropdown-data-state'))
         
-        self.dropdown_component = AppComponent(name='APP-dropdown-component',
-                                               components=[dropdown])
+        dropdown_component = AppComponent(name='APP-dropdown-component',
+                                          components=[dropdown])
         
         history_table = html.Div([dbc.Table.from_dataframe(pd.DataFrame(columns=review_data.history.columns))], 
                                  style={"overflow": "scroll"}, 
                                  id='APP-history-table')
-        self.history_component = AppComponent(name='APP-history-component',
+        history_component = AppComponent(name='APP-history-component',
                                                components=[history_table])
         
-        self.annotation_panel_component = self.gen_annotation_panel_component(review_data)
+        annotation_panel_component, autofill_buttons, autofill_states = self.gen_annotation_panel_component(review_data, autofill_dict)
         
         # TODO: save current view as html
         
-        layout = html.Div([dbc.Row([self.dropdown_component.component]),
-                           dbc.Row([dbc.Col(self.annotation_panel_component.component, width=6),
-                                    dbc.Col(html.Div(self.history_component.component), width=6)
+        layout = html.Div([dbc.Row([dropdown_component.component]),
+                           dbc.Row([dbc.Col(annotation_panel_component.component, width=6),
+                                    dbc.Col(html.Div(history_component.component), width=6)
                                    ]),
                            dbc.Row([dbc.Row(c.component) for c in self.more_components])
                           ], style={'marginBottom': 50, 'marginTop': 25, 'marginRight': 25, 'marginLeft': 25})
@@ -256,12 +305,10 @@ class ReviewDataApp:
         all_ids = np.array(get_component_ids(layout))
         check_duplicates(all_ids, 'full component')
 
-        return layout
+        return layout, annotation_panel_component, autofill_buttons, autofill_states
         
     def add_component(self, 
                       component: AppComponent, 
-                      # add_autofill=False,
-                      # autofill_dict={}, # annot_col: component output id
                      ):
         
 #         if add_autofill:
@@ -274,6 +321,7 @@ class ReviewDataApp:
 
 #             self.autofill_buttons += [autofill_button_component]
 #             self.autofill_input_dict[autofill_button_component.id] = autofill_dict
+
         
         ids_with_reserved_prefix_list = np.array(['APP-' in i for i in component.all_component_ids])
         if ids_with_reserved_prefix_list.any():
@@ -315,12 +363,20 @@ def get_component_ids(component):
     else:
         return [component.id] if 'id' in component.__dict__.keys() else []
 
-def get_callback_io_ids(io_list):
-    # TODO: might be a dictionary
+def get_callback_io_ids(io_list, expected_io_type):
+    
     if isinstance(io_list, list):
-        return [item.component_id for item in io_list]
+        items = io_list
     elif isinstance(io_list, dict):
-        return [item.component_id for k, item in io_list.items()]
+        items =  [item for k, item in io_list.items()]
+    else:
+        raise ValueError(f'Input list is not a list or dictionary: {io_list}')
+
+    wrong_io_type = np.array([not isinstance(item, expected_io_type) for item in items])
+    if wrong_io_type.any():
+        raise ValueError(f'Some or all items in list are not the expected type {expected_io_type}: {items}')
+        
+    return [item.component_id for item in items]
 
 def check_callback_io_id_in_list(ids, all_ids, ids_type:str, all_ids_type:str):
     ids_not_in_all_ids = np.array(ids)[np.argwhere(np.array([id_name not in all_ids for id_name in ids])).flatten()]

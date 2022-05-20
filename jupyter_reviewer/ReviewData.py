@@ -71,7 +71,8 @@ class ReviewData:
         
         if not os.path.exists(review_data_fn):
             if reuse_existing_review_data_fn is not None:
-                print(f'Copying from existing review session {reuse_existing_review_data_fn} ...')
+                print(f'Copying from existing review data session to new review data session...\n'
+                      f'{reuse_existing_review_data_fn} --> {review_data_fn}')
                 self.load(reuse_existing_review_data_fn)
                 
                 missing_df_indices = np.array([i not in self.annot.index for i in df.index])
@@ -79,7 +80,7 @@ class ReviewData:
                     raise ValueError(f'df input contains indices that does not already exist in the previous review session.\n'
                                      f'Unavailable indices: {df.loc[missing_df_indices].index.tolist()}')
                 if df.index.shape[0] != self.data.shape[0]:
-                    warnings.warn('df input has fewer indices than the original review session df input. '
+                    warnings.warn(f'df input has fewer indices ({df.index.shape[0]}) than the original review session df input ({self.data.shape[0]}). '
                                   'New review session will only contain the previous data corresponding to newest df indices')
                 self.annot = self.annot.loc[df.index]
                 self.history = self.history.loc[self.history['index'].isin(df.index)]
@@ -172,8 +173,7 @@ class ReviewData:
         series['timestamp'] = datetime.today()
         series['index'] = data_idx
         series['review_data_fn'] = self.review_data_fn
-        display(pd.concat([self.history, pd.Series(series)], axis=1))
-        self.history = self.history.append(series, ignore_index=True)
+        self.history = pd.concat([self.history, pd.Series(series).to_frame().T])
         self.save()
         
         
