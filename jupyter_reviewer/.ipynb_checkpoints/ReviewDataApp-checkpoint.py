@@ -20,7 +20,7 @@ import functools
 import inspect
 import enum
 from collections import OrderedDict
-from typing import Literal
+import copy
 
 from .ReviewData import ReviewData, ReviewDataAnnotation, AnnotationType
     
@@ -36,7 +36,7 @@ class AppComponent:
                  new_data_callback=None, # update everything
                  internal_callback=None, # internal changes
                  callback_states_for_autofill: [str]=[], # list of States in the component available for autofill ie. State(id, children)
-                 **kwargs
+                 # **kwargs
                 ):
         
         all_ids = np.array(get_component_ids(layout))
@@ -70,11 +70,11 @@ class AppComponent:
         self.new_data_callback = new_data_callback
         self.internal_callback = internal_callback
         
-        self.new_data_callback= lambda *args: new_data_callback(*args, **kwargs)
-        self.internal_callback= lambda *args: internal_callback(*args, **kwargs)
+        # self.new_data_callback= lambda *args: new_data_callback(*args, **kwargs)
+        # self.internal_callback= lambda *args: internal_callback(*args, **kwargs)
         
-        # self.new_data_callback = new_data_callback
-        # self.internal_callback = internal_callback
+        self.new_data_callback = new_data_callback
+        self.internal_callback = internal_callback
         
         self.callback_states_for_autofill = callback_states_for_autofill
 
@@ -102,7 +102,8 @@ class ReviewDataApp:
         app.layout, annotation_panel_component, autofill_buttons, autofill_states, autofill_literals = self.gen_layout(review_data, reviewed_data_df, autofill_dict)
         
         def validate_callback_outputs(component_output, 
-                                      component, which_callback='callback function(s)'):
+                                      component, 
+                                      which_callback='callback function(s)'):
             if not isinstance(component_output, list) or (len(component.callback_output) != len(component_output)):
                 raise ValueError(f'Component ({component.name}) {which_callback} does not return '
                                  'the same length output as component\'s callback_output.\n'
@@ -147,13 +148,13 @@ class ReviewDataApp:
                 for c_name, component in self.more_components.items():
                     # reset vs row dependent
                     component_output = component.new_data_callback(review_data.data, # Require call backs first two args be the dataframe and the index value
-                                                          dropdown_value, 
-                                                          *more_component_inputs[component.name])
+                                                                   dropdown_value, 
+                                                                   *more_component_inputs[component.name])
                     validate_callback_outputs(component_output, component, which_callback='new_data_callback')
                     output_dict['more_component_outputs'][component.name] = component_output
                     
                 output_dict['history_table'] = dbc.Table.from_dataframe(review_data.history.loc[review_data.history['index'] == dropdown_value])
-                output_dict['annot_panel'] = {annot_col: '' for annot_col in review_data.annot.columns} # TODO set defaults?
+                output_dict['annot_panel'] = {annot_col: '' for annot_col in review_data.annot.columns}
                             
             elif (prop_id == 'APP-submit-button-state') & (submit_annot_button > 0):
                 for annot_type in review_data.review_data_annotation_list:
@@ -174,7 +175,8 @@ class ReviewDataApp:
                 for c_name, component in self.more_components.items():
                     if sum([ci.component_id == prop_id for ci in component.callback_input]) > 0:
                         if component.internal_callback is None:
-                            raise ValueError(f'Component ({component.name}) has Inputs that change, but no internal_callback defined to handle it')
+                            raise ValueError(f'Component ({component.name}) has Inputs that change ({prop_id}), but no internal_callback defined to handle it.'
+                                             f'Either remove Input "{prop_id}" from "{component.name}.callback_input" attribute, or define a callback function')
 
                         component_output = component.internal_callback(review_data.data, # Require call backs first two args be the dataframe and the index value
                                                                        dropdown_value, 
@@ -347,13 +349,19 @@ class ReviewDataApp:
         
     def add_component(self, 
                       component: AppComponent, 
+                      **kwargs
                      ):
         ids_with_reserved_prefix_list = np.array(['APP-' in i for i in component.all_component_ids])
         if ids_with_reserved_prefix_list.any():
             raise ValueError(f'Some ids use reserved keyword "APP-". Please change the id name\n'
                              f'Invalid component ids: {component.all_component_ids[np.argwhere(ids_with_reserved_prefix_list).flatten()]}')
         
-        self.more_components[component.name] = component
+        new_component = copy.deepcopy(component)
+        new_component.internal_callback = lambda *args: component.internal_callback(*args, **kwargs)
+        new_component.new_data_callback = lambda *args: component.new_data_callback(*args, **kwargs)
+        
+        
+        self.more_components[component.name] = new_component
         all_ids = get_component_ids([c.layout for c_name, c in self.more_components.items()])
         check_duplicates(all_ids, f'ids found in previously added component from component named {component.name}')
         
