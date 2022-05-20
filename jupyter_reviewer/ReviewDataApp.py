@@ -207,23 +207,26 @@ class ReviewDataApp:
     def gen_annotation_panel_component(self, 
                                        review_data: ReviewData, 
                                        autofill_dict: dict):
-        annotation_data = review_data.review_data_annotation_list
+
         submit_annot_button = html.Button(id='APP-submit-button-state', n_clicks=0, children='Submit')
-        
         # get buttons
         component_names = [c.name for c in self.more_components]
+        review_data_annot_names = [a.name for a in review_data.review_data_annotation_list]
             
+        autofill_buttons = []
+        autofill_states = {}
         for component_name, autofill_annot_dict in autofill_dict.items():
             # check component_name in more components
             if component_name not in component_names:
                 raise ValueError(f'Autofill component name {component_name} does not exist in the app.')
             # check keys in autofill_annot_dict are in ReviewData annot columns
-            # annot_keys = autofill_annot_dict.keys()
-            
-            # check values in autofill_annot_dict are ids in component name
-            
-        autofill_buttons = []
-        autofill_states = {}
+            annot_keys = np.array(list(autofill_annot_dict.keys()))
+            missing_annot_refs = np.array([annot_k not in review_data_annot_names for annot_k in annot_keys])
+            if missing_annot_refs.any():
+                raise ValueError(f'Reference to annotation columns {annot_keys[np.argwhere(missing_annot_refs).flatten()]} do not existin in the Review Data Object.'
+                                 f'Available annotation columns are {review_data_annot_names}')
+            # check values in autofill_annot_dict are ids in component name. Need to get component object
+
         
         def annotation_input(annot_name, annot: ReviewDataAnnotation):
             
