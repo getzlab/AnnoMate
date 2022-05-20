@@ -33,6 +33,7 @@ class AppComponent:
                  callback_state=[],
                  new_data_callback=None, # update everything
                  internal_callback=None, # internal changes
+                 **kwargs
                 ):
         
         all_ids = np.array(get_component_ids(components))
@@ -61,6 +62,9 @@ class AppComponent:
         self.callback_state = callback_state
         self.new_data_callback = new_data_callback
         self.internal_callback = internal_callback
+        
+        self.new_data_callback= lambda *args: new_data_callback(*args, **kwargs)
+        self.internal_callback= lambda *args: internal_callback(*args, **kwargs)
 
         
     
@@ -253,33 +257,23 @@ class ReviewDataApp:
         check_duplicates(all_ids, 'full component')
 
         return layout
+        
+    def add_component(self, 
+                      component: AppComponent, 
+                      # add_autofill=False,
+                      # autofill_dict={}, # annot_col: component output id
+                     ):
+        
+#         if add_autofill:
+#             autofill_button_component = html.Button(f'Use current {component.name} solution', 
+#                                                     id=f'APP-autofill-{component.name}', 
+#                                                     n_clicks=0)
+#             autofill_comp_id_missing = np.array([k not in component.all_component_ids for k in autofill_dict.values()])
+#             if autofill_comp_id_missing.any():
+#                 raise ValueError(f'Following ids do not exist to autofill: {np.array(list(autofill_dict.values()))[np.argwhere(autofill_comp_id_missing).flatten()]}')
 
-        
-    def add_custom_component(self, 
-                             component_name, 
-                             component_layout,
-                             new_data_callback, # switching data
-                             callback_output: [Output], 
-                             callback_input: [Input]=[], 
-                             internal_callback=None, # within the component
-                             add_autofill=False,
-                             autofill_dict={}, # annot_col: component output id
-                             **kwargs):
-        
-        if add_autofill:
-            autofill_button_component = html.Button(f'Use current {component_name} solution', 
-                                                    id=f'APP-autofill-{component_name}', 
-                                                    n_clicks=0)
-            self.autofill_buttons += [autofill_button_component]
-            self.autofill_input_dict[autofill_button_component.id] = autofill_dict
-            
-        component = AppComponent(component_name, 
-                                 component_layout, 
-                                 new_data_callback=lambda *args: new_data_callback(*args, **kwargs),
-                                 internal_callback=lambda *args: internal_callback(*args, **kwargs),
-                                 callback_output=callback_output, 
-                                 callback_input=callback_input,
-                                )
+#             self.autofill_buttons += [autofill_button_component]
+#             self.autofill_input_dict[autofill_button_component.id] = autofill_dict
         
         ids_with_reserved_prefix_list = np.array(['APP-' in i for i in component.all_component_ids])
         if ids_with_reserved_prefix_list.any():
@@ -294,11 +288,13 @@ class ReviewDataApp:
         
         table = html.Div(dbc.Table.from_dataframe(pd.DataFrame()), 
                                    id=component_name)
-        self.add_custom_component(component_name, 
-                                  [html.H1(table_name), table],
-                                  new_data_callback = lambda df, idx: [dbc.Table.from_dataframe(pd.read_csv(df.loc[idx, col], sep='\t', encoding='iso-8859-1')[table_cols])],
-                                  callback_output=[Output(component_name, 'children')]
-                                 )
+        self.add_component(AppComponent(component_name, 
+                                        [html.H1(table_name), table],
+                                        new_data_callback = lambda df, idx: [dbc.Table.from_dataframe(pd.read_csv(df.loc[idx, col], 
+                                                                                                                  sep='\t', 
+                                                                                                                  encoding='iso-8859-1')[table_cols])],
+                                        callback_output=[Output(component_name, 'children')]
+                                       ))
         
         
 # Validation
