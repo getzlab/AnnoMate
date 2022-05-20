@@ -191,12 +191,13 @@ class ReviewData:
                 
         self.save()
         
-    def _update(self, data_idx, series):
-        self.annot.loc[data_idx, list(series.keys())] = list(series.values())
-        series['timestamp'] = datetime.today()
-        series['index'] = data_idx
-        series['review_data_fn'] = self.review_data_fn
-        self.history = pd.concat([self.history, pd.Series(series).to_frame().T])
-        self.save()
+    def _update(self, data_idx, dictionary):
+        if list(self.annot.loc[data_idx, list(dictionary.keys())].values) != list(dictionary.values()):
+            self.annot.loc[data_idx, list(dictionary.keys())] = list(dictionary.values())
+            dictionary['timestamp'] = datetime.today()
+            dictionary['index'] = data_idx
+            dictionary['review_data_fn'] = self.review_data_fn
+            self.history = pd.concat([self.history, pd.Series(dictionary).to_frame().T])
+            self.save()
         
         
