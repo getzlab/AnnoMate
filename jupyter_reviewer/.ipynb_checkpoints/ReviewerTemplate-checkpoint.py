@@ -15,12 +15,10 @@ class ReviewerTemplate(ABC):
     
     @abstractmethod
     def gen_review_data_object(review_data_obj_fn: typing.Union[str, bytes, os.PathLike], 
-                               df: pd.DataFrame, 
-                               more_annot_cols: [ReviewDataAnnotation]) -> ReviewData:
+                               df: pd.DataFrame) -> ReviewData:
         """
         review_data_obj_fn: path to save review data object
         df:                 pandas dataframe with the data to review
-        more_annot_cols:    additional annotation columns a user may want to include (id [ReviewDataAnnotation(), ...])
         """
         pass
         

@@ -192,7 +192,6 @@ class ReviewDataApp:
 
             if prop_id == 'APP-dropdown-data-state':
                 for c_name, component in self.more_components.items():
-                    # reset vs row dependent
                     component_output = component.new_data_callback(review_data.data, # Require call backs first two args be the dataframe and the index value
                                                                    dropdown_value, 
                                                                    *more_component_inputs[component.name])
@@ -217,7 +216,6 @@ class ReviewDataApp:
                 for autofill_annot_col, value in autofill_literals[prop_id].items():
                     output_dict['annot_panel'][autofill_annot_col] = value
             else:
-                # identify component that changed and which outputs are changed
                 for c_name, component in self.more_components.items():
                     if sum([ci.component_id == prop_id for ci in component.callback_input]) > 0:
                         if component.internal_callback is None:
@@ -230,7 +228,6 @@ class ReviewDataApp:
 
                         validate_callback_outputs(component_output, component, which_callback='internal_callback')
                         output_dict['more_component_outputs'][component.name] = component_output # force having output as array specify names in the callback outputs? Or do it by dictionary
-                        break
                 pass
             return output_dict
         
@@ -255,9 +252,9 @@ class ReviewDataApp:
         history_table = html.Div([dbc.Table.from_dataframe(pd.DataFrame(columns=review_data.history.columns))], 
                                  style={"overflow": "scroll"}, 
                                  id='APP-history-table')
-        history_component = AppComponent(name='APP-history-component',
-                                               layout=[history_table])
         
+        history_component = AppComponent(name='APP-history-component',
+                                         layout=[history_table])
         
         autofill_buttons, autofill_states, autofill_literals = self.gen_autofill_buttons_and_states(review_data, autofill_dict)
         
@@ -269,10 +266,9 @@ class ReviewDataApp:
                            dbc.Row([review_data_description]),
                            dbc.Row([dropdown_component.layout]),
                            dbc.Row([dbc.Col(annotation_panel_component.layout, width=6),
-                                    dbc.Col(html.Div(history_component.layout), width=6)
-                                   ]),
-                           dbc.Row([dbc.Row(c.layout) for c_name, c in self.more_components.items()])
-                          ], style={'marginBottom': 50, 'marginTop': 25, 'marginRight': 25, 'marginLeft': 25})
+                                    dbc.Col(html.Div(history_component.layout), width=6)]),
+                           dbc.Row([dbc.Row(c.layout) for c_name, c in self.more_components.items()])], 
+                          style={'marginBottom': 50, 'marginTop': 25, 'marginRight': 25, 'marginLeft': 25})
         
         all_ids = np.array(get_component_ids(layout))
         check_duplicates(all_ids, 'full component')
@@ -297,7 +293,7 @@ class ReviewDataApp:
         autofill_states = {}
         autofill_literals = {}
         for component_name, component_autofill_dict in autofill_dict.items():
-            # check component_name in more components
+
             if component_name not in self.more_components.keys():
                 raise ValueError(f'Autofill component name {component_name} does not exist in the app.')
                 
@@ -435,7 +431,6 @@ class ReviewDataApp:
                                        ))
         
 # Validation
-
 def get_component_ids(component):
     if isinstance(component, list) or isinstance(component, tuple):
         id_list = []
@@ -444,7 +439,7 @@ def get_component_ids(component):
         return id_list
     elif isinstance(component, str) or isinstance(component, int) or isinstance(component, float):
         return []
-    elif 'children' in component.__dict__.keys(): #isinstance(component, html.Div): # TODO: include dbc rows and columns
+    elif 'children' in component.__dict__.keys(): 
         children_ids = get_component_ids(component.children)
         if 'id' in component.__dict__.keys():
             children_ids += [component.id]

@@ -60,11 +60,11 @@ class ReviewDataAnnotation:
 class ReviewData:
     
     def __init__(self, 
-                 review_data_fn: str, # path to save object
-                 description: str='', # describe data or updates
-                 df: pd.DataFrame = pd.DataFrame(), # optional if file above already exists. 
-                 review_data_annotation_list: [ReviewDataAnnotation] = [], # list
-                 reuse_existing_review_data_fn: str = None, # reuse previous review data object
+                 review_data_fn: str, 
+                 description: str='', 
+                 df: pd.DataFrame = pd.DataFrame(), 
+                 review_data_annotation_list: [ReviewDataAnnotation] = [], 
+                 reuse_existing_review_data_fn: str = None, 
                 ):
         """
         review_data_fn:                path to save review data object
@@ -118,7 +118,6 @@ class ReviewData:
             print(f'Loading existing review session {review_data_fn}...')
             self.load(review_data_fn)
 
-        
         # Add additional columns to table
         if not df.equals(self.data):
             new_data_cols = [c for c in df.columns if c not in self.data.columns]
@@ -140,12 +139,10 @@ class ReviewData:
 
         self.__dict__.update(tmp_dict) 
 
-
     def save(self):
         f = open(self.review_data_fn, 'wb')
         pickle.dump(self.__dict__, f, 2)
         f.close()
-    
     
     def pre_fill_annot(df: pd.DataFrame):
         """
@@ -199,5 +196,4 @@ class ReviewData:
             dictionary['review_data_fn'] = self.review_data_fn
             self.history = pd.concat([self.history, pd.Series(dictionary).to_frame().T])
             self.save()
-        
         
