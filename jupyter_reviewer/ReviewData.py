@@ -111,6 +111,7 @@ class ReviewData:
                 
             self.data = df # overwrite data frame.
             self.review_data_fn = review_data_fn # change path to save object
+            self.description = description
             self._add_annotations(review_data_annotation_list)
             self.save()
         else:

@@ -145,6 +145,7 @@ class ReviewDataApp:
         reviewed_data_df.index.name = 'value'
         
         app.layout, annotation_panel_component, autofill_buttons, autofill_states, autofill_literals = self.gen_layout(review_data, reviewed_data_df, autofill_dict)
+        app.title = review_data.review_data_fn.split('/')[-1].split('.')[0]
         
         def validate_callback_outputs(component_output, 
                                       component, 
@@ -240,6 +241,10 @@ class ReviewDataApp:
                    reviewed_data_df: pd.DataFrame,
                    autofill_dict: dict,
                   ):
+        
+        review_data_title = html.Div([html.H1(review_data.review_data_fn.split('/')[-1].split('.')[0])])
+        review_data_path = html.Div([html.P(f'Path: {review_data.review_data_fn}')])
+        review_data_description = html.Div([html.P(f'Description: {review_data.description}')])
         dropdown = html.Div(dcc.Dropdown(options=reviewed_data_df.reset_index().to_dict('records'), 
                                          value=None, 
                                          id='APP-dropdown-data-state'))
@@ -259,7 +264,10 @@ class ReviewDataApp:
         annotation_panel_component = self.gen_annotation_panel_component(review_data, autofill_buttons)
         
         # TODO: save current view as html
-        layout = html.Div([dbc.Row([dropdown_component.layout]),
+        layout = html.Div([dbc.Row([review_data_title]),
+                           dbc.Row([review_data_path]),
+                           dbc.Row([review_data_description]),
+                           dbc.Row([dropdown_component.layout]),
                            dbc.Row([dbc.Col(annotation_panel_component.layout, width=6),
                                     dbc.Col(html.Div(history_component.layout), width=6)
                                    ]),
