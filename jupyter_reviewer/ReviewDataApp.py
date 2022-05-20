@@ -247,7 +247,7 @@ class ReviewDataApp:
                                     dbc.Col(html.Div(self.history_component.component), width=6)
                                    ]),
                            dbc.Row([dbc.Row(c.component) for c in self.more_components])
-                          ])
+                          ], style={'marginBottom': 50, 'marginTop': 25, 'marginRight': 25, 'marginLeft': 25})
         
         all_ids = np.array(get_component_ids(layout))
         check_duplicates(all_ids, 'full component')
