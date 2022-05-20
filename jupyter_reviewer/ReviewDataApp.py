@@ -243,8 +243,8 @@ class ReviewDataApp:
         # TODO: save current view as html
         
         layout = html.Div([dbc.Row([self.dropdown_component.component]),
-                           dbc.Row([dbc.Col(self.annotation_panel_component.component),
-                                    dbc.Col(self.history_component.component)
+                           dbc.Row([dbc.Col(self.annotation_panel_component.component, width=6),
+                                    dbc.Col(html.Div(self.history_component.component), width=6)
                                    ]),
                            dbc.Row([dbc.Row(c.component) for c in self.more_components])
                           ])

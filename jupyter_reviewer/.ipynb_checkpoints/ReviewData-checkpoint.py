@@ -172,6 +172,7 @@ class ReviewData:
         series['timestamp'] = datetime.today()
         series['index'] = data_idx
         series['review_data_fn'] = self.review_data_fn
+        display(pd.concat([self.history, pd.Series(series)], axis=1))
         self.history = self.history.append(series, ignore_index=True)
         self.save()
         
