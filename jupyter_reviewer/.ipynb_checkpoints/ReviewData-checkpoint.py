@@ -21,6 +21,7 @@ class AnnotationType(Enum):
     NUMBER = 'number'
     CHECKLIST = 'checklist'
     RADIOITEM = 'radioitem'
+    DROPDOWN = 'dropdown'
 
 class ReviewDataAnnotation:
     
@@ -32,7 +33,10 @@ class ReviewDataAnnotation:
                  default=None
                 ):
         '''
-        validate_input: a custom function to verify input. Returns a boolean
+        name:           name of annotation columns
+        annot_type:     annotation type (see AnnotationType enum)
+        options:        list of values inputs are allowed to be. For CHECKLIST, RADIOITEM, and DROPDOWN
+        validate_input: a custom function to verify annotation input. Takes a single input and returns a boolean
         '''
         self.name = name
         self.annot_type = annot_type
@@ -62,8 +66,22 @@ class ReviewData:
                  review_data_annotation_list: [ReviewDataAnnotation] = [], # list
                  reuse_existing_review_data_fn: str = None, # reuse previous review data object
                 ):
-        # check df index
-        self.review_data_annotation_list = review_data_annotation_list       
+        """
+        review_data_fn:                path to save review data object
+        
+        description:                   describe the review session. This is useful if you copy the history of this 
+                                       object to a new review data object
+                                       
+        df:                            pandas dataframe with the data to review
+        
+        review_data_annotation_list:   list of ReviewDataAnnotation objects to define the ReviewData.annot table
+        
+        reuse_existing_review_data_fn: path to existing review data object to copy
+        """
+        if df.index.shape[0] != df.index.unique().shape[0]:
+            raise ValueError(f'Input dataframe df does not have unique index values.')
+        
+        self.review_data_annotation_list = []       
         
         if reuse_existing_review_data_fn == review_data_fn:
             raise ValueError(f'Inputs for review_data_fn and reuse_existing_review_data_fn are the same. '
@@ -93,12 +111,12 @@ class ReviewData:
                 
             self.data = df # overwrite data frame.
             self.review_data_fn = review_data_fn # change path to save object
+            self._add_annotations(review_data_annotation_list)
             self.save()
         else:
             print(f'Loading existing review session {review_data_fn}...')
             self.load(review_data_fn)
 
-        self._add_annotations(review_data_annotation_list)
         
         # Add additional columns to table
         if not df.equals(self.data):
@@ -129,7 +147,9 @@ class ReviewData:
     
     
     def pre_fill_annot(df: pd.DataFrame):
-        # TODO: check index already exists. Use _update()
+        """
+        df: Dataframe with indices and columns in the ReviewData.annot table
+        """
         valid_annot_cols = [c for c in df.columns if c in self.annot.columns]
         valid_data_idx = [data_idx for data_idx in df.index if data_idx in self.annot.index]
         for data_idx in valid_data_idx:
@@ -142,24 +162,24 @@ class ReviewData:
                       f'Invalid data indices: {invalid_data_idx}') 
         
     def add_annotation(self, 
-                       name,
-                       annot_type: AnnotationType, 
-                       options: []=[], 
-                       validate_input=None,
-                       default=None):
-        
-        review_annot = ReviewDataAnnotation(name=name, 
-                                            annot_type=annot_type, 
-                                            options=options, 
-                                            validate_input=validate_input, 
-                                            default=default)
+                       review_annot: ReviewDataAnnotation):
+        """
+        review_annot: a ReviewDataAnnotation to add to the review data object
+        """
         self._add_annotations([review_annot])
     
     def _add_annotations(self, review_data_annotation_list):
         
         # Add additional annotation columns
-        new_annot_data_list = [c for c in review_data_annotation_list if c.name not in self.annot.columns]
-        new_annot_cols = [c.name for c in new_annot_data_list]
+        current_review_data_annotation_names = [a.name for a in self.review_data_annotation_list]
+        new_annot_data_list = [a for a in review_data_annotation_list if a.name not in current_review_data_annotation_names]
+        new_annot_cols = [a.name for a in new_annot_data_list]
+        
+        if len(new_annot_data_list) < len(review_data_annotation_list):
+            duplicate_annot_data = [c.name for c in review_data_annotation_list if c.name in current_review_data_annotation_names]
+            warnings.warn(f'Following annotation names already exist: {duplicate_annot_data}\n'
+                          f'Only {new_annot_cols} will be added.')
+        
         self.annot[new_annot_cols] = np.nan
         self.history[new_annot_cols] = np.nan
         self.review_data_annotation_list += new_annot_data_list

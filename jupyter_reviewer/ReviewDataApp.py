@@ -28,16 +28,48 @@ from .ReviewData import ReviewData, ReviewDataAnnotation, AnnotationType
 class AppComponent:
     
     def __init__(self, 
-                 name, 
+                 name: str, 
                  layout, 
-                 callback_output=[], 
-                 callback_input=[],
-                 callback_state=[],
-                 new_data_callback=None, # update everything
-                 internal_callback=None, # internal changes
-                 callback_states_for_autofill: [str]=[], # list of States in the component available for autofill ie. State(id, children)
-                 # **kwargs
-                ):
+                 callback_output: [Output]=[], 
+                 callback_input: [Input]=[],
+                 callback_state: [State]=[],
+                 new_data_callback=None,
+                 internal_callback=None,
+                 callback_states_for_autofill: [str]=[]):
+        
+        """
+        name:             Unique name for the component
+        
+        layout:           dash html layout object (ex. html.Div([html.H1(children="heading", id='heading'), ...])), 
+        
+        callback_output:  List of Output() objects pointing to objects in the layout (ex. [Output('heading', 'children')]) 
+                          where callback function outputs will be stored
+                          
+        callback_input:   List of Input() objects pointing to objects in the layout (ex. [Input('heading', 'children')]). Changes to these 
+                          specified Input objects will activate the callback function and its current value will be used as an input
+                          
+        callback_state:   List of State() objects pointing to objects in the layout (ex. [State('heading', 'children')]). It's value will 
+                          be used as a parameter if the component's callback function is activated
+                          
+        new_data_callback: a function (defined separately or a lambda) that defines how the component will be updated when the ReviewData 
+                           object switches to a new index or row to review. Requirements are:
+                               - The first two parameters will be the ReviewData object data dataframe and the index of the current row to be reviewed. 
+                               - The following parameters will be the inputs defined IN ORDER by the order of the Inputs() in callback_input
+                               - The next parameters will be the states defined IN ORDER by the order of the States() in callback_state
+                               - Any remaining parameters have keywords and are at the end
+                               - **new_data_callbackinternal_callback must have the same signature
+                           Example:
+                              def myfunc(df, idx, input1, input2, state1, **kwargs):... 
+                              
+                              callback_input = [Input('id-of-object-with-value-for-input1', 'value'), 
+                                                Input('id-of-object-with-value-for-input2', 'children')]
+
+        internal_callback: a function (defined separately or a lambda) that defines how the component will be updated 
+                           when one of the defined callback_input Inputs are changed. Same requirements as new_data_callback
+                           
+        callback_states_for_autofill: List of State() objects pointing to objects in the layout (ex. [State('heading', 'children')])
+                                      users of the app are allowed to autofill with ('autofill_dict' parameter in ReviewDataApp.run())
+        """
         
         all_ids = np.array(get_component_ids(layout))
         check_duplicates(all_ids, 'component')
@@ -67,22 +99,15 @@ class AppComponent:
         self.callback_output = callback_output
         self.callback_input = callback_input
         self.callback_state = callback_state
-        self.new_data_callback = new_data_callback
-        self.internal_callback = internal_callback
-        
-        # self.new_data_callback= lambda *args: new_data_callback(*args, **kwargs)
-        # self.internal_callback= lambda *args: internal_callback(*args, **kwargs)
         
         self.new_data_callback = new_data_callback
         self.internal_callback = internal_callback
         
         self.callback_states_for_autofill = callback_states_for_autofill
 
-        
     
 class ReviewDataApp:
     def __init__(self):
-        self.prop = None
         self.more_components = OrderedDict()  # TODO: set custom layout?
             
     def run(self, 
@@ -90,8 +115,28 @@ class ReviewDataApp:
             mode='external', 
             host='0.0.0.0', 
             port=8050,
-            autofill_dict={}, # {component name: {annot, id}}
+            autofill_dict={},
            ):
+        
+        """
+        review_data:   ReviewData object to review with the app
+        mode:          How to display the dashboard ['inline', 'external']
+        host:          Host address
+        port:          Port access number
+        autofill_dict: At run time, adds buttons for each component included and if clicked, defines how to autofill 
+                       annotations for the review_data object using the specified data corresponding to the component
+            
+            Format: {component_name: {annot_name: State()}, 
+                     another_compoment_name: {annot_name: State(), another_annot_name: 'a literal value'}}
+            
+            Rules:
+                - component_name:  must be a name of a component in the app
+                - annot_name:      must be the name of an annotation type in the review_data (ReviewData) review_data_annotation_list
+                - autofill values: State()'s referring to objects in the component named component name, or a 
+                                   valid literal value according to the ReviewDataAnnotation object's validation method.
+        """
+        
+        
         app = JupyterDash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
         
         reviewed_data_df = pd.DataFrame(index=review_data.annot.index, columns=['label'])
@@ -214,7 +259,6 @@ class ReviewDataApp:
         annotation_panel_component = self.gen_annotation_panel_component(review_data, autofill_buttons)
         
         # TODO: save current view as html
-        
         layout = html.Div([dbc.Row([dropdown_component.layout]),
                            dbc.Row([dbc.Col(annotation_panel_component.layout, width=6),
                                     dbc.Col(html.Div(history_component.layout), width=6)
@@ -237,7 +281,6 @@ class ReviewDataApp:
        
     def gen_autofill_buttons_and_states(self, review_data, autofill_dict):
         
-        # get buttons
         component_names = [c.name for c_name, c in self.more_components.items()]
         review_data_annotation_objects_dict = {a.name: a for a in review_data.review_data_annotation_list}
         review_data_annot_names = list(review_data_annotation_objects_dict.keys())
@@ -245,20 +288,20 @@ class ReviewDataApp:
         autofill_buttons = []
         autofill_states = {}
         autofill_literals = {}
-        for component_name, autofill_annot_dict in autofill_dict.items():
+        for component_name, component_autofill_dict in autofill_dict.items():
             # check component_name in more components
             if component_name not in self.more_components.keys():
                 raise ValueError(f'Autofill component name {component_name} does not exist in the app.')
                 
-            # check keys in autofill_annot_dict are in ReviewData annot columns
-            annot_keys = np.array(list(autofill_annot_dict.keys()))
+            # check keys in component_autofill_dict are in ReviewData annot columns
+            annot_keys = np.array(list(component_autofill_dict.keys()))
             missing_annot_refs = np.array([annot_k not in review_data_annot_names for annot_k in annot_keys])
             if missing_annot_refs.any():
                 raise ValueError(f'Reference to annotation columns {annot_keys[np.argwhere(missing_annot_refs).flatten()]} do not existin in the Review Data Object.'
                                  f'Available annotation columns are {review_data_annot_names}')
                 
-            # check values in autofill_annot_dict are ids in component name.            
-            autofill_component_states_dict = {annot_type: state for annot_type, state in autofill_annot_dict.items() if isinstance(state, State)}
+            # check values in component_autofill_dict are ids in component name.            
+            autofill_component_states_dict = {annot_type: state for annot_type, state in component_autofill_dict.items() if isinstance(state, State)}
             autofill_component_state_ids = np.array(get_callback_io_ids(list(autofill_component_states_dict.values()), expected_io_type=State))
             component_available_autofill_states = self.more_components[component_name].callback_states_for_autofill
             missing_component_states = np.array([autofill_state not in component_available_autofill_states for autofill_state in autofill_component_states_dict.values()])
@@ -268,7 +311,7 @@ class ReviewDataApp:
                                  f'Available states for autofill for component "{component_name}": {component_available_autofill_states}')
                 
             # check literal fill values are valid
-            autofill_component_non_states_dict = {annot_type:item for annot_type, item in autofill_annot_dict.items() if not isinstance(item, State)}
+            autofill_component_non_states_dict = {annot_type:item for annot_type, item in component_autofill_dict.items() if not isinstance(item, State)}
 
             for annot_type, non_state_value in autofill_component_non_states_dict.items():
                 if isinstance(non_state_value, Input) or isinstance(non_state_value, Output):
@@ -281,9 +324,7 @@ class ReviewDataApp:
                     raise ValueError(f'Autofill value for component "{component_name}" for annotation column "{annot_type}" failed validation. '
                                      f'Check validation for annotation column "{annot_type}": \n'
                                      f'{review_data_annotation_objects_dict[annot_type]}')
-                
-            
-            
+
             # Make button    
             autofill_button_component = html.Button(f'Use current {component_name} solution', 
                                                     id=f'APP-autofill-{component_name}', 
@@ -345,12 +386,15 @@ class ReviewDataApp:
                            callback_input=panel_inputs,
                            callback_state={annot.name: State(f"APP-{annot.name}-{annot.annot_type}-input-state", "value") for annot in review_data.review_data_annotation_list}
                           )
-
         
     def add_component(self, 
                       component: AppComponent, 
                       **kwargs
                      ):
+        """
+        component: An AppComponent object to include in the app
+        **kwargs: include more arguments for the component's callback functions 
+        """
         ids_with_reserved_prefix_list = np.array(['APP-' in i for i in component.all_component_ids])
         if ids_with_reserved_prefix_list.any():
             raise ValueError(f'Some ids use reserved keyword "APP-". Please change the id name\n'
@@ -365,18 +409,22 @@ class ReviewDataApp:
         all_ids = get_component_ids([c.layout for c_name, c in self.more_components.items()])
         check_duplicates(all_ids, f'ids found in previously added component from component named {component.name}')
         
-    def add_table_from_path(self, table_name, component_name, col, table_cols):
-        
+    def add_table_from_path(self, table_name, component_name, table_fn_col, table_cols):
+        """
+        table_name:     Name of the table
+        component_name: component name for the table
+        table_fn_col:   column in review_data data dataframe with file path with table to display
+        table_cols:     columns to display in table from table_fn_col
+        """
         table = html.Div(dbc.Table.from_dataframe(pd.DataFrame()), 
-                                   id=component_name)
+                                                  id=component_name)
         self.add_component(AppComponent(component_name, 
                                         [html.H1(table_name), table],
-                                        new_data_callback = lambda df, idx: [dbc.Table.from_dataframe(pd.read_csv(df.loc[idx, col], 
+                                        new_data_callback = lambda df, idx: [dbc.Table.from_dataframe(pd.read_csv(df.loc[idx, table_fn_col], 
                                                                                                                   sep='\t', 
                                                                                                                   encoding='iso-8859-1')[table_cols])],
                                         callback_output=[Output(component_name, 'children')]
                                        ))
-        
         
 # Validation
 
