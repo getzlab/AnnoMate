@@ -35,7 +35,7 @@ class AppComponent:
                  callback_state: [State]=[],
                  new_data_callback=None,
                  internal_callback=None,
-                 callback_states_for_autofill: [str]=[]):
+                 callback_states_for_autofill: [State]=[]):
         
         """
         name:             Unique name for the component
@@ -74,14 +74,18 @@ class AppComponent:
         all_ids = np.array(get_component_ids(layout))
         check_duplicates(all_ids, 'component')
         
+        check_duplicate_objects(callback_output, 'callback_output_objects')
         callback_output_ids = get_callback_io_ids(callback_output, expected_io_type=Output)
-        check_duplicates(callback_output_ids, 'callback_output')
         check_callback_io_id_in_list(callback_output_ids, all_ids, ids_type='output_ids', all_ids_type='component_ids')
+        
+        check_duplicate_objects(callback_input, 'callback_input_objects')
         callback_input_ids = get_callback_io_ids(callback_input, expected_io_type=Input)
+        check_callback_io_id_in_list(callback_input_ids, all_ids, ids_type='input_ids', all_ids_type='component_ids')
+        
+        check_duplicate_objects(callback_state, 'callback_state_objects')
         callback_state_ids = get_callback_io_ids(callback_state, expected_io_type=State)
-        callback_input_state_ids = callback_input_ids + callback_state_ids
-        check_duplicates(callback_input_state_ids, 'callback_input and callback_state')
-        check_callback_io_id_in_list(callback_input_state_ids, all_ids, ids_type='input_state_ids', all_ids_type='component_ids')
+        check_callback_io_id_in_list(callback_state_ids, all_ids, ids_type='state_ids', all_ids_type='component_ids')
+        
         
         if internal_callback is not None and inspect.signature(new_data_callback) != inspect.signature(internal_callback):
             raise ValueError(f'new_data_callback and internal_callback do not have the same signature.\n'
@@ -90,7 +94,7 @@ class AppComponent:
                             )
         
         callback_states_for_autofill_ids = get_callback_io_ids(callback_states_for_autofill, expected_io_type=State)
-        check_duplicates(callback_states_for_autofill_ids, 'callback_output')
+        check_duplicate_objects(callback_states_for_autofill_ids, 'callback_states_for_autofill_objects')
         check_callback_io_id_in_list(callback_states_for_autofill_ids, all_ids, ids_type='callback_states_for_autofill_ids', all_ids_type='component_ids')
             
         self.name = name
@@ -475,4 +479,6 @@ def check_duplicates(a_list, list_type: str):
     if (counts > 1).any():
         raise ValueError(f"Duplicate {list_type}: {values[np.argwhere(counts > 1)].flatten()}")
         
+def check_duplicate_objects(a_list, list_type:str):
+    check_duplicates([c.__str__() for c in a_list], list_type=list_type)
         

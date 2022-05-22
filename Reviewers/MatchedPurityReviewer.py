@@ -1,5 +1,5 @@
-from src.ReviewData import ReviewData, ReviewDataAnnotation
-from src.ReviewDataApp import ReviewDataApp
+from jupyter_reviewer.ReviewData import ReviewData, ReviewDataAnnotation
+from jupyter_reviewer.ReviewDataApp import ReviewDataApp, AppComponent
 
 import pandas as pd
 import numpy as np
@@ -19,8 +19,8 @@ import dash
 import dash_bootstrap_components as dbc
 import functools
 
-from src.ReviewerTemplate import ReviewerTemplate
-from src.lib.plot_cnp import plot_acr_interactive
+from jupyter_reviewer.ReviewerTemplate import ReviewerTemplate
+from jupyter_reviewer.lib.plot_cnp import plot_acr_interactive
 
 from rpy2.robjects import r, pandas2ri
 import rpy2.robjects as robjects
@@ -226,31 +226,35 @@ def parse_absolute_soln(rdata_path: str): # has to be a local path
 def load_pickle(fn):
     return pickle.load(open(fn, "rb"))
     
+def validate_purity(x):
+    return (x >=0) and (x <= 1)
+
+def validate_ploidy(x):
+    return (x >=0)
+    
 
 class MatchedPurityReviewer(ReviewerTemplate):
-
-
-    def gen_review_data_object(session_dir, 
-                               df: pd.DataFrame, 
-                               more_annot_cols: {str: ReviewDataAnnotation},
-                               acs_col,
-                               maf_col,
-                               rdata_fn_col,
-                               reload_cnp_figs=False,
-                               reload_mut_figs=False,
-                              ):
+    
+    def gen_review_data(self, 
+                        review_data_fn: str, 
+                       description: str='', 
+                       df: pd.DataFrame = pd.DataFrame(), 
+                       review_data_annotation_list: [ReviewDataAnnotation] = [], 
+                       reuse_existing_review_data_fn: str = None,
+                       preprocess_data_dir='.',
+                       acs_col='',
+                       maf_col='',
+                       rdata_fn_col='',
+                       reload_cnp_figs=False,
+                       reload_mut_figs=False,
+                      ):
         pandas2ri.activate()
-
-        annot_data = {'purity': ReviewDataAnnotation( 'number', 
-                                           validate_input=lambda x: (x <= 1.0) and (x >= 0.0)),
-                      'ploidy': ReviewDataAnnotation('number', 
-                                           validate_input=lambda x: x >= 0.0)}
-        if not os.path.exists(session_dir):
-            os.mkdir(session_dir)
+        if not os.path.exists(preprocess_data_dir):
+            os.mkdir(preprocess_data_dir)
         
         # preprocessing
         # 1. download rdata 
-        rdata_dir = f'{session_dir}/rdata_to_tsv'
+        rdata_dir = f'{preprocess_data_dir}/rdata_to_tsv'
         if not os.path.exists(rdata_dir):
             print(f'Converting ABSOLUTE rdata into tsv files in {rdata_dir}')
             os.mkdir(rdata_dir)
@@ -269,7 +273,7 @@ class MatchedPurityReviewer(ReviewerTemplate):
             
         
         # 2. Process cnp figures
-        cnp_figs_dir = f'{session_dir}/cnp_figs'
+        cnp_figs_dir = f'{preprocess_data_dir}/cnp_figs'
         if not os.path.exists(cnp_figs_dir):
             os.mkdir(cnp_figs_dir)
             reload_cnp_figs = True
@@ -284,7 +288,7 @@ class MatchedPurityReviewer(ReviewerTemplate):
                 pickle.dump(fig, open(output_fn, "wb"))
                 df.loc[i, f'cnp_figs_pkl'] = output_fn
                 
-        mut_figs_dir = f'{session_dir}/mut_figs'
+        mut_figs_dir = f'{preprocess_data_dir}/mut_figs'
         if not os.path.exists(mut_figs_dir):
             os.mkdir(mut_figs_dir)
             reload_mut_figs = True
@@ -299,84 +303,87 @@ class MatchedPurityReviewer(ReviewerTemplate):
                 pickle.dump(fig, open(output_fn, "wb"))
                 df.loc[i, f'mut_figs_pkl'] = output_fn
             
-        # TODO: make sure there are no duplicates
-        purity_review_session_dir = f'{session_dir}/purity_review_session'
-        rd = ReviewData(review_dir=purity_review_session_dir,
-                        df=df, # optional if directory above already exists. 
-                        annotate_data = {**annot_data, **more_annot_cols})
-        
-        print(f'Created purity review session in {purity_review_session_dir}')
+        review_data_annotation_list = [ReviewDataAnnotation('purity', 'number', validate_input=validate_purity),
+                                       ReviewDataAnnotation('ploidy', 'number', validate_input=validate_ploidy)]
+
+        rd = ReviewData(review_data_fn=review_data_fn,
+                        description=description,
+                        df=df,
+                        review_data_annotation_list = review_data_annotation_list,
+                        reuse_existing_review_data_fn=reuse_existing_review_data_fn)
+
         return rd
 
-    def gen_review_data_app(review_data_obj, 
-                            sample_info_cols,
+    def gen_review_app(self,sample_info_cols,
                             acs_col, 
                             maf_col,
                             rdata_tsv_fn='local_absolute_rdata_as_tsv',
                             cnp_fig_pkl_fn_col='cnp_figs_pkl',
                             mut_fig_pkl_fn_col='mut_figs_pkl',
-                           ):
+                           ) -> ReviewDataApp:
 
-        app = ReviewDataApp(review_data_obj)
-        app.add_custom_component('cnp-plot',
-                                 html.Div(children=[html.H1('Absolute Solutions'), 
-                                                    html.H2('Absolute Solutions Table'), 
-                                                    dash_table.DataTable(
-                                                                        id='absolute-rdata-select-table',
-                                                                        columns=[
-                                                                            {"name": i, 
-                                                                             "id": i} for i in absolute_rdata_cols
-                                                                        ],
-                                                        data=pd.DataFrame(columns=absolute_rdata_cols).to_dict('records'),
-                                                                        editable=False,
-                                                                        filter_action="native",
-                                                                        sort_action="native",
-                                                                        sort_mode="multi",
-                                                                        row_selectable="single",
-                                                                        row_deletable=False,
-                                                                        selected_columns=[],
-                                                                        selected_rows=[0],
-                                                                        page_action="native",
-                                                                        page_current= 0,
-                                                                        page_size= 5),
-                                                    html.H2('Copy Number Profile'), 
-                                                    html.Div([html.P('Purity: ', 
-                                                                     style={'display': 'inline'}), 
-                                                              html.P(0, id='absolute-purity', 
-                                                                     style={'display': 'inline'})]), 
-                                                    html.Div([html.P('Ploidy: ', 
-                                                                     style={'display': 'inline'}), 
-                                                              html.P(0, id='absolute-ploidy', 
-                                                                     style={'display': 'inline'})]), 
-                                                    dcc.Graph(id='cnp-graph', figure={}),
-                                                    dcc.Graph(id='mut-graph', figure={})
-                                                   ]),
-                                 new_data_callback=gen_absolute_component,
-                                 internal_callback=internal_gen_absolute_component,
-                                 callback_input=[Input('absolute-rdata-select-table', 'selected_rows')],
-                                 callback_output=[Output('absolute-rdata-select-table', 'data'),
-                                                  Output('cnp-graph', 'figure'), 
-                                                  Output('mut-graph', 'figure'),
-                                                  Output('absolute-purity', 'children'),
-                                                  Output('absolute-ploidy', 'children'),
-                                                  Output('absolute-rdata-select-table', 'selected_rows')
-                                                 ],
-                                 add_autofill=True,
-                                 autofill_dict={'purity': Input('absolute-purity', 'children'),
-                                                'ploidy': Input('absolute-ploidy', 'children')},
+        app = ReviewDataApp()
+        app.add_component(AppComponent('cnp-plot',
+                                                 html.Div(children=[html.H1('Absolute Solutions'), 
+                                                                    html.H2('Absolute Solutions Table'), 
+                                                                    dash_table.DataTable(
+                                                                                        id='absolute-rdata-select-table',
+                                                                                        columns=[
+                                                                                            {"name": i, 
+                                                                                             "id": i} for i in absolute_rdata_cols
+                                                                                        ],
+                                                                        data=pd.DataFrame(columns=absolute_rdata_cols).to_dict('records'),
+                                                                                        editable=False,
+                                                                                        filter_action="native",
+                                                                                        sort_action="native",
+                                                                                        sort_mode="multi",
+                                                                                        row_selectable="single",
+                                                                                        row_deletable=False,
+                                                                                        selected_columns=[],
+                                                                                        selected_rows=[0],
+                                                                                        page_action="native",
+                                                                                        page_current= 0,
+                                                                                        page_size= 5),
+                                                                    html.H2('Copy Number Profile'), 
+                                                                    html.Div([html.P('Purity: ', 
+                                                                                     style={'display': 'inline'}), 
+                                                                              html.P(0, id='absolute-purity', 
+                                                                                     style={'display': 'inline'})]), 
+                                                                    html.Div([html.P('Ploidy: ', 
+                                                                                     style={'display': 'inline'}), 
+                                                                              html.P(0, id='absolute-ploidy', 
+                                                                                     style={'display': 'inline'})]), 
+                                                                    dcc.Graph(id='cnp-graph', figure={}),
+                                                                    dcc.Graph(id='mut-graph', figure={})
+                                                                   ]),
+                                                 new_data_callback=gen_absolute_component,
+                                                 internal_callback=internal_gen_absolute_component,
+                                                 callback_input=[Input('absolute-rdata-select-table', 'selected_rows')],
+                                                 callback_output=[Output('absolute-rdata-select-table', 'data'),
+                                                                  Output('cnp-graph', 'figure'), 
+                                                                  Output('mut-graph', 'figure'),
+                                                                  Output('absolute-purity', 'children'),
+                                                                  Output('absolute-ploidy', 'children'),
+                                                                  Output('absolute-rdata-select-table', 'selected_rows')
+                                                                 ],
+                                              callback_states_for_autofill=[State('absolute-purity', 'children'), State('absolute-ploidy', 'children')]
+                                             ),
                                  rdata_tsv_fn=rdata_tsv_fn,
                                  cnp_fig_pkl_fn_col=cnp_fig_pkl_fn_col,
-                                 mut_fig_pkl_fn_col=mut_fig_pkl_fn_col
-                                )
+                                 mut_fig_pkl_fn_col=mut_fig_pkl_fn_col)
         
-        app.add_custom_component('sample-info-component', 
-                                  html.Div(children=[html.H1('Data Summary'), 
-                                                     dbc.Table.from_dataframe(df=pd.DataFrame())],
-                                           id='sample-info-component'
-                                          ), 
-                                  callback_output=[Output('sample-info-component', 'children')],
-                                  new_data_callback=gen_data_summary_table, 
+        app.add_component(AppComponent('sample-info-component', 
+                                              html.Div(children=[html.H1('Data Summary'), 
+                                                                 dbc.Table.from_dataframe(df=pd.DataFrame())],
+                                                       id='sample-info-component'
+                                                      ), 
+                                              callback_output=[Output('sample-info-component', 'children')],
+                                              new_data_callback=gen_data_summary_table),
                                   cols=sample_info_cols)
 
         return app
+    
+    def gen_autofill(self):
+        self.add_autofill('cnp-plot', {'purity': State('absolute-purity', 'children'),
+                                       'ploidy': State('absolute-ploidy', 'children')})
                     

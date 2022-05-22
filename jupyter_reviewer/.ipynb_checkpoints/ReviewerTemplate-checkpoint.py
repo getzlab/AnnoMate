@@ -71,7 +71,11 @@ class ReviewerTemplate(ABC):
             mode='external', 
             host='0.0.0.0', 
             port=8050):
-        self.app.run(review_data=self.review_data, autofill_dict=self.autofill_dict)
+        self.app.run(review_data=self.review_data, 
+                     autofill_dict=self.autofill_dict,
+                     mode=mode,
+                     host=host,
+                     port=port)
     
     
     
