@@ -371,14 +371,23 @@ class ReviewDataApp:
                                             value=annot.default,
                                    )
             elif annot.annot_type == AnnotationType.CHECKLIST.value:
+                default = [] if annot.default is None else annot.default
                 input_component = dbc.Checklist(options=[{"label": f, "value": f} for f in annot.options],
                                                 id=input_component_id, 
-                                                value=annot.default),
+                                                value=default),
             elif annot.annot_type == AnnotationType.RADIOITEM.value:
+                default = None if annot.default is None else annot.default
                 input_component = dbc.RadioItems(
                                                 options=[{"label": f, "value": f} for f in annot.options],
                                                 value=annot.default,
                                                 id=input_component_id,
+                                            )
+            elif annot.annot_type == AnnotationType.DROPDOWN.value:
+                default = None if annot.default is None else annot.default
+                input_component = dbc.Select(
+                                            options=[{"label": f, "value": f} for f in annot.options],
+                                            value=annot.default,
+                                            id=input_component_id,
                                             ),
             else:
                 raise ValueError(f'Invalid annotation type "{annot.annot_type}"')
