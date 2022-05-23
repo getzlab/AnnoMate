@@ -50,12 +50,20 @@ class ReviewerTemplate(ABC):
                         review_data_annotation_list: [ReviewDataAnnotation] = [], 
                         reuse_existing_review_data_fn: str = None,  
                         **kwargs):
-        self.review_data = self.gen_review_data(review_data_fn,
-                                           description,
-                                           df,
-                                           # review_data_annotation_list,
-                                           reuse_existing_review_data_fn,
-                                           **kwargs)
+        
+        if os.path.exists(review_data_fn) or ((reuse_existing_review_data_fn is not None) and 
+                                              os.path.exists(reuse_existing_review_data_fn)):
+            self.review_data = ReviewData(review_data_fn=review_data_fn,
+                                          description=description,
+                                          df=df,
+                                          reuse_existing_review_data_fn=reuse_existing_review_data_fn)
+        else:
+            self.review_data = self.gen_review_data(review_data_fn,
+                                               description,
+                                               df,
+                                               # review_data_annotation_list,
+                                               reuse_existing_review_data_fn,
+                                               **kwargs)
     
     def set_review_app(self, *args, **kwargs):
         self.app = self.gen_review_app(*args, **kwargs)
