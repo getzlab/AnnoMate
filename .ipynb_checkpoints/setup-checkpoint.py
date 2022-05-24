@@ -4,7 +4,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="jupyter_reviewer",
+    name="JupyterReviewer",
     version="0.0.1",
     author="Claudia Chu",
     author_email="cchu@broadinstitute.org",
@@ -20,8 +20,8 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    package_dir={"": "jupyter_reviewer"},
-    packages=setuptools.find_packages(where="jupyter_reviewer"),
+    package_dir={"": "JupyterReviewer"},
+    packages=setuptools.find_packages(where="JupyterReviewer"),
     python_requires=">=3.6",
 )   
 
