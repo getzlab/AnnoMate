@@ -1,4 +1,4 @@
-from .ReviewData import ReviewData, ReviewDataAnnotation, AnnotationType
+from .ReviewData import ReviewData, ReviewDataAnnotation
 from .ReviewDataApp import ReviewDataApp
 
 import pandas as pd
@@ -56,6 +56,7 @@ class ReviewerTemplate(ABC):
             self.review_data = ReviewData(review_data_fn=review_data_fn,
                                           description=description,
                                           df=df,
+                                          review_data_annotation_list=review_data_annotation_list,
                                           reuse_existing_review_data_fn=reuse_existing_review_data_fn)
         else:
             self.review_data = self.gen_review_data(review_data_fn,

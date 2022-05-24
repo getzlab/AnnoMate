@@ -13,32 +13,31 @@ import os
 import numpy as np
 import warnings
 import pickle
-
-from enum import Enum
-class AnnotationType(Enum):
-    TEXT = 'text'
-    TEXTAREA = 'textarea'
-    NUMBER = 'number'
-    CHECKLIST = 'checklist'
-    RADIOITEM = 'radioitem'
-    DROPDOWN = 'dropdown'
+    
+valid_annotation_types = ['text',
+                          'textarea',
+                          'number',
+                          'checklist',
+                          'radioitem',
+                          'select']
 
 class ReviewDataAnnotation:
     
     def __init__(self,
-                 name,
-                 annot_type: AnnotationType, 
+                 annot_type: str, 
                  options: []=[], 
                  validate_input=None,
                  default=None
                 ):
         '''
-        name:           name of annotation columns
-        annot_type:     annotation type (see AnnotationType enum)
+        annot_type:     annotation type
         options:        list of values inputs are allowed to be. For CHECKLIST, RADIOITEM, and DROPDOWN
         validate_input: a custom function to verify annotation input. Takes a single input and returns a boolean
         '''
-        self.name = name
+        
+        if annot_type not in valid_annotation_types:
+            raise ValueError(f'annot_type {annot_type} is not a valid annotation type. Valid types are {valid_annotation_types}')
+        
         self.annot_type = annot_type
         self.options = options
         self.validate_input = validate_input
@@ -46,13 +45,13 @@ class ReviewDataAnnotation:
         
     def validate(self, x):
         if len(self.options) > 0:
-            for item in np.array([x]).flatten():
+            for item in np.array(x).flatten():
                 if item not in self.options:
                     raise ValueError(f'Input {item} is not in the specified options {self.options} for annotation named "{self.name}"')
                 
         if self.validate_input is not None:
             if not self.validate_input(x):
-                raise ValueError(f'Input {x} is invalid for annotation "{self.name}". Check validate_input method for annotation "{self.name}"')
+                raise ValueError(f'Input {x} is invalid')
         
     def __str__(self):
         return str(self.__dict__)
@@ -63,7 +62,7 @@ class ReviewData:
                  review_data_fn: str, 
                  description: str='', 
                  df: pd.DataFrame = pd.DataFrame(), 
-                 review_data_annotation_list: [ReviewDataAnnotation] = [], 
+                 review_data_annotation_dict: {str: ReviewDataAnnotation} = {}, 
                  reuse_existing_review_data_fn: str = None, 
                 ):
         """
@@ -74,14 +73,15 @@ class ReviewData:
                                        
         df:                            pandas dataframe with the data to review
         
-        review_data_annotation_list:   list of ReviewDataAnnotation objects to define the ReviewData.annot table
+        review_data_annotation_dict:   dictionary of ReviewDataAnnotation objects to define the ReviewData.annot table. 
+                                       The column name is the key, and the object is defines the type and validation
         
         reuse_existing_review_data_fn: path to existing review data object to copy
         """
         if df.index.shape[0] != df.index.unique().shape[0]:
             raise ValueError(f'Input dataframe df does not have unique index values.')
         
-        self.review_data_annotation_list = []       
+        self.review_data_annotation_dict = {}      
         
         if reuse_existing_review_data_fn == review_data_fn:
             raise ValueError(f'Inputs for review_data_fn and reuse_existing_review_data_fn are the same. '
@@ -105,14 +105,14 @@ class ReviewData:
                 self.annot = self.annot.loc[df.index]
                 self.history = self.history.loc[self.history['index'].isin(df.index)]
             else:            
-                annotate_cols = [c.name for c in review_data_annotation_list]
+                annotate_cols = list(review_data_annotation_dict.keys())
                 self.annot = pd.DataFrame(index=df.index, columns=annotate_cols) # Add more columns. If updating an existing column, will make a new one
                 self.history = pd.DataFrame(columns=annotate_cols + ['index', 'timestamp', 'review_data_fn']) # track all the manual changes, including time stamp    
                 
             self.data = df # overwrite data frame.
             self.review_data_fn = review_data_fn # change path to save object
             self.description = description
-            self._add_annotations(review_data_annotation_list)
+            self._add_annotations(review_data_annotation_dict)
             self.save()
         else:
             print(f'Loading existing review session {review_data_fn}...')
@@ -160,31 +160,28 @@ class ReviewData:
                       f'Invalid data indices: {invalid_data_idx}') 
         
     def add_annotation(self, 
+                       name: str,
                        review_annot: ReviewDataAnnotation):
         """
         review_annot: a ReviewDataAnnotation to add to the review data object
         """
-        self._add_annotations([review_annot])
+        self._add_annotations({name: review_annot})
     
-    def _add_annotations(self, review_data_annotation_list):
+    def _add_annotations(self, review_data_annotation_dict: dict()):
+
+        new_annot_data = {name: annot_type for name, 
+                          annot_type in review_data_annotation_dict.items() if name not in self.review_data_annotation_dict.keys()}
         
-        # Add additional annotation columns
-        current_review_data_annotation_names = [a.name for a in self.review_data_annotation_list]
-        new_annot_data_list = [a for a in review_data_annotation_list if a.name not in current_review_data_annotation_names]
-        new_annot_cols = [a.name for a in new_annot_data_list]
+        for name, annot_type in review_data_annotation_dict.items():
+            self.review_data_annotation_dict[name] = annot_type
+
         
-        if len(new_annot_data_list) < len(review_data_annotation_list):
-            duplicate_annot_data = [c.name for c in review_data_annotation_list if c.name in current_review_data_annotation_names]
-            warnings.warn(f'Following annotation names already exist: {duplicate_annot_data}\n'
-                          f'Only {new_annot_cols} will be added.')
+        self.annot[list(new_annot_data.keys())] = np.nan
+        self.history[list(new_annot_data.keys())] = np.nan
         
-        self.annot[new_annot_cols] = np.nan
-        self.history[new_annot_cols] = np.nan
-        self.review_data_annotation_list += new_annot_data_list
-        
-        for annot_data in new_annot_data_list:
-            if annot_data.annot_type in [AnnotationType.CHECKLIST, AnnotationType.RADIOITEM]:
-                self.annot[annot_data.name] = self.annot[annot_data.name].astype(object)
+        for name, annot_data in new_annot_data.items():
+            if annot_data.annot_type in ['checklist', 'radioitem', 'select']:
+                self.annot[name] = self.annot[name].astype(object)
                 
         self.save()
         

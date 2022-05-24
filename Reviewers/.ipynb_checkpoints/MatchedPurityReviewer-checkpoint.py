@@ -1,5 +1,5 @@
-from jupyter_reviewer.ReviewData import ReviewData, ReviewDataAnnotation
-from jupyter_reviewer.ReviewDataApp import ReviewDataApp, AppComponent
+from JupyterReviewer.ReviewData import ReviewData, ReviewDataAnnotation
+from JupyterReviewer.ReviewDataApp import ReviewDataApp, AppComponent
 
 import pandas as pd
 import numpy as np
@@ -19,8 +19,8 @@ import dash
 import dash_bootstrap_components as dbc
 import functools
 
-from jupyter_reviewer.ReviewerTemplate import ReviewerTemplate
-from jupyter_reviewer.lib.plot_cnp import plot_acr_interactive
+from JupyterReviewer.ReviewerTemplate import ReviewerTemplate
+from JupyterReviewer.lib.plot_cnp import plot_acr_interactive
 
 from rpy2.robjects import r, pandas2ri
 import rpy2.robjects as robjects

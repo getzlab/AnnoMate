@@ -22,7 +22,7 @@ import enum
 from collections import OrderedDict
 import copy
 
-from .ReviewData import ReviewData, ReviewDataAnnotation, AnnotationType
+from .ReviewData import ReviewData, ReviewDataAnnotation
     
 
 class AppComponent:
@@ -135,7 +135,7 @@ class ReviewDataApp:
             
             Rules:
                 - component_name:  must be a name of a component in the app
-                - annot_name:      must be the name of an annotation type in the review_data (ReviewData) review_data_annotation_list
+                - annot_name:      must be the name of an annotation type in the review_data (ReviewData) review_data_annotation_dict
                 - autofill values: State()'s referring to objects in the component named component name, or a 
                                    valid literal value according to the ReviewDataAnnotation object's validation method.
         """
@@ -206,8 +206,8 @@ class ReviewDataApp:
                 output_dict['annot_panel'] = {annot_col: '' for annot_col in review_data.annot.columns}
                             
             elif (prop_id == 'APP-submit-button-state') & (submit_annot_button > 0):
-                for annot_type in review_data.review_data_annotation_list:
-                    annot_type.validate(annot_input_state[annot_type.name])
+                for name, annot_type in review_data.review_data_annotation_dict.items():
+                    annot_type.validate(annot_input_state[name])
                 review_data._update(dropdown_value, annot_input_state)
                 output_dict['history_table'] = dbc.Table.from_dataframe(review_data.history.loc[review_data.history['index'] == dropdown_value])
                 reviewed_data_df.loc[dropdown_value, 'label'] = self.gen_dropdown_labels(review_data, reviewed_data_df.loc[dropdown_value])
@@ -290,8 +290,7 @@ class ReviewDataApp:
     def gen_autofill_buttons_and_states(self, review_data, autofill_dict):
         
         component_names = [c.name for c_name, c in self.more_components.items()]
-        review_data_annotation_objects_dict = {a.name: a for a in review_data.review_data_annotation_list}
-        review_data_annot_names = list(review_data_annotation_objects_dict.keys())
+        review_data_annot_names = list(review_data.review_data_annotation_dict.keys())
             
         autofill_buttons = []
         autofill_states = {}
@@ -327,11 +326,11 @@ class ReviewDataApp:
                                      'Either pass in a State() object or literal value')
                 
                 try:
-                    review_data_annotation_objects_dict[annot_type].validate(non_state_value)
+                    review_data.review_data_annotation_dict[annot_type].validate(non_state_value)
                 except ValueError as e:
                     raise ValueError(f'Autofill value for component "{component_name}" for annotation column "{annot_type}" failed validation. '
                                      f'Check validation for annotation column "{annot_type}": \n'
-                                     f'{review_data_annotation_objects_dict[annot_type]}')
+                                     f'{review_data.review_data_annotation_dict[annot_type]}')
 
             # Make button    
             autofill_button_component = html.Button(f'Use current {component_name} solution', 
@@ -353,36 +352,36 @@ class ReviewDataApp:
             
             input_component_id = f"APP-{annot_name}-{annot.annot_type}-input-state"
             
-            if annot.annot_type == AnnotationType.TEXTAREA.value:
+            if annot.annot_type == 'textarea':
                 input_component = dbc.Textarea(size="lg", 
                                                id=input_component_id,
                                                value=annot.default,
                                               ), 
-            elif annot.annot_type ==  AnnotationType.TEXT.value:
+            elif annot.annot_type ==  'text':
                 input_component = dbc.Input(type="text", 
                                     id=input_component_id, 
                                     placeholder=f"Enter {annot_name}",
                                     value=annot.default,
                                    )
-            elif annot.annot_type == AnnotationType.NUMBER.value:
+            elif annot.annot_type == 'number':
                 input_component = dbc.Input(type="number", 
                                             id=input_component_id, 
                                             placeholder=f"Enter {annot_name}",
                                             value=annot.default,
                                    )
-            elif annot.annot_type == AnnotationType.CHECKLIST.value:
+            elif annot.annot_type == 'checklist':
                 default = [] if annot.default is None else annot.default
                 input_component = dbc.Checklist(options=[{"label": f, "value": f} for f in annot.options],
                                                 id=input_component_id, 
                                                 value=default),
-            elif annot.annot_type == AnnotationType.RADIOITEM.value:
+            elif annot.annot_type == 'radioitem':
                 default = None if annot.default is None else annot.default
                 input_component = dbc.RadioItems(
                                                 options=[{"label": f, "value": f} for f in annot.options],
                                                 value=annot.default,
                                                 id=input_component_id,
                                             )
-            elif annot.annot_type == AnnotationType.DROPDOWN.value:
+            elif annot.annot_type == 'select':
                 default = None if annot.default is None else annot.default
                 input_component = dbc.Select(
                                             options=[{"label": f, "value": f} for f in annot.options],
@@ -395,13 +394,13 @@ class ReviewDataApp:
             return dbc.Row([dbc.Label(annot_name, html_for=input_component_id, width=2), dbc.Col(input_component)])
         
         
-        panel_components = autofill_buttons + [annotation_input(annot.name, annot) for annot in review_data.review_data_annotation_list] + [submit_annot_button]
+        panel_components = autofill_buttons + [annotation_input(name, annot) for name, annot in review_data.review_data_annotation_dict.items()] + [submit_annot_button]
         panel_inputs = [Input('APP-submit-button-state', 'nclicks')]
         return AppComponent(name='APP-Panel',
                            layout=panel_components, 
-                           callback_output={annot.name: Output(f"APP-{annot.name}-{annot.annot_type}-input-state", "value") for annot in review_data.review_data_annotation_list},
+                           callback_output={name: Output(f"APP-{name}-{annot.annot_type}-input-state", "value") for name, annot in review_data.review_data_annotation_dict.items()},
                            callback_input=panel_inputs,
-                           callback_state={annot.name: State(f"APP-{annot.name}-{annot.annot_type}-input-state", "value") for annot in review_data.review_data_annotation_list}
+                           callback_state={name: State(f"APP-{name}-{annot.annot_type}-input-state", "value") for name, annot in review_data.review_data_annotation_dict.items()}
                           )
         
     def add_component(self, 
