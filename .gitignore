@@ -1,3 +1,4 @@
 data/*
 *.ipynb.checkpoints/*
 *__pycahce__/*
+*.egg-info
