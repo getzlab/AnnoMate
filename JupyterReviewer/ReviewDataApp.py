@@ -253,9 +253,11 @@ class ReviewDataApp:
         dropdown_component = AppComponent(name='APP-dropdown-component',
                                           layout=[dropdown])
         
-        history_table = html.Div([dbc.Table.from_dataframe(pd.DataFrame(columns=review_data.history.columns))], 
-                                 style={"overflow": "scroll"}, 
-                                 id='APP-history-table')
+        history_table = html.Div([html.H2('History Table'),
+                                  html.Div([dbc.Table.from_dataframe(pd.DataFrame(columns=review_data.history.columns))], 
+                                            style={"overflow": "scroll"}, 
+                                            id='APP-history-table')
+                                 ])
         
         history_component = AppComponent(name='APP-history-component',
                                          layout=[history_table])
@@ -265,13 +267,15 @@ class ReviewDataApp:
         annotation_panel_component = self.gen_annotation_panel_component(review_data, autofill_buttons)
         
         # TODO: save current view as html
-        layout = html.Div([dbc.Row([review_data_title]),
-                           dbc.Row([review_data_path]),
-                           dbc.Row([review_data_description]),
-                           dbc.Row([dropdown_component.layout]),
-                           dbc.Row([dbc.Col(annotation_panel_component.layout, width=6),
-                                    dbc.Col(html.Div(history_component.layout), width=6)]),
-                           dbc.Row([dbc.Row(c.layout) for c_name, c in self.more_components.items()])], 
+        layout = html.Div([dbc.Row([review_data_title], style={"marginBottom": "15px"}),
+                           dbc.Row([review_data_path], style={"marginBottom": "15px"}),
+                           dbc.Row([review_data_description], style={"marginBottom": "15px"}),
+                           dbc.Row([dropdown_component.layout], style={"marginBottom": "15px"}),
+                           dbc.Row([dbc.Col(annotation_panel_component.layout, width=5),
+                                    dbc.Col(html.Div(history_component.layout), width=7)], 
+                                   style={"marginBottom": "15px"}),
+                           dbc.Row([dbc.Row(c.layout, 
+                                            style={"marginBottom": "15px"}) for c_name, c in self.more_components.items()])], 
                           style={'marginBottom': 50, 'marginTop': 25, 'marginRight': 25, 'marginLeft': 25})
         
         all_ids = np.array(get_component_ids(layout))
@@ -335,7 +339,9 @@ class ReviewDataApp:
             # Make button    
             autofill_button_component = html.Button(f'Use current {component_name} solution', 
                                                     id=f'APP-autofill-{component_name}', 
-                                                    n_clicks=0)
+                                                    n_clicks=0,
+                                                    style={"marginBottom": "15px"}
+                                                   )
             autofill_buttons += [autofill_button_component]
             autofill_states[autofill_button_component.id] = autofill_component_states_dict
             autofill_literals[autofill_button_component.id] = autofill_component_non_states_dict
@@ -346,7 +352,10 @@ class ReviewDataApp:
                                        review_data: ReviewData, 
                                        autofill_buttons: [html.Button]):
 
-        submit_annot_button = html.Button(id='APP-submit-button-state', n_clicks=0, children='Submit')
+        submit_annot_button = html.Button(id='APP-submit-button-state', 
+                                          n_clicks=0, 
+                                          children='Submit', 
+                                          style={"marginBottom": "15px"})
         
         def annotation_input(annot_name, annot: ReviewDataAnnotation):
             
@@ -391,7 +400,9 @@ class ReviewDataApp:
             else:
                 raise ValueError(f'Invalid annotation type "{annot.annot_type}"')
                 
-            return dbc.Row([dbc.Label(annot_name, html_for=input_component_id, width=2), dbc.Col(input_component)])
+            return dbc.Row([dbc.Label(annot_name, html_for=input_component_id, width=2), 
+                            dbc.Col(input_component)],
+                           style={"margin-bottom": "15px"})
         
         
         panel_components = autofill_buttons + [annotation_input(name, annot) for name, annot in review_data.review_data_annotation_dict.items()] + [submit_annot_button]
