@@ -193,4 +193,12 @@ class ReviewData:
             dictionary['review_data_fn'] = self.review_data_fn
             self.history = pd.concat([self.history, pd.Series(dictionary).to_frame().T])
             self.save()
+            
+    def export(self, path: str):
+        """
+        path: local or gsurl path to directory to save object's dataframe objects
+        """
+        self.data.to_csv(f'{path.strip('/')}/data.tsv', sep='\t')
+        self.annot.to_csv(f'{path.strip('/')}/annot.tsv', sep='\t')
+        self.history.to_csv(f'{path.strip('/')}/history.tsv', sep='\t')
         
