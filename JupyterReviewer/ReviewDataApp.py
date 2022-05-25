@@ -422,6 +422,13 @@ class ReviewDataApp:
         component: An AppComponent object to include in the app
         **kwargs: include more arguments for the component's callback functions 
         """
+        
+        all_component_names = [c_name for c_name, c in self.more_components.items()]
+        
+        if component.name in all_component_names:
+            warnings.warn(f'There is a component named "{component.name}" already in the app. Change the name of the component to add it to the current layout')
+            return
+        
         ids_with_reserved_prefix_list = np.array(['APP-' in i for i in component.all_component_ids])
         if ids_with_reserved_prefix_list.any():
             raise ValueError(f'Some ids use reserved keyword "APP-". Please change the id name\n'

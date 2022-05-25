@@ -303,13 +303,13 @@ class MatchedPurityReviewer(ReviewerTemplate):
                 pickle.dump(fig, open(output_fn, "wb"))
                 df.loc[i, f'mut_figs_pkl'] = output_fn
             
-        review_data_annotation_list = [ReviewDataAnnotation('purity', 'number', validate_input=validate_purity),
-                                       ReviewDataAnnotation('ploidy', 'number', validate_input=validate_ploidy)]
+        review_data_annotation_dict = {'purity': ReviewDataAnnotation('number', validate_input=validate_purity),
+                                       'ploidy': ReviewDataAnnotation('number', validate_input=validate_ploidy)}
 
         rd = ReviewData(review_data_fn=review_data_fn,
                         description=description,
                         df=df,
-                        review_data_annotation_list = review_data_annotation_list,
+                        review_data_annotation_dict = review_data_annotation_dict,
                         reuse_existing_review_data_fn=reuse_existing_review_data_fn)
 
         return rd

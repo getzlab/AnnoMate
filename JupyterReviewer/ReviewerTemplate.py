@@ -47,7 +47,7 @@ class ReviewerTemplate(ABC):
                         review_data_fn: str, 
                         description: str='', 
                         df: pd.DataFrame = pd.DataFrame(), 
-                        review_data_annotation_list: [ReviewDataAnnotation] = [], 
+                        review_data_annotation_dict: {str: ReviewDataAnnotation} = {}, 
                         reuse_existing_review_data_fn: str = None,  
                         **kwargs):
         
@@ -56,7 +56,7 @@ class ReviewerTemplate(ABC):
             self.review_data = ReviewData(review_data_fn=review_data_fn,
                                           description=description,
                                           df=df,
-                                          review_data_annotation_list=review_data_annotation_list,
+                                          review_data_annotation_dict=review_data_annotation_dict,
                                           reuse_existing_review_data_fn=reuse_existing_review_data_fn)
         else:
             self.review_data = self.gen_review_data(review_data_fn,
