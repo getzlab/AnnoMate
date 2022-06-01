@@ -46,8 +46,8 @@ class ReviewDataAnnotation:
     def validate(self, x):
         if len(self.options) > 0:
             for item in np.array(x).flatten():
-                if item not in self.options:
-                    raise ValueError(f'Input {item} is not in the specified options {self.options} for annotation named "{self.name}"')
+                if item not in self.options and item != '':
+                    raise ValueError(f'Input {item} is not in the specified options {self.options}')
                 
         if self.validate_input is not None:
             if not self.validate_input(x):
