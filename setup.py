@@ -25,8 +25,6 @@ setuptools.setup(
     python_requires=">=3.6",
     install_requires = ['dash',
                         'dash-bootstrap-components',
-                        'firecloud',
-                        'firecloud-dalmation',
                         'fsspec',
                         'gcsfs',
                         'google-auth',
