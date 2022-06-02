@@ -196,11 +196,12 @@ class ReviewDataApp:
 
             if prop_id == 'APP-dropdown-data-state':
                 for c_name, component in self.more_components.items():
-                    component_output = component.new_data_callback(review_data.data, # Require call backs first two args be the dataframe and the index value
-                                                                   dropdown_value, 
-                                                                   *more_component_inputs[component.name])
-                    validate_callback_outputs(component_output, component, which_callback='new_data_callback')
-                    output_dict['more_component_outputs'][component.name] = component_output
+                    if component.new_data_callback is not None:
+                        component_output = component.new_data_callback(review_data.data, # Require call backs first two args be the dataframe and the index value
+                                                                       dropdown_value, 
+                                                                       *more_component_inputs[component.name])
+                        validate_callback_outputs(component_output, component, which_callback='new_data_callback')
+                        output_dict['more_component_outputs'][component.name] = component_output
                     
                 output_dict['history_table'] = dbc.Table.from_dataframe(review_data.history.loc[review_data.history['index'] == dropdown_value])
                 output_dict['annot_panel'] = {annot_col: '' for annot_col in review_data.annot.columns}
@@ -231,7 +232,7 @@ class ReviewDataApp:
                                                                        *more_component_inputs[component.name])
 
                         validate_callback_outputs(component_output, component, which_callback='internal_callback')
-                        output_dict['more_component_outputs'][component.name] = component_output # force having output as array specify names in the callback outputs? Or do it by dictionary
+                        output_dict['more_component_outputs'][component.name] = component_output
                 pass
             return output_dict
         
@@ -287,7 +288,7 @@ class ReviewDataApp:
     def gen_dropdown_labels(self, review_data: ReviewData, r: pd.Series):
         data_history_df = review_data.history[review_data.history["index"] == r.name]
         if not data_history_df.empty:
-            return r.name + f' (Last update: {data_history_df["timestamp"].tolist()[-1]})'
+            return str(r.name) + f' (Last update: {data_history_df["timestamp"].tolist()[-1]})'
         else:
             return r.name
        
@@ -435,8 +436,16 @@ class ReviewDataApp:
                              f'Invalid component ids: {component.all_component_ids[np.argwhere(ids_with_reserved_prefix_list).flatten()]}')
         
         new_component = copy.deepcopy(component)
-        new_component.internal_callback = lambda *args: component.internal_callback(*args, **kwargs)
-        new_component.new_data_callback = lambda *args: component.new_data_callback(*args, **kwargs)
+        if component.new_data_callback is not None:
+            new_component.new_data_callback = lambda *args: component.new_data_callback(*args, **kwargs)
+        else:
+            new_component.new_data_callback = None
+            
+        if component.internal_callback is not None:
+            new_component.internal_callback = lambda *args: component.internal_callback(*args, **kwargs)
+        else:
+            new_component.internal_callback = None
+        
         
         
         self.more_components[component.name] = new_component
