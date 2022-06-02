@@ -35,10 +35,12 @@ class AppComponent:
                  callback_state: [State]=[],
                  new_data_callback=None,
                  internal_callback=None,
-                 callback_states_for_autofill: [State]=[]):
+                 callback_states_for_autofill: [State]=[],
+                 use_name_as_title=True,
+                ):
         
         """
-        name:             Unique name for the component
+        name:             Unique name for the component. Will be used as the title displayed in the dashboard (preceeding the layout)
         
         layout:           dash html layout object (ex. html.Div([html.H1(children="heading", id='heading'), ...])), 
         
@@ -69,6 +71,7 @@ class AppComponent:
                            
         callback_states_for_autofill: List of State() objects pointing to objects in the layout (ex. [State('heading', 'children')])
                                       users of the app are allowed to autofill with ('autofill_dict' parameter in ReviewDataApp.run())
+        use_name_as_title: use the `name` parameter as a title for the component.
         """
         
         all_ids = np.array(get_component_ids(layout))
@@ -98,7 +101,11 @@ class AppComponent:
         check_callback_io_id_in_list(callback_states_for_autofill_ids, all_ids, ids_type='callback_states_for_autofill_ids', all_ids_type='component_ids')
             
         self.name = name
-        self.layout = html.Div(layout)
+        if use_name_as_title:
+            self.layout = html.Div([html.H1(name), html.Div(layout)])
+        else:
+            self.layout = html.Div(layout)
+            
         self.all_component_ids = all_ids
         self.callback_output = callback_output
         self.callback_input = callback_input
@@ -252,7 +259,8 @@ class ReviewDataApp:
                                          id='APP-dropdown-data-state'))
         
         dropdown_component = AppComponent(name='APP-dropdown-component',
-                                          layout=[dropdown])
+                                          layout=[dropdown], 
+                                          use_name_as_title=False)
         
         history_table = html.Div([html.H2('History Table'),
                                   html.Div([dbc.Table.from_dataframe(pd.DataFrame(columns=review_data.history.columns))], 
@@ -261,7 +269,8 @@ class ReviewDataApp:
                                  ])
         
         history_component = AppComponent(name='APP-history-component',
-                                         layout=[history_table])
+                                         layout=[history_table], 
+                                         use_name_as_title=False)
         
         autofill_buttons, autofill_states, autofill_literals = self.gen_autofill_buttons_and_states(review_data, autofill_dict)
         
@@ -412,7 +421,8 @@ class ReviewDataApp:
                            layout=panel_components, 
                            callback_output={name: Output(f"APP-{name}-{annot.annot_type}-input-state", "value") for name, annot in review_data.review_data_annotation_dict.items()},
                            callback_input=panel_inputs,
-                           callback_state={name: State(f"APP-{name}-{annot.annot_type}-input-state", "value") for name, annot in review_data.review_data_annotation_dict.items()}
+                           callback_state={name: State(f"APP-{name}-{annot.annot_type}-input-state", "value") for name, annot in review_data.review_data_annotation_dict.items()}, 
+                           use_name_as_title=False
                           )
         
     def add_component(self, 
@@ -452,21 +462,21 @@ class ReviewDataApp:
         all_ids = get_component_ids([c.layout for c_name, c in self.more_components.items()])
         check_duplicates(all_ids, f'ids found in previously added component from component named {component.name}')
         
-    def add_table_from_path(self, table_name, component_name, table_fn_col, table_cols):
+    def add_table_from_path(self, table_title, component_id, table_fn_col, table_cols):
         """
-        table_name:     Name of the table
-        component_name: component name for the table
+        table_title:     Title of the table
+        component_id: component name for the table
         table_fn_col:   column in review_data data dataframe with file path with table to display
         table_cols:     columns to display in table from table_fn_col
         """
         table = html.Div(dbc.Table.from_dataframe(pd.DataFrame()), 
-                                                  id=component_name)
-        self.add_component(AppComponent(component_name, 
-                                        [html.H1(table_name), table],
+                                                  id=component_id)
+        self.add_component(AppComponent(table_title, 
+                                        table,
                                         new_data_callback = lambda df, idx: [dbc.Table.from_dataframe(pd.read_csv(df.loc[idx, table_fn_col], 
                                                                                                                   sep='\t', 
                                                                                                                   encoding='iso-8859-1')[table_cols])],
-                                        callback_output=[Output(component_name, 'children')]
+                                        callback_output=[Output(component_id, 'children')]
                                        ))
         
 # Validation
