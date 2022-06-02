@@ -107,7 +107,7 @@ class ReviewData:
             else:            
                 annotate_cols = list(review_data_annotation_dict.keys())
                 self.annot = pd.DataFrame(index=df.index, columns=annotate_cols) # Add more columns. If updating an existing column, will make a new one
-                self.history = pd.DataFrame(columns=annotate_cols + ['index', 'timestamp', 'review_data_fn']) # track all the manual changes, including time stamp    
+                self.history = pd.DataFrame(columns=['index', 'timestamp', 'review_data_fn'] + annotate_cols) # track all the manual changes, including timestamp    
                 
             self.data = df # overwrite data frame.
             self.review_data_fn = review_data_fn # change path to save object

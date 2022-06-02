@@ -210,14 +210,14 @@ class ReviewDataApp:
                         validate_callback_outputs(component_output, component, which_callback='new_data_callback')
                         output_dict['more_component_outputs'][component.name] = component_output
                     
-                output_dict['history_table'] = dbc.Table.from_dataframe(review_data.history.loc[review_data.history['index'] == dropdown_value])
+                output_dict['history_table'] = dbc.Table.from_dataframe(review_data.history.loc[review_data.history['index'] == dropdown_value].loc[::-1])
                 output_dict['annot_panel'] = {annot_col: '' for annot_col in review_data.annot.columns}
                             
             elif (prop_id == 'APP-submit-button-state') & (submit_annot_button > 0):
                 for name, annot_type in review_data.review_data_annotation_dict.items():
                     annot_type.validate(annot_input_state[name])
                 review_data._update(dropdown_value, annot_input_state)
-                output_dict['history_table'] = dbc.Table.from_dataframe(review_data.history.loc[review_data.history['index'] == dropdown_value])
+                output_dict['history_table'] = dbc.Table.from_dataframe(review_data.history.loc[review_data.history['index'] == dropdown_value].loc[::-1])
                 reviewed_data_df.loc[dropdown_value, 'label'] = self.gen_dropdown_labels(review_data, reviewed_data_df.loc[dropdown_value])
                 output_dict['dropdown_list_options'] = reviewed_data_df.reset_index().to_dict('records')
             elif 'APP-autofill-' in prop_id:
@@ -264,7 +264,7 @@ class ReviewDataApp:
         
         history_table = html.Div([html.H2('History Table'),
                                   html.Div([dbc.Table.from_dataframe(pd.DataFrame(columns=review_data.history.columns))], 
-                                            style={"overflow": "scroll"}, 
+                                            style={"maxHeight": "400px", "overflow": "scroll"}, 
                                             id='APP-history-table')
                                  ])
         
