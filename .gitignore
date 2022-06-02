@@ -2,3 +2,6 @@ data/*
 *.ipynb_checkpoints/*
 *__pycache__/*
 *.egg-info
+example_notebooks/.ipynb_checkpoints/
+JupyterReviewer/.ipynb_checkpoints
+JupyterReviewer/__pycache__
