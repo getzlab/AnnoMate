@@ -381,6 +381,86 @@ class MatchedPurityReviewer(ReviewerTemplate):
                                               new_data_callback=gen_data_summary_table),
                                   cols=sample_info_cols)
         
+        
+        # Add a custom component: below, I add a component that allows you to manually set the 0 and 1 line combs (cgaitools)
+        # NOTE: the purity calculated is tau, NOT tau_g. 
+        # Use the called purity and tau as inputs to absolute_segforcecall to get tau_g (tau_hat)
+        def gen_custom_absolute_component(data_df, 
+                                          data_id, 
+                                          slider_value, # dash app parameters come first
+                                          cnp_fig_pkl_fn_col,
+                                          ):
+            r = data_df.loc[data_id]
+            cnp_fig = pickle.load(open(r[cnp_fig_pkl_fn_col], "rb"))
+
+            # add 1 and 0 lines
+            cnp_fig_with_lines = go.Figure(cnp_fig)
+            i = 0
+            line_0 = slider_value[0]
+            line_1 = slider_value[1]
+            line_height = line_0
+            step_size = line_1 - line_0
+            while line_height < 2:
+                line_height = line_0 + (step_size * i)
+                cnp_fig_with_lines.add_hline(y=line_height, 
+                                             line_dash="dash", 
+                                             line_color='black',
+                                             line_width=1
+                                            )
+                i += 1
+
+            purity = 1 - (float(line_0) / float(line_1))
+            ploidy = (2 * (1 - line_0) * (1 - purity)) / (purity * line_0) # tau, not tau_g
+            return [slider_value,
+                    cnp_fig_with_lines, 
+                    purity,
+                    ploidy]
+
+
+        # Adding another component to prebuilt dash board
+        app.add_component(AppComponent('custom-cnp-plot',
+                                     html.Div([html.H2('Custom Copy Number Profile', id='custom-header-cnp-id'),
+                                                   dbc.Row([
+                                                               dbc.Col([dcc.Graph(id='custom-cnp-graph', 
+                                                                                  figure={})
+                                                                       ], 
+                                                                       md=10),
+                                                               dbc.Col([
+                                                                        dbc.Row(html.Div([html.Div([html.P('Purity: ', 
+                                                                                                          style={'display': 'inline'}), 
+                                                                                                   html.P(0, 
+                                                                                                          id='custom-cnp-graph-purity', 
+                                                                                                          style={'display': 'inline'})]), 
+                                                                                         html.Div([html.P('Ploidy: ', 
+                                                                                                          style={'display': 'inline'}), 
+                                                                                                   html.P(0, 
+                                                                                                          id='custom-cnp-graph-ploidy', 
+                                                                                                          style={'display': 'inline'})]), 
+                                                                                         ])),
+                                                                        dbc.Row(dcc.RangeSlider(id='custom-cnp-slider', min=0.0, max=2.0, step=0.01, 
+                                                                                               allowCross=False, 
+                                                                                               value=[0.5, 1.0], 
+                                                                                               marks={i: f'{i}' for i in range(0, 3, 1)}, 
+                                                                                               vertical=True,
+                                                                                               tooltip={"placement": "right", 
+                                                                                                        "always_visible": True})),
+                                                                            ], 
+                                                                       md=1), 
+                                                   ]),
+                                     ]),
+                                     new_data_callback=gen_custom_absolute_component,
+                                     internal_callback=gen_custom_absolute_component,
+                                     callback_input=[Input('custom-cnp-slider', 'value')],
+                                     callback_output=[Output('custom-cnp-slider', 'value'),
+                                                      Output('custom-cnp-graph', 'figure'), 
+                                                      Output('custom-cnp-graph-purity', 'children'),
+                                                      Output('custom-cnp-graph-ploidy', 'children')
+                                                     ]),
+                         cnp_fig_pkl_fn_col='cnp_figs_pkl'
+                        )
+
+
+        
         return app
     
     def gen_autofill(self):
