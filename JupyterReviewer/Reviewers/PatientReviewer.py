@@ -22,7 +22,6 @@ from JupyterReviewer.ReviewDataApp import ReviewDataApp, AppComponent
 from JupyterReviewer.ReviewerTemplate import ReviewerTemplate
 #from JupyterReviewer.lib.plot_cnp import plot_acr_interactive
 
-
 def validate_purity(x):
     return (x >= 0) and (x <= 1)
 
@@ -37,14 +36,14 @@ class PatientReviewer(ReviewerTemplate):
         description: str='',
         df: pd.DataFrame = pd.DataFrame(),
         review_data_annotation_dict: {str: ReviewDataAnnotation} = {},
-        reuse_existing_review_data_fn: str = None):
+        reuse_existing_review_data_fn: str = None
+    ):
 
         review_data_annotation_dict = {
             'purity': ReviewDataAnnotation('number', validate_input=validate_purity),
             'ploidy': ReviewDataAnnotation('number', validate_input=validate_ploidy),
-            'rating': ReviewDataAnnotation('number', options=range(10)),
+            'class': ReviewDataAnnotation('radioitem', options=['Possible Driver''Likely Driver', 'Possible Artifact', 'Likely Artifact']),
             'description': ReviewDataAnnotation('text'),
-            'class': ReviewDataAnnotation('radioitem', options=[f'Option {n}' for n in range(4)])
         }
 
         rd = ReviewData(
@@ -54,48 +53,90 @@ class PatientReviewer(ReviewerTemplate):
             review_data_annotation_dict = review_data_annotation_dict
         )
 
+        return rd
+
     def gen_review_app(self, test_param) -> ReviewDataApp:
         app = ReviewDataApp()
 
-        # app.add_table_from_path(
-        #     table_title='Phylogic Mutation CCFs',
-        #     component_id='phylogic-component-id',
-        #     table_fn_col='phylogic_all_pairs_mut_ccfs',
-        #     table_cols=[
-        #         'Sample_ID',
-        #         'Hugo_Symbol',
-        #         'Chromosome',
-        #         'Reference_Allele',
-        #         'Tumor_Seq_Allele',
-        #         'Variant_Classification',
-        #         'Variant_Type',
-        #         'preDP_ccf_mean',
-        #         'clust_ccf_mean'
-        #     ]
-        # )
-
-        phylogic_df = pd.read_csv(f'/Users/svanseters/Broad/JupyterReviewer/example_notebooks/example_data/ccf.txt', sep='\t', usecols=[
-            'Sample_ID',
-            'Hugo_Symbol',
-            'Chromosome',
-            'Reference_Allele',
-            'Tumor_Seq_Allele',
-            'Variant_Classification',
-            'preDP_ccf_mean',
-            'clust_ccf_mean'
-        ])
+        def gen_clinical_data_table(df, idx, cols):
+            r=df.loc[idx]
+            return [dbc.Table.from_dataframe(r[cols].to_frame().reset_index())]
 
         app.add_component(AppComponent(
-            name='Phylogic Data',
-            layout=html.Div([
-                html.P('Filter by variant by typing in the variant you want to focus on. Filter by chromosome by typing =<chromosome>. Filter by ccf using <, <=, >, >=, =.'),
-                dash_table.DataTable(
-                    id='phy-table',
-                    columns=[{'name': i, 'id': i} for i in phylogic_df.columns],
-                    data=phylogic_df.to_dict('records'),
-                    filter_action='native'
-                )
-            ])
+            'Clinical Data',
+            html.Div(
+                dbc.Table.from_dataframe(df=pd.DataFrame()),
+                id='clinical-data-component'
+            ),
+            callback_output=[Output('clinical-data-component', 'children')],
+            new_data_callback=gen_clinical_data_table
+        ), cols=['participant_id', 'gender', 'age_at_diagnosis', 'vital_status', 'death_date_dfd'])
+
+        def gen_maf_table(df, idx, cols):
+            return [dash_table.DataTable(
+                data=pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t').to_dict('records'),
+                columns=[{'name': i, 'id': i, 'selectable': True} for i in cols],
+                filter_action='native',
+                row_selectable='multi',
+                column_selectable='multi',
+                page_action='native',
+                page_current=0,
+                page_size=10)]
+            
+        app.add_component(AppComponent(
+            'Mutations',
+            html.Div([
+                html.Div(dcc.Dropdown(
+                    [
+                        'Hugo_Symbol',
+                        'Chromosome',
+                        'Start_position',
+                        'End_position',
+                        'Protein_change',
+                        'Variant_Classification',
+                        't_ref_count',
+                        't_alt_count',
+                        'n_ref_cound',
+                        'n_alt_count',
+                        'SIFT/PolyPhen',
+                        'Cluster_assignment',
+                        'ccf_mean',
+                        'clust_ccf_mean',
+                        'OncoKB',
+                        'Hotspot',
+                        'Minor_CN',
+                        'Major_CN',
+                        'Deletion_probability',
+                        'Tumor_coverage',
+                        'Max_ccf',
+                        'Delta_ccf',
+                        'Neoantigen_type',
+                        'Best_neoantigen_binding_score',
+                        'Num_strong_alleles'
+                    ], [
+                        'Hugo_Symbol',
+                        'Chromosome',
+                        'Start_position',
+                        'Protein_change',
+                        'Variant_Classification',
+                        't_ref_count',
+                        't_alt_count',
+                    ],
+                    multi=True,
+                    id='column-selection-dropdown'
+                )),
+
+                html.Div(dash_table.DataTable(
+                    columns=[{'name': i, 'id': i, 'selectable': True} for i in pd.DataFrame().columns],
+                    data=pd.DataFrame().to_dict('records'),
+                    id='mutation-table'
+                ), id='mutation-table-component')
+            ]),
+
+            callback_output=[Output('mutation-table-component', 'children'),],
+            callback_input=[Input('column-selection-dropdown', 'value')],
+            new_data_callback=gen_maf_table,
+            internal_callback=gen_maf_table
         ))
 
         app.add_component(AppComponent(
