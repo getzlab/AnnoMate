@@ -29,6 +29,76 @@ def validate_purity(x):
 def validate_ploidy(x):
     return x >= 0
 
+def gen_clinical_data_table(df, idx, cols):
+    r=df.loc[idx]
+    return [dbc.Table.from_dataframe(r[cols].to_frame().reset_index())]
+
+default_maf_cols = [
+    'Hugo_Symbol',
+    'Chromosome',
+    'Start_position',
+    'Protein_change',
+    'Variant_Classification',
+    't_ref_count',
+    't_alt_count',
+]
+maf_cols_options = []
+maf_cols_value = []
+
+def gen_maf_columns(df, idx, cols):
+    maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
+    maf_cols_options = (list(maf_df))
+
+    for col in default_maf_cols:
+        if col in maf_cols_options and col not in maf_cols_value:
+            maf_cols_value.append(col)
+
+    for col in cols:
+        if col in maf_cols_options and col not in maf_cols_value:
+            maf_cols_value.append(col)
+
+    return [
+        maf_df,
+        maf_cols_options,
+        maf_cols_value
+    ]
+
+def gen_maf_table(df, idx, cols):
+    maf_df, maf_cols_options, maf_cols_value = gen_maf_columns(df, idx, cols)
+
+    return [
+        maf_cols_options,
+        maf_cols_value,
+        dash_table.DataTable(
+                data=pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t').to_dict('records'),
+                columns=[{'name': i, 'id': i, 'selectable': True} for i in maf_cols_value],
+                filter_action='native',
+                row_selectable='multi',
+                column_selectable='multi',
+                page_action='native',
+                page_current=0,
+                page_size=10
+        )
+    ]
+
+def internal_gen_maf_table(df, idx, cols):
+    maf_df, maf_cols_options, maf_cols_value = gen_maf_columns(df, idx, cols)
+
+    return [
+        maf_cols_options,
+        cols,
+        dash_table.DataTable(
+                data=pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t').to_dict('records'),
+                columns=[{'name': i, 'id': i, 'selectable': True} for i in cols],
+                filter_action='native',
+                row_selectable='multi',
+                column_selectable='multi',
+                page_action='native',
+                page_current=0,
+                page_size=10
+        )
+    ]
+
 class PatientReviewer(ReviewerTemplate):
 
     def gen_review_data(
@@ -60,21 +130,6 @@ class PatientReviewer(ReviewerTemplate):
     # list optional cols param
     def gen_review_app(self, test_param) -> ReviewDataApp:
         app = ReviewDataApp()
-        default_maf_cols = [
-            'Hugo_Symbol',
-            'Chromosome',
-            'Start_position',
-            'Protein_change',
-            'Variant_Classification',
-            't_ref_count',
-            't_alt_count',
-        ]
-        maf_cols_options = []
-        maf_cols_value = []
-
-        def gen_clinical_data_table(df, idx, cols):
-            r=df.loc[idx]
-            return [dbc.Table.from_dataframe(r[cols].to_frame().reset_index())]
 
         app.add_component(AppComponent(
             'Clinical Data',
@@ -85,60 +140,6 @@ class PatientReviewer(ReviewerTemplate):
             callback_output=[Output('clinical-data-component', 'children')],
             new_data_callback=gen_clinical_data_table
         ), cols=['participant_id', 'gender', 'age_at_diagnosis', 'vital_status', 'death_date_dfd'])
-
-        def gen_maf_columns(df, idx, cols):
-            maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
-            maf_cols_options = (list(maf_df))
-
-            for col in default_maf_cols:
-                if col in maf_cols_options and col not in maf_cols_value:
-                    maf_cols_value.append(col)
-
-            for col in cols:
-                if col in maf_cols_options and col not in maf_cols_value:
-                    maf_cols_value.append(col)
-
-            return [
-                maf_df,
-                maf_cols_options,
-                maf_cols_value
-            ]
-
-        def gen_maf_table(df, idx, cols):
-            maf_df, maf_cols_options, maf_cols_value = gen_maf_columns(df, idx, cols)
-
-            return [
-                maf_cols_options,
-                maf_cols_value,
-                dash_table.DataTable(
-                        data=pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t').to_dict('records'),
-                        columns=[{'name': i, 'id': i, 'selectable': True} for i in maf_cols_value],
-                        filter_action='native',
-                        row_selectable='multi',
-                        column_selectable='multi',
-                        page_action='native',
-                        page_current=0,
-                        page_size=10
-                )
-            ]
-
-        def internal_gen_maf_table(df, idx, cols):
-            maf_df, maf_cols_options, maf_cols_value = gen_maf_columns(df, idx, cols)
-
-            return [
-                maf_cols_options,
-                cols,
-                dash_table.DataTable(
-                        data=pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t').to_dict('records'),
-                        columns=[{'name': i, 'id': i, 'selectable': True} for i in cols],
-                        filter_action='native',
-                        row_selectable='multi',
-                        column_selectable='multi',
-                        page_action='native',
-                        page_current=0,
-                        page_size=10
-                )
-            ]
 
         app.add_component(AppComponent(
             'Mutations',
