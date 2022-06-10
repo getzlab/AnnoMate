@@ -3,6 +3,7 @@ import numpy as np
 import functools
 import time
 import os
+import re
 
 import plotly.express as px
 import plotly.graph_objects as go
@@ -42,8 +43,9 @@ class PatientReviewer(ReviewerTemplate):
         review_data_annotation_dict = {
             'purity': ReviewDataAnnotation('number', validate_input=validate_purity),
             'ploidy': ReviewDataAnnotation('number', validate_input=validate_ploidy),
-            'class': ReviewDataAnnotation('radioitem', options=['Possible Driver''Likely Driver', 'Possible Artifact', 'Likely Artifact']),
-            'description': ReviewDataAnnotation('text'),
+            'mutation': ReviewDataAnnotation('text'),
+            'class': ReviewDataAnnotation('radioitem', options=['Possible Driver', 'Likely Driver', 'Possible Artifact', 'Likely Artifact']),
+            'description': ReviewDataAnnotation('text')
         }
 
         rd = ReviewData(
@@ -55,8 +57,20 @@ class PatientReviewer(ReviewerTemplate):
 
         return rd
 
+    # list optional cols param
     def gen_review_app(self, test_param) -> ReviewDataApp:
         app = ReviewDataApp()
+        default_maf_cols = [
+            'Hugo_Symbol',
+            'Chromosome',
+            'Start_position',
+            'Protein_change',
+            'Variant_Classification',
+            't_ref_count',
+            't_alt_count',
+        ]
+        maf_cols_options = []
+        maf_cols_value = []
 
         def gen_clinical_data_table(df, idx, cols):
             r=df.loc[idx]
@@ -72,56 +86,66 @@ class PatientReviewer(ReviewerTemplate):
             new_data_callback=gen_clinical_data_table
         ), cols=['participant_id', 'gender', 'age_at_diagnosis', 'vital_status', 'death_date_dfd'])
 
+        def gen_maf_columns(df, idx, cols):
+            maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
+            maf_cols_options = (list(maf_df))
+
+            for col in default_maf_cols:
+                if col in maf_cols_options and col not in maf_cols_value:
+                    maf_cols_value.append(col)
+
+            for col in cols:
+                if col in maf_cols_options and col not in maf_cols_value:
+                    maf_cols_value.append(col)
+
+            return [
+                maf_df,
+                maf_cols_options,
+                maf_cols_value
+            ]
+
         def gen_maf_table(df, idx, cols):
-            return [dash_table.DataTable(
-                data=pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t').to_dict('records'),
-                columns=[{'name': i, 'id': i, 'selectable': True} for i in cols],
-                filter_action='native',
-                row_selectable='multi',
-                column_selectable='multi',
-                page_action='native',
-                page_current=0,
-                page_size=10)]
-            
+            maf_df, maf_cols_options, maf_cols_value = gen_maf_columns(df, idx, cols)
+
+            return [
+                maf_cols_options,
+                maf_cols_value,
+                dash_table.DataTable(
+                        data=pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t').to_dict('records'),
+                        columns=[{'name': i, 'id': i, 'selectable': True} for i in maf_cols_value],
+                        filter_action='native',
+                        row_selectable='multi',
+                        column_selectable='multi',
+                        page_action='native',
+                        page_current=0,
+                        page_size=10
+                )
+            ]
+
+        def internal_gen_maf_table(df, idx, cols):
+            maf_df, maf_cols_options, maf_cols_value = gen_maf_columns(df, idx, cols)
+
+            return [
+                maf_cols_options,
+                cols,
+                dash_table.DataTable(
+                        data=pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t').to_dict('records'),
+                        columns=[{'name': i, 'id': i, 'selectable': True} for i in cols],
+                        filter_action='native',
+                        row_selectable='multi',
+                        column_selectable='multi',
+                        page_action='native',
+                        page_current=0,
+                        page_size=10
+                )
+            ]
+
         app.add_component(AppComponent(
             'Mutations',
             html.Div([
                 html.Div(dcc.Dropdown(
-                    [
-                        'Hugo_Symbol',
-                        'Chromosome',
-                        'Start_position',
-                        'End_position',
-                        'Protein_change',
-                        'Variant_Classification',
-                        't_ref_count',
-                        't_alt_count',
-                        'n_ref_cound',
-                        'n_alt_count',
-                        'SIFT/PolyPhen',
-                        'Cluster_assignment',
-                        'ccf_mean',
-                        'clust_ccf_mean',
-                        'OncoKB',
-                        'Hotspot',
-                        'Minor_CN',
-                        'Major_CN',
-                        'Deletion_probability',
-                        'Tumor_coverage',
-                        'Max_ccf',
-                        'Delta_ccf',
-                        'Neoantigen_type',
-                        'Best_neoantigen_binding_score',
-                        'Num_strong_alleles'
-                    ], [
-                        'Hugo_Symbol',
-                        'Chromosome',
-                        'Start_position',
-                        'Protein_change',
-                        'Variant_Classification',
-                        't_ref_count',
-                        't_alt_count',
-                    ],
+                    maf_cols_options,
+                    maf_cols_value,
                     multi=True,
                     id='column-selection-dropdown'
                 )),
@@ -133,10 +157,14 @@ class PatientReviewer(ReviewerTemplate):
                 ), id='mutation-table-component')
             ]),
 
-            callback_output=[Output('mutation-table-component', 'children'),],
             callback_input=[Input('column-selection-dropdown', 'value')],
+            callback_output=[
+                Output('column-selection-dropdown', 'options'),
+                Output('column-selection-dropdown', 'value'),
+                Output('mutation-table-component', 'children')
+            ],
             new_data_callback=gen_maf_table,
-            internal_callback=gen_maf_table
+            internal_callback=internal_gen_maf_table
         ))
 
         app.add_component(AppComponent(
