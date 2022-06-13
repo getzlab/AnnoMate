@@ -44,8 +44,9 @@ default_maf_cols = [
 ]
 maf_cols_options = []
 maf_cols_value = []
+hugo_symbols = []
 
-def gen_maf_columns(df, idx, cols):
+def gen_maf_columns(df, idx, cols, hugo):
     maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
     maf_cols_options = (list(maf_df))
 
@@ -57,38 +58,52 @@ def gen_maf_columns(df, idx, cols):
         if col in maf_cols_options and col not in maf_cols_value:
             maf_cols_value.append(col)
 
+    for symbol in maf_df.Hugo_Symbol.unique():
+        hugo_symbols.append(symbol)
+
+    hugo_maf_df = maf_df.copy()
+    if hugo:
+        hugo_maf_df = hugo_maf_df[hugo_maf_df.Hugo_Symbol.isin(hugo)]
+
     return [
         maf_df,
         maf_cols_options,
-        maf_cols_value
+        maf_cols_value,
+        hugo_symbols,
+        hugo_maf_df
     ]
 
-def gen_maf_table(df, idx, cols):
-    maf_df, maf_cols_options, maf_cols_value = gen_maf_columns(df, idx, cols)
+def gen_maf_table(df, idx, cols, hugo):
+    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, hugo_maf_df = gen_maf_columns(df, idx, cols, hugo)
 
     return [
         maf_cols_options,
         maf_cols_value,
         dash_table.DataTable(
-                data=pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t').to_dict('records'),
-                columns=[{'name': i, 'id': i, 'selectable': True} for i in maf_cols_value],
-                filter_action='native',
-                row_selectable='multi',
-                column_selectable='multi',
-                page_action='native',
-                page_current=0,
-                page_size=10
-        )
+            data=hugo_maf_df.to_dict('records'),
+            columns=[{'name': i, 'id': i, 'selectable': True} for i in maf_cols_value],
+            filter_action='native',
+            row_selectable='multi',
+            column_selectable='multi',
+            page_action='native',
+            page_current=0,
+            page_size=10
+        ),
+        hugo_symbols
+        # dash_table.DataTable(
+        #     data=df.loc[rows],
+        #     columns=[{'name': i, 'id': i, 'selectable': True} for i in maf_cols_value]
+        # )
     ]
 
-def internal_gen_maf_table(df, idx, cols):
-    maf_df, maf_cols_options, maf_cols_value = gen_maf_columns(df, idx, cols)
+def internal_gen_maf_table(df, idx, cols, hugo):
+    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, hugo_maf_df = gen_maf_columns(df, idx, cols, hugo)
 
     return [
         maf_cols_options,
         cols,
         dash_table.DataTable(
-                data=pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t').to_dict('records'),
+                data=hugo_maf_df.to_dict('records'),
                 columns=[{'name': i, 'id': i, 'selectable': True} for i in cols],
                 filter_action='native',
                 row_selectable='multi',
@@ -96,7 +111,12 @@ def internal_gen_maf_table(df, idx, cols):
                 page_action='native',
                 page_current=0,
                 page_size=10
-        )
+        ),
+        hugo_symbols
+        # dash_table.DataTable(
+        #     data=df.loc[rows],
+        #     columns=[{'name': i, 'id': i, 'selectable': True} for i in maf_cols_value]
+        # )
     ]
 
 class PatientReviewer(ReviewerTemplate):
@@ -151,18 +171,44 @@ class PatientReviewer(ReviewerTemplate):
                     id='column-selection-dropdown'
                 )),
 
+                html.Div(
+                    dbc.Row([
+                        dbc.Col([
+                            dcc.Dropdown(
+                                options=hugo_symbols,
+                                multi=True,
+                                placeholder='Filter by Hugo Symbol',
+                                id='hugo-dropdown'
+                            )
+                        ], width=2)
+                    ])
+                ),
+
                 html.Div(dash_table.DataTable(
                     columns=[{'name': i, 'id': i, 'selectable': True} for i in pd.DataFrame().columns],
                     data=pd.DataFrame().to_dict('records'),
                     id='mutation-table'
-                ), id='mutation-table-component')
+                ), id='mutation-table-component'),
+
+
+                # html.Div(dash_table.DataTable(
+                #     columns=[{'name': i, 'id': i, 'selectable': True} for i in pd.DataFrame().columns],
+                #     data=pd.DataFrame().to_dict('records'),
+                #     id='rows-table'
+                # ), id='rows-table-component')
             ]),
 
-            callback_input=[Input('column-selection-dropdown', 'value')],
+            callback_input=[
+                Input('column-selection-dropdown', 'value'),
+                Input('hugo-dropdown', 'value')
+                #Input('mutation-table-component', 'selected_row-ids')
+            ],
             callback_output=[
                 Output('column-selection-dropdown', 'options'),
                 Output('column-selection-dropdown', 'value'),
-                Output('mutation-table-component', 'children')
+                Output('mutation-table-component', 'children'),
+                Output('hugo-dropdown', 'options')
+                #Output('rows-table-component', 'children')
             ],
             new_data_callback=gen_maf_table,
             internal_callback=internal_gen_maf_table
