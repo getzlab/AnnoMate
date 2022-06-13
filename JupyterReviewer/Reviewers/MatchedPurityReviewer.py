@@ -135,10 +135,10 @@ def gen_absolute_component(data_df,
                            mut_fig_pkl_fn_col
                           ):
     r = data_df.loc[data_id]
-#     try:
-#         absolute_rdata_df = pd.read_csv(r[rdata_tsv_fn], sep='\t', index_col=0)
-#     except:
-#         absolute_rdata_df = pd.DataFrame()
+    try:
+        absolute_rdata_df = pd.read_csv(r[rdata_tsv_fn], sep='\t', index_col=0)
+    except:
+        absolute_rdata_df = pd.DataFrame()
 
     absolute_rdata_df = pd.read_csv(r[rdata_tsv_fn], sep='\t', index_col=0)
 
@@ -260,6 +260,7 @@ class MatchedPurityReviewer(ReviewerTemplate):
                        rdata_fn_col='',
                        reload_cnp_figs=False,
                        reload_mut_figs=False,
+                        mut_fig_hover_data=[]
                       ):
         pandas2ri.activate()
         if not os.path.exists(preprocess_data_dir):
@@ -315,7 +316,7 @@ class MatchedPurityReviewer(ReviewerTemplate):
             print('Reloading mut figs')
             for i, r in df.iterrows():
                 output_fn = f'{mut_figs_dir}/{i}.cnp_fig.pkl'
-                fig = gen_mut_figure(df.loc[i, maf_col])
+                fig = gen_mut_figure(df.loc[i, maf_col], hover_data=mut_fig_hover_data)
                 pickle.dump(fig, open(output_fn, "wb"))
                 df.loc[i, f'mut_figs_pkl'] = output_fn
             
