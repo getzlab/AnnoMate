@@ -99,7 +99,10 @@ def gen_mut_figure(maf_fn,
     maf_df['tumor_f'] = maf_df[alt_count_col] / (maf_df[alt_count_col] + maf_df[ref_count_col])
     
     # color by clonal/subclonal
-    fig = px.scatter(maf_df, x='new_position', y='tumor_f', marginal_y='histogram')
+    if len(hover_data) > 0:
+        fig = px.scatter(maf_df, x='new_position', y='tumor_f', marginal_y='histogram', hover_data=hover_data)
+    else:
+        fig = px.scatter(maf_df, x='new_position', y='tumor_f', marginal_y='histogram')
     fig.update_layout(plot_bgcolor='rgba(0,0,0,0)')
     fig.update_yaxes(range=[0, 1])
     return fig
@@ -260,7 +263,7 @@ class MatchedPurityReviewer(ReviewerTemplate):
                        rdata_fn_col='',
                        reload_cnp_figs=False,
                        reload_mut_figs=False,
-                        mut_fig_hover_data=[]
+                       mut_fig_hover_data=[]
                       ):
         pandas2ri.activate()
         if not os.path.exists(preprocess_data_dir):
