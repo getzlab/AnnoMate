@@ -135,10 +135,12 @@ def gen_absolute_component(data_df,
                            mut_fig_pkl_fn_col
                           ):
     r = data_df.loc[data_id]
-    try:
-        absolute_rdata_df = pd.read_csv(r[rdata_tsv_fn], sep='\t')
-    except:
-        absolute_rdata_df = pd.DataFrame()
+#     try:
+#         absolute_rdata_df = pd.read_csv(r[rdata_tsv_fn], sep='\t', index_col=0)
+#     except:
+#         absolute_rdata_df = pd.DataFrame()
+
+    absolute_rdata_df = pd.read_csv(r[rdata_tsv_fn], sep='\t', index_col=0)
 
     cnp_fig = load_pickle(r[cnp_fig_pkl_fn_col])
 
