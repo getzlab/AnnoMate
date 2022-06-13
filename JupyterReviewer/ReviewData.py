@@ -198,7 +198,7 @@ class ReviewData:
         """
         path: local or gsurl path to directory to save object's dataframe objects
         """
-        self.data.to_csv(f'{path.strip("/")}/data.tsv', sep='\t')
-        self.annot.to_csv(f'{path.strip("/")}/annot.tsv', sep='\t')
-        self.history.to_csv(f'{path.strip("/")}/history.tsv', sep='\t')
+        self.data.to_csv(f'{path}/data.tsv', sep='\t')
+        self.annot.to_csv(f'{path}/annot.tsv', sep='\t')
+        self.history.to_csv(f'{path}/history.tsv', sep='\t')
         
