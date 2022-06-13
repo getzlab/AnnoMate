@@ -135,7 +135,10 @@ def gen_absolute_component(data_df,
                            mut_fig_pkl_fn_col
                           ):
     r = data_df.loc[data_id]
-    absolute_rdata_df = pd.read_csv(r[rdata_tsv_fn], sep='\t')
+    try:
+        absolute_rdata_df = pd.read_csv(r[rdata_tsv_fn], sep='\t')
+    except:
+        absolute_rdata_df = pd.DataFrame()
 
     cnp_fig = load_pickle(r[cnp_fig_pkl_fn_col])
 
@@ -145,31 +148,39 @@ def gen_absolute_component(data_df,
     # add 1 and 0 lines
     mut_fig_with_lines = go.Figure(mut_fig)
     cnp_fig_with_lines = go.Figure(cnp_fig)
-    solution_data = absolute_rdata_df.iloc[selected_row_array[0]]
-    i = 0
-    line_height = solution_data['0_line']
-    while line_height < 2:
-        line_height = solution_data['0_line'] + (solution_data['step_size'] * i)
-        cnp_fig_with_lines.add_hline(y=line_height, 
-                                     line_dash="dash", 
-                                     line_color='black',
-                                     line_width=1
-                                    )
-        i += 1
-        
-    half_1_line = solution_data['alpha'] / 2.0
-    mut_fig_with_lines.add_hline(y=half_1_line, 
-                                line_dash="dash", 
-                                line_color='black',
-                                line_width=1)
+    
+    purity = 0
+    ploidy = 0
+    
+    if absolute_rdata_df.shape[0] > 0:
+        solution_data = absolute_rdata_df.iloc[selected_row_array[0]]
+        i = 0
+        line_height = solution_data['0_line']
+        while line_height < 2:
+            line_height = solution_data['0_line'] + (solution_data['step_size'] * i)
+            cnp_fig_with_lines.add_hline(y=line_height, 
+                                         line_dash="dash", 
+                                         line_color='black',
+                                         line_width=1
+                                        )
+            i += 1
 
-    mut_fig_with_lines.update_yaxes(range=[0, half_1_line * 2])
+        half_1_line = solution_data['alpha'] / 2.0
+        mut_fig_with_lines.add_hline(y=half_1_line, 
+                                    line_dash="dash", 
+                                    line_color='black',
+                                    line_width=1)
+
+        mut_fig_with_lines.update_yaxes(range=[0, half_1_line * 2])
+        
+        purity = solution_data['alpha']
+        ploidy = solution_data['tau_hat']
 
     return [absolute_rdata_df.to_dict('records'), 
             cnp_fig_with_lines, 
             mut_fig_with_lines,
-            solution_data['alpha'],
-            solution_data['tau_hat'], 
+            purity,
+            ploidy, 
             [0]]
 
 def internal_gen_absolute_component(data_df, 
@@ -261,8 +272,11 @@ class MatchedPurityReviewer(ReviewerTemplate):
             df[f'{rdata_fn_col}_as_tsv'] = ''
             for i, r in df.iterrows():
                 output_fn = f'{rdata_dir}/{i}.rdata.tsv'
-                parse_absolute_soln(df.loc[i, rdata_fn_col]).to_csv(output_fn, sep='\t')
-                df.loc[i, f'{rdata_fn_col}_as_tsv'] = output_fn
+                try:
+                    parse_absolute_soln(df.loc[i, rdata_fn_col]).to_csv(output_fn, sep='\t')
+                    df.loc[i, f'{rdata_fn_col}_as_tsv'] = output_fn
+                except:
+                    continue
         else:
             print(f'rdata tsv directory already exists: {rdata_dir}')
             df[f'{rdata_fn_col}_as_tsv'] = ''
