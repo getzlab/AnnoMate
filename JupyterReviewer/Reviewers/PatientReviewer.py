@@ -37,17 +37,53 @@ default_maf_cols = [
     'Hugo_Symbol',
     'Chromosome',
     'Start_position',
+    'End_position'
     'Protein_change',
     'Variant_Classification',
     't_ref_count',
+    't_ref_count_pre_forecall',
     't_alt_count',
+    't_alt_count_pre_forecall',
+    'n_ref_count',
+    'n_alt_count'
 ]
 maf_cols_options = []
 maf_cols_value = []
 hugo_symbols = []
 
+cluster_assignment_colors_dict = {
+    1: 'OliveDrab',
+    2: 'LightSkyBlue',
+    3: 'GoldenRod',
+    4: 'DimGray',
+    5: 'MediumSlateBlue',
+    6: 'Maroon',
+    7: 'MediumAquaMarine',
+    8: 'LightPink',
+    9: 'RebeccaPurple'
+}
+
+def gen_cluster_assignment_style_data(num):
+    return {
+        'if': {
+            'column_id': 'Cluster_Assignment',
+            'filter_query': '{Cluster_Assignment} = %s' % num
+        },
+        'color': cluster_assignment_colors_dict[num],
+        'fontWeight': 'bold'
+    }
+
+def gen_style_data_conditional():
+    style_data_conditional = []
+
+    for n in range(1, 10):
+        style_data_conditional.append(gen_cluster_assignment_style_data(n))
+
+    return style_data_conditional
+
 def gen_maf_columns(df, idx, cols, hugo):
-    maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
+    #maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
+    maf_df = pd.read_csv('gs://fc-secure-c1d8f0c8-dc8c-418a-ac13-561b18de3d8e/1dc35867-4c57-487e-bcdd-e39820462211/phylogicndt/9fa3c8da-d1b6-467d-99c2-2051a11713bb/call-clustering/cacheCopy/ONC1194.mut_ccfs.txt', sep='\t')
     maf_cols_options = (list(maf_df))
 
     for col in default_maf_cols:
@@ -83,17 +119,14 @@ def gen_maf_table(df, idx, cols, hugo):
             data=hugo_maf_df.to_dict('records'),
             columns=[{'name': i, 'id': i, 'selectable': True} for i in maf_cols_value],
             filter_action='native',
-            row_selectable='multi',
+            row_selectable='single',
             column_selectable='multi',
             page_action='native',
             page_current=0,
-            page_size=10
+            page_size=10,
+            style_data_conditional=gen_style_data_conditional()
         ),
         hugo_symbols
-        # dash_table.DataTable(
-        #     data=df.loc[rows],
-        #     columns=[{'name': i, 'id': i, 'selectable': True} for i in maf_cols_value]
-        # )
     ]
 
 def internal_gen_maf_table(df, idx, cols, hugo):
@@ -106,17 +139,14 @@ def internal_gen_maf_table(df, idx, cols, hugo):
                 data=hugo_maf_df.to_dict('records'),
                 columns=[{'name': i, 'id': i, 'selectable': True} for i in cols],
                 filter_action='native',
-                row_selectable='multi',
+                row_selectable='single',
                 column_selectable='multi',
                 page_action='native',
                 page_current=0,
-                page_size=10
+                page_size=10,
+                style_data_conditional=gen_style_data_conditional()
         ),
         hugo_symbols
-        # dash_table.DataTable(
-        #     data=df.loc[rows],
-        #     columns=[{'name': i, 'id': i, 'selectable': True} for i in maf_cols_value]
-        # )
     ]
 
 class PatientReviewer(ReviewerTemplate):
@@ -148,7 +178,7 @@ class PatientReviewer(ReviewerTemplate):
         return rd
 
     # list optional cols param
-    def gen_review_app(self, test_param) -> ReviewDataApp:
+    def gen_review_app(self) -> ReviewDataApp:
         app = ReviewDataApp()
 
         app.add_component(AppComponent(
@@ -190,25 +220,17 @@ class PatientReviewer(ReviewerTemplate):
                     id='mutation-table'
                 ), id='mutation-table-component'),
 
-
-                # html.Div(dash_table.DataTable(
-                #     columns=[{'name': i, 'id': i, 'selectable': True} for i in pd.DataFrame().columns],
-                #     data=pd.DataFrame().to_dict('records'),
-                #     id='rows-table'
-                # ), id='rows-table-component')
             ]),
 
             callback_input=[
                 Input('column-selection-dropdown', 'value'),
                 Input('hugo-dropdown', 'value')
-                #Input('mutation-table-component', 'selected_row-ids')
             ],
             callback_output=[
                 Output('column-selection-dropdown', 'options'),
                 Output('column-selection-dropdown', 'value'),
                 Output('mutation-table-component', 'children'),
-                Output('hugo-dropdown', 'options')
-                #Output('rows-table-component', 'children')
+                Output('hugo-dropdown', 'options'),
             ],
             new_data_callback=gen_maf_table,
             internal_callback=internal_gen_maf_table
