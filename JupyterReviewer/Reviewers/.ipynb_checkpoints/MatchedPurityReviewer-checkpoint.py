@@ -90,7 +90,7 @@ def gen_mut_figure(maf_fn,
                    hover_data=[]  # TODO: include
                   ):
     fig = make_subplots(rows=1, cols=1)
-    maf_df = pd.read_csv(maf_fn, sep='\t')
+    maf_df = pd.read_csv(maf_fn, sep='\t', encoding='iso-8859-1')
     if maf_df[chromosome_col].dtype == 'object':
         maf_df[chromosome_col].replace({'X': 23, 'Y': 24}, inplace=True)
     maf_df[chromosome_col] = maf_df[chromosome_col].astype(str)
@@ -112,7 +112,7 @@ def gen_cnp_figure(acs_fn,
 #                    csize=csize
                   ):
     
-    seg_df = pd.read_csv(acs_fn, sep='\t')
+    seg_df = pd.read_csv(acs_fn, sep='\t', encoding='iso-8859-1')
     layout = go.Layout(
             plot_bgcolor='rgba(0,0,0,0)',
         )
