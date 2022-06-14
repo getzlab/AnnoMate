@@ -50,6 +50,8 @@ default_maf_cols = [
 maf_cols_options = []
 maf_cols_value = []
 hugo_symbols = []
+variant_classifications = []
+cluster_assignments = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 cluster_assignment_colors_dict = {
     1: 'OliveDrab',
@@ -81,7 +83,7 @@ def gen_style_data_conditional():
 
     return style_data_conditional
 
-def gen_maf_columns(df, idx, cols, hugo):
+def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
     #maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
     maf_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/all_mut_ccfs_maf_annotated_w_cnv_single_participant.txt', sep='\t')
     maf_cols_options = (list(maf_df))
@@ -97,26 +99,34 @@ def gen_maf_columns(df, idx, cols, hugo):
     for symbol in maf_df.Hugo_Symbol.unique():
         hugo_symbols.append(symbol)
 
-    hugo_maf_df = maf_df.copy()
+    for classification in maf_df.Variant_Classification.unique():
+        variant_classifications.append(classification)
+
+    filtered_maf_df = maf_df.copy()
     if hugo:
-        hugo_maf_df = hugo_maf_df[hugo_maf_df.Hugo_Symbol.isin(hugo)]
+        filtered_maf_df = filtered_maf_df[filtered_maf_df.Hugo_Symbol.isin(hugo)]
+    if variant:
+        filtered_maf_df = filtered_maf_df[filtered_maf_df.Variant_Classification.isin(variant)]
+    if cluster:
+        filtered_maf_df = filtered_maf_df[filtered_maf_df.Cluster_Assignment.isin(cluster)]
 
     return [
         maf_df,
         maf_cols_options,
         maf_cols_value,
         hugo_symbols,
-        hugo_maf_df
+        variant_classifications,
+        filtered_maf_df
     ]
 
-def gen_maf_table(df, idx, cols, hugo, table_size):
-    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, hugo_maf_df = gen_maf_columns(df, idx, cols, hugo)
+def gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster):
+    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, filtered_maf_df = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
 
     return [
         maf_cols_options,
         maf_cols_value,
         dash_table.DataTable(
-            data=hugo_maf_df.to_dict('records'),
+            data=filtered_maf_df.to_dict('records'),
             columns=[{'name': i, 'id': i, 'selectable': True} for i in maf_cols_value],
             filter_action='native',
             row_selectable='single',
@@ -126,17 +136,18 @@ def gen_maf_table(df, idx, cols, hugo, table_size):
             page_size=table_size,
             style_data_conditional=gen_style_data_conditional()
         ),
-        hugo_symbols
+        hugo_symbols,
+        variant_classifications
     ]
 
-def internal_gen_maf_table(df, idx, cols, hugo, table_size):
-    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, hugo_maf_df = gen_maf_columns(df, idx, cols, hugo)
+def internal_gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster):
+    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, filtered_maf_df = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
 
     return [
         maf_cols_options,
         cols,
         dash_table.DataTable(
-                data=hugo_maf_df.to_dict('records'),
+                data=filtered_maf_df.to_dict('records'),
                 columns=[{'name': i, 'id': i, 'selectable': True} for i in cols],
                 filter_action='native',
                 row_selectable='single',
@@ -146,7 +157,8 @@ def internal_gen_maf_table(df, idx, cols, hugo, table_size):
                 page_size=table_size,
                 style_data_conditional=gen_style_data_conditional()
         ),
-        hugo_symbols
+        hugo_symbols,
+        variant_classifications
     ]
 
 class PatientReviewer(ReviewerTemplate):
@@ -194,12 +206,33 @@ class PatientReviewer(ReviewerTemplate):
         app.add_component(AppComponent(
             'Mutations',
             html.Div([
-                html.Div(dcc.Dropdown(
-                    maf_cols_options,
-                    maf_cols_value,
-                    multi=True,
-                    id='column-selection-dropdown'
-                )),
+                html.Div([
+                    dbc.Row([
+                        dbc.Col([
+                            html.P('Table Size (Rows)'),
+                        ], width=2),
+                        dbc.Col([
+                            html.P('Select Columns')
+                        ])
+                    ]),
+                    dbc.Row([
+                        dbc.Col([
+                            dcc.Dropdown(
+                                options=[10,20,30],
+                                value=10,
+                                id='table-size-dropdown'
+                            )
+                        ], width=2),
+                        dbc.Col([
+                            dcc.Dropdown(
+                                maf_cols_options,
+                                maf_cols_value,
+                                multi=True,
+                                id='column-selection-dropdown'
+                            )
+                        ], width=10)
+                    ])
+                ]),
 
                 html.Div(
                     dbc.Row([
@@ -210,6 +243,22 @@ class PatientReviewer(ReviewerTemplate):
                                 placeholder='Filter by Hugo Symbol',
                                 id='hugo-dropdown'
                             )
+                        ], width=2),
+                        dbc.Col([
+                            dcc.Dropdown(
+                                options=variant_classifications,
+                                multi=True,
+                                placeholder='Filter by Variant Classification',
+                                id='variant-classification-dropdown'
+                            )
+                        ], width=2),
+                        dbc.Col([
+                            dcc.Dropdown(
+                                options=cluster_assignments,
+                                multi=True,
+                                placeholder='Filter by Cluster Assignment',
+                                id='cluster-assignment-dropdown'
+                            )
                         ], width=2)
                     ])
                 ),
@@ -219,32 +268,21 @@ class PatientReviewer(ReviewerTemplate):
                     data=pd.DataFrame().to_dict('records'),
                     id='mutation-table'
                 ), id='mutation-table-component'),
-
-                html.Div(
-                    dbc.Row([
-                        html.P('Table Size (Rows)'),
-                        dbc.Col([
-                            dcc.Dropdown(
-                                options=[10,20,30],
-                                value=10,
-                                id='table-size-dropdown'
-                            )
-                        ], width=2)
-                    ])
-                ),
-
             ]),
 
             callback_input=[
                 Input('column-selection-dropdown', 'value'),
                 Input('hugo-dropdown', 'value'),
-                Input('table-size-dropdown', 'value')
+                Input('table-size-dropdown', 'value'),
+                Input('variant-classification-dropdown', 'value'),
+                Input('cluster-assignment-dropdown', 'value')
             ],
             callback_output=[
                 Output('column-selection-dropdown', 'options'),
                 Output('column-selection-dropdown', 'value'),
                 Output('mutation-table-component', 'children'),
                 Output('hugo-dropdown', 'options'),
+                Output('variant-classification-dropdown', 'options')
             ],
             new_data_callback=gen_maf_table,
             internal_callback=internal_gen_maf_table
