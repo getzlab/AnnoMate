@@ -83,7 +83,7 @@ def gen_style_data_conditional():
 
 def gen_maf_columns(df, idx, cols, hugo):
     #maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
-    maf_df = pd.read_csv('gs://fc-secure-c1d8f0c8-dc8c-418a-ac13-561b18de3d8e/1dc35867-4c57-487e-bcdd-e39820462211/phylogicndt/9fa3c8da-d1b6-467d-99c2-2051a11713bb/call-clustering/cacheCopy/ONC1194.mut_ccfs.txt', sep='\t')
+    maf_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/all_mut_ccfs_maf_annotated_w_cnv_single_participant.txt', sep='\t')
     maf_cols_options = (list(maf_df))
 
     for col in default_maf_cols:
@@ -109,7 +109,7 @@ def gen_maf_columns(df, idx, cols, hugo):
         hugo_maf_df
     ]
 
-def gen_maf_table(df, idx, cols, hugo):
+def gen_maf_table(df, idx, cols, hugo, table_size):
     maf_df, maf_cols_options, maf_cols_value, hugo_symbols, hugo_maf_df = gen_maf_columns(df, idx, cols, hugo)
 
     return [
@@ -123,13 +123,13 @@ def gen_maf_table(df, idx, cols, hugo):
             column_selectable='multi',
             page_action='native',
             page_current=0,
-            page_size=10,
+            page_size=table_size,
             style_data_conditional=gen_style_data_conditional()
         ),
         hugo_symbols
     ]
 
-def internal_gen_maf_table(df, idx, cols, hugo):
+def internal_gen_maf_table(df, idx, cols, hugo, table_size):
     maf_df, maf_cols_options, maf_cols_value, hugo_symbols, hugo_maf_df = gen_maf_columns(df, idx, cols, hugo)
 
     return [
@@ -143,7 +143,7 @@ def internal_gen_maf_table(df, idx, cols, hugo):
                 column_selectable='multi',
                 page_action='native',
                 page_current=0,
-                page_size=10,
+                page_size=table_size,
                 style_data_conditional=gen_style_data_conditional()
         ),
         hugo_symbols
@@ -220,11 +220,25 @@ class PatientReviewer(ReviewerTemplate):
                     id='mutation-table'
                 ), id='mutation-table-component'),
 
+                html.Div(
+                    dbc.Row([
+                        html.P('Table Size (Rows)'),
+                        dbc.Col([
+                            dcc.Dropdown(
+                                options=[10,20,30],
+                                value=10,
+                                id='table-size-dropdown'
+                            )
+                        ], width=2)
+                    ])
+                ),
+
             ]),
 
             callback_input=[
                 Input('column-selection-dropdown', 'value'),
-                Input('hugo-dropdown', 'value')
+                Input('hugo-dropdown', 'value'),
+                Input('table-size-dropdown', 'value')
             ],
             callback_output=[
                 Output('column-selection-dropdown', 'options'),
