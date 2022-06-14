@@ -75,11 +75,62 @@ def gen_cluster_assignment_style_data(num):
         'fontWeight': 'bold'
     }
 
+def gen_functional_effect_style_data():
+    return [
+        {
+            'if': {
+                'column_id': 'functional_effect',
+                'filter_query': '{functional_effect} = "Likely Loss-of-function"'
+            },
+            'backgroundColor': 'DarkOliveGreen',
+            'fontWeight': 'bold'
+        },
+        {
+            'if': {
+                'column_id': 'functional_effect',
+                'filter_query': '{functional_effect} = "Likely Gain-of-function"'
+            },
+            'backgroundColor': 'DarkSeaGreen',
+            'fontWeight': 'bold'
+        }
+    ]
+
+def gen_oncogenic_style_data():
+    return {
+        'if': {
+            'column_id': 'oncogenic',
+            'filter_query': '{oncogenic} = "Likely Oncogenic"'
+        },
+        'backgroundColor': 'DarkOliveGreen',
+        'fontWeight': 'bold'
+    }
+
+def gen_polyphen_style_data():
+    return {
+        'if': {
+            'column_id': 'dbNSFP_Polyphen2_HDIV_ann',
+            'filter_query': '{dbNSFP_Polyphen2_HDIV_ann} = "D"'
+        },
+        'backgroundColor': 'FireBrick',
+        'fontWeight': 'bold'
+    }
+
+
 def gen_style_data_conditional():
     style_data_conditional = []
 
-    for n in range(1, 10):
-        style_data_conditional.append(gen_cluster_assignment_style_data(n))
+    if 'Cluster_Assignment' in maf_cols_value:
+        for n in range(1, 10):
+            style_data_conditional.append(gen_cluster_assignment_style_data(n))
+
+    if 'functional_effect' in maf_cols_value:
+        style_data_conditional.extend(gen_functional_effect_style_data())
+
+    if 'oncogenic' in maf_cols_value:
+        style_data_conditional.append(gen_oncogenic_style_data())
+
+    if 'dbNSFP_Polyphen2_HDIV_ann' in maf_cols_value:
+        style_data_conditional.append(gen_polyphen_style_data())
 
     return style_data_conditional
 
