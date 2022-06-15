@@ -33,17 +33,20 @@ def gen_clinical_data_table(df, idx, cols):
     r=df.loc[idx]
     return [dbc.Table.from_dataframe(r[cols].to_frame().reset_index())]
 
+start_pos = 'Start_position' or 'Start_Position'
+end_pos = 'End_position' or 'End_Position'
+protein_change = 'Protein_change' or 'Protein_Change'
+t_ref_count = 't_ref_count' or 't_ref_count_pre_forecall'
+t_alt_count = 't_alt_count' or 't_alt_count_pre_forecall'
 default_maf_cols = [
     'Hugo_Symbol',
     'Chromosome',
-    'Start_position',
-    'End_position'
-    'Protein_change',
+    start_pos,
+    end_pos,
+    protein_change,
     'Variant_Classification',
-    't_ref_count',
-    't_ref_count_pre_forecall',
-    't_alt_count',
-    't_alt_count_pre_forecall',
+    t_ref_count,
+    t_alt_count,
     'n_ref_count',
     'n_alt_count'
 ]
@@ -76,7 +79,7 @@ def style_data_format(column_id, filter_query, color='Black', backgroundColor='W
         'fontWeight': 'bold'
     }
 
-def gen_style_data_conditional():
+def gen_style_data_conditional(custom_colors):
     style_data_conditional = []
 
     if 'Cluster_Assignment' in maf_cols_value:
@@ -94,6 +97,10 @@ def gen_style_data_conditional():
 
     if 'dbNSFP_Polyphen2_HDIV_ann' in maf_cols_value:
         style_data_conditional.append(style_data_format('dbNSFP_Polyphen2_HDIV_ann', 'D', backgroundColor='FireBrick'))
+
+    if custom_colors != []:
+        for list in custom_colors:
+            style_data_conditional.append(style_data_format(list[0], list[1], list[2], list[3]))
 
     return style_data_conditional
 
@@ -133,7 +140,7 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
         filtered_maf_df
     ]
 
-def gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster):
+def gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster, custom_colors):
     maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, filtered_maf_df = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
 
     return [
@@ -148,13 +155,13 @@ def gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster):
             page_action='native',
             page_current=0,
             page_size=table_size,
-            style_data_conditional=gen_style_data_conditional()
+            style_data_conditional=gen_style_data_conditional(custom_colors)
         ),
         hugo_symbols,
         variant_classifications
     ]
 
-def internal_gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster):
+def internal_gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster, custom_colors):
     maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, filtered_maf_df = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
 
     return [
@@ -169,7 +176,7 @@ def internal_gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster):
                 page_action='native',
                 page_current=0,
                 page_size=table_size,
-                style_data_conditional=gen_style_data_conditional()
+                style_data_conditional=gen_style_data_conditional(custom_colors)
         ),
         hugo_symbols,
         variant_classifications
@@ -204,7 +211,7 @@ class PatientReviewer(ReviewerTemplate):
         return rd
 
     # list optional cols param
-    def gen_review_app(self) -> ReviewDataApp:
+    def gen_review_app(self, custom_colors=[]) -> ReviewDataApp:
         app = ReviewDataApp()
 
         app.add_component(AppComponent(
@@ -300,7 +307,7 @@ class PatientReviewer(ReviewerTemplate):
             ],
             new_data_callback=gen_maf_table,
             internal_callback=internal_gen_maf_table
-        ))
+        ), custom_colors=custom_colors)
 
         app.add_component(AppComponent(
             'Purity Slider',
