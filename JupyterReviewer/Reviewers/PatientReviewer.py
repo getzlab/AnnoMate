@@ -38,6 +38,7 @@ end_pos = 'End_position' or 'End_Position'
 protein_change = 'Protein_change' or 'Protein_Change'
 t_ref_count = 't_ref_count' or 't_ref_count_pre_forecall'
 t_alt_count = 't_alt_count' or 't_alt_count_pre_forecall'
+
 default_maf_cols = [
     'Hugo_Symbol',
     'Chromosome',
@@ -50,23 +51,12 @@ default_maf_cols = [
     'n_ref_count',
     'n_alt_count'
 ]
+
 maf_cols_options = []
 maf_cols_value = []
 hugo_symbols = []
 variant_classifications = []
-cluster_assignments = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-
-cluster_assignment_colors_dict = {
-    1: 'OliveDrab',
-    2: 'LightSkyBlue',
-    3: 'GoldenRod',
-    4: 'DimGray',
-    5: 'MediumSlateBlue',
-    6: 'Maroon',
-    7: 'MediumAquaMarine',
-    8: 'LightPink',
-    9: 'RebeccaPurple'
-}
+cluster_assignments = []
 
 def get_hex_string(c):
     return '#{:02X}{:02X}{:02X}'.format(*c)
@@ -145,12 +135,12 @@ def style_data_format(column_id, filter_query, color='Black', backgroundColor='W
         'fontWeight': 'bold'
     }
 
-def gen_style_data_conditional(custom_colors):
+def gen_style_data_conditional(df, custom_colors):
     style_data_conditional = []
 
     if 'Cluster_Assignment' in maf_cols_value:
-        for n in range(1, 10):
-            style_data_conditional.append(style_data_format('Cluster_Assignment', n, color=cluster_assignment_colors_dict[n]))
+        for n in df.Cluster_Assignment.unique():
+            style_data_conditional.append(style_data_format('Cluster_Assignment', n, color=cluster_color(n)))
 
     if 'functional_effect' in maf_cols_value:
         style_data_conditional.extend([
@@ -171,8 +161,8 @@ def gen_style_data_conditional(custom_colors):
     return style_data_conditional
 
 def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
-    maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
-    #maf_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/all_mut_ccfs_maf_annotated_w_cnv_single_participant.txt', sep='\t')
+    #maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
+    maf_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/all_mut_ccfs_maf_annotated_w_cnv_single_participant.txt', sep='\t')
     maf_cols_options = (list(maf_df))
 
     for col in default_maf_cols:
@@ -189,6 +179,9 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
     for classification in maf_df.Variant_Classification.unique():
         variant_classifications.append(classification)
 
+    for n in maf_df.Cluster_Assignment.unique():
+        cluster_assignments.append(n)
+
     filtered_maf_df = maf_df.copy()
     if hugo:
         filtered_maf_df = filtered_maf_df[filtered_maf_df.Hugo_Symbol.isin(hugo)]
@@ -203,11 +196,12 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
         maf_cols_value,
         hugo_symbols,
         variant_classifications,
+        cluster_assignments,
         filtered_maf_df
     ]
 
 def gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster, custom_colors):
-    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, filtered_maf_df = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
+    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
 
     return [
         maf_cols_options,
@@ -216,19 +210,21 @@ def gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster, custom_colo
             data=filtered_maf_df.to_dict('records'),
             columns=[{'name': i, 'id': i, 'selectable': True} for i in maf_cols_value],
             filter_action='native',
+            sort_action='native',
             row_selectable='single',
             column_selectable='multi',
             page_action='native',
             page_current=0,
             page_size=table_size,
-            style_data_conditional=gen_style_data_conditional(custom_colors)
+            style_data_conditional=gen_style_data_conditional(filtered_maf_df, custom_colors)
         ),
         hugo_symbols,
-        variant_classifications
+        variant_classifications,
+        cluster_assignments
     ]
 
 def internal_gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster, custom_colors):
-    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, filtered_maf_df = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
+    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
 
     return [
         maf_cols_options,
@@ -237,15 +233,17 @@ def internal_gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster, cu
                 data=filtered_maf_df.to_dict('records'),
                 columns=[{'name': i, 'id': i, 'selectable': True} for i in cols],
                 filter_action='native',
+                sort_action='native',
                 row_selectable='single',
                 column_selectable='multi',
                 page_action='native',
                 page_current=0,
                 page_size=table_size,
-                style_data_conditional=gen_style_data_conditional(custom_colors)
+                style_data_conditional=gen_style_data_conditional(filtered_maf_df, custom_colors)
         ),
         hugo_symbols,
-        variant_classifications
+        variant_classifications,
+        cluster_assignments
     ]
 
 def gen_ccf_plot(df, idx, time_scaled):
@@ -280,14 +278,7 @@ def gen_ccf_plot(df, idx, time_scaled):
     cluster_colors = [cluster_color(i) for i in cluster_df['Cluster_ID'].unique()]
     cluster_df['Cluster_ID'] = cluster_df['Cluster_ID'].astype(str)
 
-    fig = px.scatter(
-        cluster_df,
-        x=scatter_x,
-        y='postDP_ccf_mean',
-        color='Cluster_ID',
-        color_discrete_sequence=cluster_colors
-    )
-    fig.update_traces(marker_size=15)
+    fig = go.Figure()
 
     for c, color in zip(cluster_df['Cluster_ID'].unique(), cluster_colors):
         this_cluster = cluster_df[cluster_df['Cluster_ID'] == c]
@@ -296,14 +287,48 @@ def gen_ccf_plot(df, idx, time_scaled):
                  this_cluster.iloc[i, rect_x], this_cluster.iloc[i, rect_x]]
             y = [this_cluster.iloc[i, 4], this_cluster.iloc[i + 1, 4], this_cluster.iloc[i + 1, 3],
                  this_cluster.iloc[i, 3], this_cluster.iloc[i, 4]]
+            # plot points
             fig.add_trace(
-                go.Scatter(x=x, y=y, fill="toself", fillcolor=color, line_color=color, opacity=0.4,
-                           mode='none', showlegend=False))
-            fig.add_shape(type="line", xref="x", yref="y",
-                          x0=this_cluster.iloc[i, rect_x], x1=this_cluster.iloc[i + 1, rect_x],
-                          y0=this_cluster.iloc[i, 2], y1=this_cluster.iloc[i + 1, 2],
-                          line_width=min(mut_count_dict[int(c)], 15),
-                          line_color=color, opacity=0.4, layer='below')
+                go.Scatter(
+                    x=this_cluster[scatter_x],
+                    y=this_cluster['postDP_ccf_mean'],
+                    legendgroup=f'group{c}',
+                    name=c,
+                    marker_color=color,
+                    mode='markers'
+                )
+            )
+
+            #confidence interval
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=y,
+                    legendgroup=f'group{c}',
+                    name=f'{c}',
+                    fill="toself",
+                    fillcolor=color,
+                    line_color=color,
+                    opacity=0.4,
+                    mode='none',
+                    showlegend=False
+                )
+            )
+            # line
+            fig.add_trace(
+                go.Scatter(
+                    x=[this_cluster.iloc[i, rect_x], this_cluster.iloc[i + 1, rect_x]],
+                    y=[this_cluster.iloc[i, 2], this_cluster.iloc[i + 1, 2]],
+                    legendgroup=f'group{c}',
+                    name=f'{c}',
+                    line_width=min(mut_count_dict[int(c)], 15),
+                    line_color=color,
+                    opacity=0.4,
+                    showlegend=False
+                )
+            )
+
+    fig.update_traces(marker_size=15)
     fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', height=600, width=900)
     fig.update_yaxes(title='ccf(x)', dtick=0.1, ticks='outside', showline=True, linecolor='black', range=[-0.03,1.05], showgrid=False)
     fig.update_xaxes(ticks='outside', showline=True, linecolor='black', showgrid=False)
@@ -315,6 +340,7 @@ def gen_ccf_plot(df, idx, time_scaled):
     fig.data = fig.data[::-1]  # make the circles appear on top layer
 
     return [fig]
+
 
 class PatientReviewer(ReviewerTemplate):
 
@@ -437,7 +463,8 @@ class PatientReviewer(ReviewerTemplate):
                 Output('column-selection-dropdown', 'value'),
                 Output('mutation-table-component', 'children'),
                 Output('hugo-dropdown', 'options'),
-                Output('variant-classification-dropdown', 'options')
+                Output('variant-classification-dropdown', 'options'),
+                Output('cluster-assignment-dropdown', 'options')
             ],
             new_data_callback=gen_maf_table,
             internal_callback=internal_gen_maf_table
@@ -449,20 +476,28 @@ class PatientReviewer(ReviewerTemplate):
                 html.Div(
                     dbc.Row([
                         dbc.Col([
+                            dcc.RadioItems(
+                                ['Time Scaled', 'Not Time Scaled'],
+                                'Time Scaled',
+                                inline=True,
+                                inputStyle={'margin-left': '20px', 'margin-right': '5px'},
+                                id='time-scale-radio-item'
+                            ),
                             dcc.Graph(
                                 id='ccf-plot',
                                 figure=px.scatter(pd.DataFrame())
                             )
                         ], width=8),
-                        dbc.Col([
-                            dcc.RadioItems(['Time Scaled', 'Not Time Scaled'], 'Time Scaled', id='time-scale-radio-item')
-                        ], width=2)
                     ])
                 )
             ]),
 
-            callback_input=[Input('time-scale-radio-item', 'value')],
-            callback_output=[Output('ccf-plot', 'figure')],
+            callback_input=[
+                Input('time-scale-radio-item', 'value')
+            ],
+            callback_output=[
+                Output('ccf-plot', 'figure')
+            ],
             new_data_callback=gen_ccf_plot,
             internal_callback=gen_ccf_plot
         ))
