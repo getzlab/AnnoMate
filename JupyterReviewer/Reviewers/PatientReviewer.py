@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 import functools
 import time
 import os
@@ -16,7 +17,12 @@ from dash.exceptions import PreventUpdate
 from dash import Dash, dash_table
 import dash
 import dash_bootstrap_components as dbc
+import dash_cytoscape as cyto
 import functools
+import itertools
+import networkx as nx
+from networkx.drawing.nx_pydot import graphviz_layout
+import pydot
 
 from JupyterReviewer.ReviewData import ReviewData, ReviewDataAnnotation
 from JupyterReviewer.ReviewDataApp import ReviewDataApp, AppComponent
@@ -196,7 +202,7 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
         maf_cols_value,
         hugo_symbols,
         variant_classifications,
-        cluster_assignments,
+        sorted(cluster_assignments),
         filtered_maf_df
     ]
 
@@ -278,7 +284,7 @@ def gen_ccf_plot(df, idx, time_scaled):
     cluster_colors = [cluster_color(i) for i in cluster_df['Cluster_ID'].unique()]
     cluster_df['Cluster_ID'] = cluster_df['Cluster_ID'].astype(str)
 
-    fig = go.Figure()
+    ccf_plot = go.Figure()
 
     for c, color in zip(cluster_df['Cluster_ID'].unique(), cluster_colors):
         this_cluster = cluster_df[cluster_df['Cluster_ID'] == c]
@@ -288,7 +294,7 @@ def gen_ccf_plot(df, idx, time_scaled):
             y = [this_cluster.iloc[i, 4], this_cluster.iloc[i + 1, 4], this_cluster.iloc[i + 1, 3],
                  this_cluster.iloc[i, 3], this_cluster.iloc[i, 4]]
             # plot points
-            fig.add_trace(
+            ccf_plot.add_trace(
                 go.Scatter(
                     x=this_cluster[scatter_x],
                     y=this_cluster['postDP_ccf_mean'],
@@ -300,7 +306,7 @@ def gen_ccf_plot(df, idx, time_scaled):
             )
 
             #confidence interval
-            fig.add_trace(
+            ccf_plot.add_trace(
                 go.Scatter(
                     x=x,
                     y=y,
@@ -315,7 +321,7 @@ def gen_ccf_plot(df, idx, time_scaled):
                 )
             )
             # line
-            fig.add_trace(
+            ccf_plot.add_trace(
                 go.Scatter(
                     x=[this_cluster.iloc[i, rect_x], this_cluster.iloc[i + 1, rect_x]],
                     y=[this_cluster.iloc[i, 2], this_cluster.iloc[i + 1, 2]],
@@ -328,18 +334,105 @@ def gen_ccf_plot(df, idx, time_scaled):
                 )
             )
 
-    fig.update_traces(marker_size=15)
-    fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', height=600, width=900)
-    fig.update_yaxes(title='ccf(x)', dtick=0.1, ticks='outside', showline=True, linecolor='black', range=[-0.03,1.05], showgrid=False)
-    fig.update_xaxes(ticks='outside', showline=True, linecolor='black', showgrid=False)
+    ccf_plot.update_traces(marker_size=15)
+    ccf_plot.update_layout(plot_bgcolor='rgba(0,0,0,0)', height=600, width=900)
+    ccf_plot.update_yaxes(title='ccf(x)', dtick=0.1, ticks='outside', showline=True, linecolor='black', range=[-0.03,1.05], showgrid=False)
+    ccf_plot.update_xaxes(ticks='outside', showline=True, linecolor='black', showgrid=False)
     if time_scaled:
-        fig.update_xaxes(title='Time (dfd)')
+        ccf_plot.update_xaxes(title='Time (dfd)')
     else:
-        fig.update_xaxes(title='Samples (timing - dfd)', tickvals=np.arange(len(samples_in_order)),
+        ccf_plot.update_xaxes(title='Samples (timing - dfd)', tickvals=np.arange(len(samples_in_order)),
                          ticktext=[f'{s} ({timing_data[s]})' for s in samples_in_order])
-    fig.data = fig.data[::-1]  # make the circles appear on top layer
+    ccf_plot.data = ccf_plot.data[::-1]  # make the circles appear on top layer
 
-    return [fig]
+    return ccf_plot
+
+def gen_stylesheet(cluster_list, color_list):
+    stylesheet = [
+        {
+            'selector': 'node',
+            'style': {
+                'label': 'data(label)',
+                'text-halign':'center',
+                'text-valign':'center',
+                'color': 'white'
+            }
+        }
+    ]
+
+    for node in cluster_list:
+        stylesheet.append({
+            'selector': ('node[label = "%s"]' % node),
+            'style': {
+                'background-color': color_list[int(node) - 1]
+            }
+        })
+        stylesheet.append({
+            'selector': ('edge[target = "%s"]' % f'cluster_{node}'),
+            'style': {
+                'line-color': color_list[int(node) - 1]
+            }
+        })
+
+
+    return stylesheet
+
+def gen_phylogic_tree(df, idx):
+    tree_df = pd.read_csv('gs://fc-secure-c1d8f0c8-dc8c-418a-ac13-561b18de3d8e/1dc35867-4c57-487e-bcdd-e39820462211/phylogicndt/b007b77f-c150-490f-9d55-7ace9eb495dd/call-clustering/ONC106612_build_tree_posteriors.tsv', sep='\t')
+    edges = tree_df.loc[0, 'edges'].split(',')
+
+    cluster_list = []
+    for i in edges:
+        new_list = i.split('-')
+        for j in new_list:
+            if (j !='None') & (j not in cluster_list):
+                cluster_list.append(j)
+
+    color_list=[]
+    for node in cluster_list:
+        color_list.append(cluster_color(node))
+
+    nodes = [
+        {
+            'data': {'id': f'cluster_{cluster}', 'label': cluster},
+            'position': {'x': 50 * int(cluster), 'y': -50 * int(cluster)}
+        }
+        for cluster in cluster_list
+    ]
+
+    edges_list = []
+    nodes_copy = nodes.copy()
+    for edge in edges:
+        nodes_copy = edge.split('-')
+        if nodes_copy[0]!='None':
+            nodes_copy = list(map(int,edge.split('-')))
+            edges_list.append(nodes_copy)
+
+    edges = [
+        {'data': {'source': f'cluster_{edge[0]}', 'target': f'cluster_{edge[1]}'}}
+        for edge in edges_list
+    ]
+
+    elements = nodes + edges
+
+    stylesheet = gen_stylesheet(cluster_list, color_list)
+
+    return cyto.Cytoscape(
+        id='phylogic-tree',
+        style={'width': '50%', 'height': '200px'},
+        layout={
+            'name': 'breadthfirst',
+            'roots': '[id="cluster_1"]'
+        },
+        elements=elements,
+        stylesheet=stylesheet
+    )
+
+def gen_phylogic_graphics(df, idx, time_scaled):
+    ccf_plot = gen_ccf_plot(df, idx, time_scaled)
+    tree = gen_phylogic_tree(df, idx)
+
+    return [ccf_plot, tree]
 
 
 class PatientReviewer(ReviewerTemplate):
@@ -473,33 +566,40 @@ class PatientReviewer(ReviewerTemplate):
         app.add_component(AppComponent(
             'Phylogic Graphics',
             html.Div([
-                html.Div(
-                    dbc.Row([
-                        dbc.Col([
-                            dcc.RadioItems(
-                                ['Time Scaled', 'Not Time Scaled'],
-                                'Time Scaled',
-                                inline=True,
-                                inputStyle={'margin-left': '20px', 'margin-right': '5px'},
-                                id='time-scale-radio-item'
-                            ),
-                            dcc.Graph(
-                                id='ccf-plot',
-                                figure=px.scatter(pd.DataFrame())
-                            )
-                        ], width=8),
-                    ])
-                )
+                    dcc.RadioItems(
+                        ['Time Scaled', 'Not Time Scaled'],
+                        'Time Scaled',
+                        inline=True,
+                        inputStyle={'margin-left': '20px', 'margin-right': '5px'},
+                        id='time-scale-radio-item'
+                    ),
+
+                    dcc.Graph(
+                        id='ccf-plot',
+                        figure=go.Figure()
+                    ),
+
+                    html.Div(cyto.Cytoscape(
+                        id='phylogic-tree',
+                        elements=[],
+                        style={'width': '50%', 'height': '200px'},
+                        layout={
+                            'name': 'breadthfirst',
+                            'roots': '[id="cluster_1"]'
+                        }
+                    ), id='phylogic-tree-component')
+
             ]),
 
             callback_input=[
                 Input('time-scale-radio-item', 'value')
             ],
             callback_output=[
-                Output('ccf-plot', 'figure')
+                Output('ccf-plot', 'figure'),
+                Output('phylogic-tree-component', 'children')
             ],
-            new_data_callback=gen_ccf_plot,
-            internal_callback=gen_ccf_plot
+            new_data_callback=gen_phylogic_graphics,
+            internal_callback=gen_phylogic_graphics
         ))
 
         app.add_component(AppComponent(
