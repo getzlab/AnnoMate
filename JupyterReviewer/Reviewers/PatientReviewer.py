@@ -335,7 +335,7 @@ def gen_ccf_plot(df, idx, time_scaled):
             )
 
     ccf_plot.update_traces(marker_size=15)
-    ccf_plot.update_layout(plot_bgcolor='rgba(0,0,0,0)', height=600, width=900)
+    ccf_plot.update_layout(plot_bgcolor='rgba(0,0,0,0)', height=400, width=600)
     ccf_plot.update_yaxes(title='ccf(x)', dtick=0.1, ticks='outside', showline=True, linecolor='black', range=[-0.03,1.05], showgrid=False)
     ccf_plot.update_xaxes(ticks='outside', showline=True, linecolor='black', showgrid=False)
     if time_scaled:
@@ -353,6 +353,8 @@ def gen_stylesheet(cluster_list, color_list):
             'selector': 'node',
             'style': {
                 'label': 'data(label)',
+                'width': '50%',
+                'height': '50%',
                 'text-halign':'center',
                 'text-valign':'center',
                 'color': 'white'
@@ -377,9 +379,20 @@ def gen_stylesheet(cluster_list, color_list):
 
     return stylesheet
 
-def gen_phylogic_tree(df, idx):
+possible_trees = []
+all_trees = []
+
+def gen_phylogic_tree(tree_num):
     tree_df = pd.read_csv('gs://fc-secure-c1d8f0c8-dc8c-418a-ac13-561b18de3d8e/1dc35867-4c57-487e-bcdd-e39820462211/phylogicndt/b007b77f-c150-490f-9d55-7ace9eb495dd/call-clustering/ONC106612_build_tree_posteriors.tsv', sep='\t')
-    edges = tree_df.loc[0, 'edges'].split(',')
+    possible_trees = []
+    all_trees = []
+
+    trees = tree_df.loc[:, 'edges']
+    for i, tree in enumerate(trees):
+        all_trees.append(tree.split(','))
+        possible_trees.append(i+1)
+
+    edges = all_trees[tree_num]
 
     cluster_list = []
     for i in edges:
@@ -392,13 +405,15 @@ def gen_phylogic_tree(df, idx):
     for node in cluster_list:
         color_list.append(cluster_color(node))
 
-    nodes = [
+    nodes = [{'data': {'id': 'normal', 'label': 'normal'}, 'position': {'x': 0, 'y': 0}}]
+
+    nodes.extend([
         {
             'data': {'id': f'cluster_{cluster}', 'label': cluster},
             'position': {'x': 50 * int(cluster), 'y': -50 * int(cluster)}
         }
         for cluster in cluster_list
-    ]
+    ])
 
     edges_list = []
     nodes_copy = nodes.copy()
@@ -408,31 +423,42 @@ def gen_phylogic_tree(df, idx):
             nodes_copy = list(map(int,edge.split('-')))
             edges_list.append(nodes_copy)
 
-    edges = [
+    edges = [{'data': {'source': 'normal', 'target': 'cluster_1'}}]
+
+    edges.extend([
         {'data': {'source': f'cluster_{edge[0]}', 'target': f'cluster_{edge[1]}'}}
         for edge in edges_list
-    ]
+    ])
 
     elements = nodes + edges
 
     stylesheet = gen_stylesheet(cluster_list, color_list)
 
-    return cyto.Cytoscape(
-        id='phylogic-tree',
-        style={'width': '50%', 'height': '200px'},
-        layout={
-            'name': 'breadthfirst',
-            'roots': '[id="cluster_1"]'
-        },
-        elements=elements,
-        stylesheet=stylesheet
-    )
+    return [
+        cyto.Cytoscape(
+            id='phylogic-tree',
+            style={'width': '100%', 'height': '350px'},
+            layout={
+                'name': 'breadthfirst',
+                'roots': '[id="normal"]'
+            },
+            elements=elements,
+            stylesheet=stylesheet
+        ),
+        possible_trees
+    ]
 
-def gen_phylogic_graphics(df, idx, time_scaled):
+def gen_phylogic_graphics(df, idx, time_scaled, chosen_tree):
     ccf_plot = gen_ccf_plot(df, idx, time_scaled)
-    tree = gen_phylogic_tree(df, idx)
+    tree, possible_trees = gen_phylogic_tree(0)
 
-    return [ccf_plot, tree]
+    return [ccf_plot, possible_trees, possible_trees[0], tree]
+
+def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree):
+    ccf_plot = gen_ccf_plot(df, idx, time_scaled)
+    tree, possible_trees = gen_phylogic_tree(chosen_tree-1)
+
+    return [ccf_plot, possible_trees, chosen_tree, tree]
 
 
 class PatientReviewer(ReviewerTemplate):
@@ -566,40 +592,58 @@ class PatientReviewer(ReviewerTemplate):
         app.add_component(AppComponent(
             'Phylogic Graphics',
             html.Div([
-                    dcc.RadioItems(
-                        ['Time Scaled', 'Not Time Scaled'],
-                        'Time Scaled',
-                        inline=True,
-                        inputStyle={'margin-left': '20px', 'margin-right': '5px'},
-                        id='time-scale-radio-item'
-                    ),
-
-                    dcc.Graph(
-                        id='ccf-plot',
-                        figure=go.Figure()
-                    ),
-
-                    html.Div(cyto.Cytoscape(
-                        id='phylogic-tree',
-                        elements=[],
-                        style={'width': '50%', 'height': '200px'},
-                        layout={
-                            'name': 'breadthfirst',
-                            'roots': '[id="cluster_1"]'
-                        }
-                    ), id='phylogic-tree-component')
-
+                dcc.RadioItems(
+                    ['Time Scaled', 'Not Time Scaled'],
+                    'Time Scaled',
+                    inline=True,
+                    inputStyle={'margin-left': '20px', 'margin-right': '5px'},
+                    id='time-scale-radio-item'
+                ),
+                dbc.Container([
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div([
+                                dcc.Graph(
+                                    id='ccf-plot',
+                                    figure=go.Figure()
+                                ),
+                            ])
+                        ], width=5),
+                        dbc.Col([
+                            html.Div(
+                                cyto.Cytoscape(
+                                    id='phylogic-tree',
+                                    elements=[],
+                                    style={'width': '100%', 'height': '350px'},
+                                    layout={
+                                        'name': 'breadthfirst',
+                                        'roots': '[id="cluster_1"]'
+                                    }
+                                ),
+                                id='phylogic-tree-component'
+                            ),
+                            dcc.Dropdown(
+                                options=possible_trees,
+                                #value=possible_trees[0],
+                                id='tree-dropdown'
+                            )
+                        ], width=7, align='center')
+                    ])
+                ])
             ]),
 
             callback_input=[
-                Input('time-scale-radio-item', 'value')
+                Input('time-scale-radio-item', 'value'),
+                Input('tree-dropdown', 'value')
             ],
             callback_output=[
                 Output('ccf-plot', 'figure'),
+                Output('tree-dropdown', 'options'),
+                Output('tree-dropdown', 'value'),
                 Output('phylogic-tree-component', 'children')
             ],
             new_data_callback=gen_phylogic_graphics,
-            internal_callback=gen_phylogic_graphics
+            internal_callback=internal_gen_phylogic_graphics
         ))
 
         app.add_component(AppComponent(
