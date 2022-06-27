@@ -167,8 +167,8 @@ def gen_style_data_conditional(df, custom_colors):
     return style_data_conditional
 
 def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
-    #maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
-    maf_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/all_mut_ccfs_maf_annotated_w_cnv_single_participant.txt', sep='\t')
+    maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
+    #maf_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/all_mut_ccfs_maf_annotated_w_cnv_single_participant.txt', sep='\t')
     maf_cols_options = (list(maf_df))
 
     for col in default_maf_cols:
@@ -336,6 +336,7 @@ def gen_ccf_plot(df, idx, time_scaled):
 
     ccf_plot.update_traces(marker_size=15)
     ccf_plot.update_layout(plot_bgcolor='rgba(0,0,0,0)', height=400, width=600)
+    ccf_plot.update_layout(legend={'traceorder': 'reversed'})
     ccf_plot.update_yaxes(title='ccf(x)', dtick=0.1, ticks='outside', showline=True, linecolor='black', range=[-0.03,1.05], showgrid=False)
     ccf_plot.update_xaxes(ticks='outside', showline=True, linecolor='black', showgrid=False)
     if time_scaled:
@@ -359,6 +360,17 @@ def gen_stylesheet(cluster_list, color_list):
                 'text-valign':'center',
                 'color': 'white'
             }
+        },
+        {
+            'selector': 'edge',
+            'style': {
+                'label': 'data(label)',
+                'text-halign':'center',
+                'text-valign':'center',
+                'color': 'black',
+                'text-wrap': 'wrap',
+                'font-weight': 'bold'
+            }
         }
     ]
 
@@ -376,21 +388,43 @@ def gen_stylesheet(cluster_list, color_list):
             }
         })
 
-
     return stylesheet
 
 possible_trees = []
 all_trees = []
+clusters = {}
+cluster_count = {}
 
-def gen_phylogic_tree(tree_num):
+def gen_driver_edge_labels(drivers, clusters, cluster):
+    label = ''
+    for driver in drivers.drivers:
+        if driver in clusters[cluster]:
+            label += ('%s \n' % driver)
+
+    return label
+
+def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
     tree_df = pd.read_csv('gs://fc-secure-c1d8f0c8-dc8c-418a-ac13-561b18de3d8e/1dc35867-4c57-487e-bcdd-e39820462211/phylogicndt/b007b77f-c150-490f-9d55-7ace9eb495dd/call-clustering/ONC106612_build_tree_posteriors.tsv', sep='\t')
+    maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
+    maf_df.drop_duplicates(subset='Start_position', inplace=True)
+
+    drivers = pd.read_csv(f'~/Broad/JupyterReviewer/{drivers_fn}')
+
     possible_trees = []
     all_trees = []
+    clusters = {}
+    cluster_count = {}
 
     trees = tree_df.loc[:, 'edges']
     for i, tree in enumerate(trees):
         all_trees.append(tree.split(','))
-        possible_trees.append(i+1)
+        possible_trees.append(f'Tree {i+1} ({tree_df.n_iter[i]})')
+
+    for i in range(len(cluster_assignments)):
+        clusters[cluster_assignments[i]] = [hugo for clust, hugo in zip(maf_df.Cluster_Assignment, maf_df.Hugo_Symbol) if clust == cluster_assignments[i]]
+
+    for clust in clusters:
+        cluster_count[clust] = len(clusters[clust])
 
     edges = all_trees[tree_num]
 
@@ -423,10 +457,10 @@ def gen_phylogic_tree(tree_num):
             nodes_copy = list(map(int,edge.split('-')))
             edges_list.append(nodes_copy)
 
-    edges = [{'data': {'source': 'normal', 'target': 'cluster_1'}}]
+    edges = [{'data': {'source': 'normal', 'target': 'cluster_1', 'label': f'{cluster_count[1]}\n{gen_driver_edge_labels(drivers, clusters, 1)}'}}]
 
     edges.extend([
-        {'data': {'source': f'cluster_{edge[0]}', 'target': f'cluster_{edge[1]}'}}
+        {'data': {'source': f'cluster_{edge[0]}', 'target': f'cluster_{edge[1]}', 'label': f'{cluster_count[edge[1]]}\n{gen_driver_edge_labels(drivers, clusters, edge[1])}'}}
         for edge in edges_list
     ])
 
@@ -443,20 +477,26 @@ def gen_phylogic_tree(tree_num):
                 'roots': '[id="normal"]'
             },
             elements=elements,
-            stylesheet=stylesheet
+            stylesheet=stylesheet,
+            userZoomingEnabled=False
         ),
         possible_trees
     ]
 
-def gen_phylogic_graphics(df, idx, time_scaled, chosen_tree):
+def gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, drivers_fn):
     ccf_plot = gen_ccf_plot(df, idx, time_scaled)
-    tree, possible_trees = gen_phylogic_tree(0)
+    tree, possible_trees = gen_phylogic_tree(df, idx, 0, drivers_fn)
 
     return [ccf_plot, possible_trees, possible_trees[0], tree]
 
-def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree):
+def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, drivers_fn):
+    tree_num = 0
+    for n in chosen_tree.split():
+        if n.isdigit():
+            tree_num = int(n)
+
     ccf_plot = gen_ccf_plot(df, idx, time_scaled)
-    tree, possible_trees = gen_phylogic_tree(chosen_tree-1)
+    tree, possible_trees = gen_phylogic_tree(df, idx, tree_num-1, drivers_fn)
 
     return [ccf_plot, possible_trees, chosen_tree, tree]
 
@@ -490,7 +530,7 @@ class PatientReviewer(ReviewerTemplate):
         return rd
 
     # list optional cols param
-    def gen_review_app(self, custom_colors=[]) -> ReviewDataApp:
+    def gen_review_app(self, custom_colors=[], drivers_fn='drivers.csv') -> ReviewDataApp:
         app = ReviewDataApp()
 
         app.add_component(AppComponent(
@@ -644,7 +684,7 @@ class PatientReviewer(ReviewerTemplate):
             ],
             new_data_callback=gen_phylogic_graphics,
             internal_callback=internal_gen_phylogic_graphics
-        ))
+        ), drivers_fn=drivers_fn)
 
         app.add_component(AppComponent(
             'Purity Slider',
