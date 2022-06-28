@@ -85,9 +85,9 @@ class AppComponent:
         callback_input_ids = get_callback_io_ids(callback_input, expected_io_type=Input)
         check_callback_io_id_in_list(callback_input_ids, all_ids, ids_type='input_ids', all_ids_type='component_ids')
 
-        check_duplicate_objects(callback_state, 'callback_state_objects')
-        callback_state_ids = get_callback_io_ids(callback_state, expected_io_type=State)
-        check_callback_io_id_in_list(callback_state_ids, all_ids, ids_type='state_ids', all_ids_type='component_ids')
+        # check_duplicate_objects(callback_state, 'callback_state_objects')
+        # callback_state_ids = get_callback_io_ids(callback_state, expected_io_type=State)
+        # check_callback_io_id_in_list(callback_state_ids, all_ids, ids_type='state_ids', all_ids_type='component_ids')
 
 
         if internal_callback is not None and inspect.signature(new_data_callback) != inspect.signature(internal_callback):
@@ -220,6 +220,7 @@ class ReviewDataApp:
                 output_dict['history_table'] = dbc.Table.from_dataframe(review_data.history.loc[review_data.history['index'] == dropdown_value].loc[::-1])
                 reviewed_data_df.loc[dropdown_value, 'label'] = self.gen_dropdown_labels(review_data, reviewed_data_df.loc[dropdown_value])
                 output_dict['dropdown_list_options'] = reviewed_data_df.reset_index().to_dict('records')
+                #reset
             elif 'APP-autofill-' in prop_id:
                 component_name = prop_id.split('APP-autofill-')[-1]
                 for autofill_annot_col, value in autofill_states[prop_id].items():
@@ -257,7 +258,7 @@ class ReviewDataApp:
         dropdown = html.Div(dcc.Dropdown(options=reviewed_data_df.reset_index().to_dict('records'),
                                          value=None,
                                          id='APP-dropdown-data-state'))
-
+#reset
         dropdown_component = AppComponent(name='APP-dropdown-component',
                                           layout=[dropdown],
                                           use_name_as_title=False)
@@ -507,7 +508,7 @@ class ReviewDataApp:
                                                                                                                   page_size=10)],
                                         callback_output=[Output(component_id, 'children')]
                                        ))
-                                       
+
 # Validation
 def get_component_ids(component):
     if isinstance(component, list) or isinstance(component, tuple):
