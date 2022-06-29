@@ -171,8 +171,8 @@ def gen_style_data_conditional(df, custom_colors):
     return style_data_conditional
 
 def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
-    #maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
-    maf_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/all_mut_ccfs_maf_annotated_w_cnv_single_participant.txt', sep='\t')
+    maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
+    #maf_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/all_mut_ccfs_maf_annotated_w_cnv_single_participant.txt', sep='\t')
     maf_cols_options = (list(maf_df))
 
     for col in default_maf_cols:
@@ -270,9 +270,8 @@ def gen_ccf_plot(df, idx, time_scaled):
     # random dict for now
     timing_data = {'17318_13_OCT_052219':	5, '17318_13_BB_111119': 10}
 
-    cluster_ccfs = pd.read_csv('gs://fc-secure-c1d8f0c8-dc8c-418a-ac13-561b18de3d8e/1dc35867-4c57-487e-bcdd-e39820462211/phylogicndt/b007b77f-c150-490f-9d55-7ace9eb495dd/call-clustering/ONC106612.cluster_ccfs.txt', sep='\t')
-    # cluster ccfs will eventually be the same format as mut ccfs
-    mut_ccfs = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
+    cluster_ccfs = pd.read_csv(df.loc[idx, 'cluster_ccfs_fn'], sep='\t')
+    mut_ccfs = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     cluster_df = cluster_ccfs[['Cluster_ID', 'Sample_ID', 'postDP_ccf_mean', 'postDP_ccf_CI_low', 'postDP_ccf_CI_high']].copy()
 
     cluster_df.loc[:, 'dfd'] = [int(timing_data[sample]) for sample in cluster_ccfs['Sample_ID']]
@@ -411,8 +410,8 @@ def gen_driver_edge_labels(drivers, clusters, cluster):
     return label
 
 def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
-    tree_df = pd.read_csv('gs://fc-secure-c1d8f0c8-dc8c-418a-ac13-561b18de3d8e/1dc35867-4c57-487e-bcdd-e39820462211/phylogicndt/b007b77f-c150-490f-9d55-7ace9eb495dd/call-clustering/ONC106612_build_tree_posteriors.tsv', sep='\t')
-    maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
+    tree_df = pd.read_csv(df.loc[idx, 'build_tree_posterior_fn'], sep='\t')
+    maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     maf_df.drop_duplicates(subset='Start_position', inplace=True)
     if drivers_fn:
         drivers = pd.read_csv(f'~/Broad/JupyterReviewer/{drivers_fn}')
