@@ -90,7 +90,7 @@ def gen_mut_figure(maf_fn,
                    hover_data=[]  # TODO: include
                   ):
     fig = make_subplots(rows=1, cols=1)
-    maf_df = pd.read_csv(maf_fn, sep='\t')
+    maf_df = pd.read_csv(maf_fn, sep='\t', encoding='iso-8859-1')
     if maf_df[chromosome_col].dtype == 'object':
         maf_df[chromosome_col].replace({'X': 23, 'Y': 24}, inplace=True)
     maf_df[chromosome_col] = maf_df[chromosome_col].astype(str)
@@ -99,7 +99,10 @@ def gen_mut_figure(maf_fn,
     maf_df['tumor_f'] = maf_df[alt_count_col] / (maf_df[alt_count_col] + maf_df[ref_count_col])
     
     # color by clonal/subclonal
-    fig = px.scatter(maf_df, x='new_position', y='tumor_f', marginal_y='histogram')
+    if len(hover_data) > 0:
+        fig = px.scatter(maf_df, x='new_position', y='tumor_f', marginal_y='histogram', hover_data=hover_data)
+    else:
+        fig = px.scatter(maf_df, x='new_position', y='tumor_f', marginal_y='histogram')
     fig.update_layout(plot_bgcolor='rgba(0,0,0,0)')
     fig.update_yaxes(range=[0, 1])
     return fig
@@ -112,7 +115,7 @@ def gen_cnp_figure(acs_fn,
 #                    csize=csize
                   ):
     
-    seg_df = pd.read_csv(acs_fn, sep='\t')
+    seg_df = pd.read_csv(acs_fn, sep='\t', encoding='iso-8859-1')
     layout = go.Layout(
             plot_bgcolor='rgba(0,0,0,0)',
         )
@@ -135,7 +138,12 @@ def gen_absolute_component(data_df,
                            mut_fig_pkl_fn_col
                           ):
     r = data_df.loc[data_id]
-    absolute_rdata_df = pd.read_csv(r[rdata_tsv_fn], sep='\t')
+    try:
+        absolute_rdata_df = pd.read_csv(r[rdata_tsv_fn], sep='\t', index_col=0)
+    except:
+        absolute_rdata_df = pd.DataFrame()
+
+    absolute_rdata_df = pd.read_csv(r[rdata_tsv_fn], sep='\t', index_col=0)
 
     cnp_fig = load_pickle(r[cnp_fig_pkl_fn_col])
 
@@ -145,31 +153,39 @@ def gen_absolute_component(data_df,
     # add 1 and 0 lines
     mut_fig_with_lines = go.Figure(mut_fig)
     cnp_fig_with_lines = go.Figure(cnp_fig)
-    solution_data = absolute_rdata_df.iloc[selected_row_array[0]]
-    i = 0
-    line_height = solution_data['0_line']
-    while line_height < 2:
-        line_height = solution_data['0_line'] + (solution_data['step_size'] * i)
-        cnp_fig_with_lines.add_hline(y=line_height, 
-                                     line_dash="dash", 
-                                     line_color='black',
-                                     line_width=1
-                                    )
-        i += 1
-        
-    half_1_line = solution_data['alpha'] / 2.0
-    mut_fig_with_lines.add_hline(y=half_1_line, 
-                                line_dash="dash", 
-                                line_color='black',
-                                line_width=1)
+    
+    purity = 0
+    ploidy = 0
+    
+    if absolute_rdata_df.shape[0] > 0:
+        solution_data = absolute_rdata_df.iloc[selected_row_array[0]]
+        i = 0
+        line_height = solution_data['0_line']
+        while line_height < 2:
+            line_height = solution_data['0_line'] + (solution_data['step_size'] * i)
+            cnp_fig_with_lines.add_hline(y=line_height, 
+                                         line_dash="dash", 
+                                         line_color='black',
+                                         line_width=1
+                                        )
+            i += 1
 
-    mut_fig_with_lines.update_yaxes(range=[0, half_1_line * 2])
+        half_1_line = solution_data['alpha'] / 2.0
+        mut_fig_with_lines.add_hline(y=half_1_line, 
+                                    line_dash="dash", 
+                                    line_color='black',
+                                    line_width=1)
+
+        mut_fig_with_lines.update_yaxes(range=[0, half_1_line * 2])
+        
+        purity = solution_data['alpha']
+        ploidy = solution_data['tau_hat']
 
     return [absolute_rdata_df.to_dict('records'), 
             cnp_fig_with_lines, 
             mut_fig_with_lines,
-            solution_data['alpha'],
-            solution_data['tau_hat'], 
+            purity,
+            ploidy, 
             [0]]
 
 def internal_gen_absolute_component(data_df, 
@@ -247,6 +263,7 @@ class MatchedPurityReviewer(ReviewerTemplate):
                        rdata_fn_col='',
                        reload_cnp_figs=False,
                        reload_mut_figs=False,
+                       mut_fig_hover_data=[]
                       ):
         pandas2ri.activate()
         if not os.path.exists(preprocess_data_dir):
@@ -261,8 +278,11 @@ class MatchedPurityReviewer(ReviewerTemplate):
             df[f'{rdata_fn_col}_as_tsv'] = ''
             for i, r in df.iterrows():
                 output_fn = f'{rdata_dir}/{i}.rdata.tsv'
-                parse_absolute_soln(df.loc[i, rdata_fn_col]).to_csv(output_fn, sep='\t')
-                df.loc[i, f'{rdata_fn_col}_as_tsv'] = output_fn
+                try:
+                    parse_absolute_soln(df.loc[i, rdata_fn_col]).to_csv(output_fn, sep='\t')
+                    df.loc[i, f'{rdata_fn_col}_as_tsv'] = output_fn
+                except:
+                    continue
         else:
             print(f'rdata tsv directory already exists: {rdata_dir}')
             df[f'{rdata_fn_col}_as_tsv'] = ''
@@ -299,7 +319,7 @@ class MatchedPurityReviewer(ReviewerTemplate):
             print('Reloading mut figs')
             for i, r in df.iterrows():
                 output_fn = f'{mut_figs_dir}/{i}.cnp_fig.pkl'
-                fig = gen_mut_figure(df.loc[i, maf_col])
+                fig = gen_mut_figure(df.loc[i, maf_col], hover_data=mut_fig_hover_data)
                 pickle.dump(fig, open(output_fn, "wb"))
                 df.loc[i, f'mut_figs_pkl'] = output_fn
             
@@ -380,6 +400,86 @@ class MatchedPurityReviewer(ReviewerTemplate):
                                               callback_output=[Output('sample-info-component', 'children')],
                                               new_data_callback=gen_data_summary_table),
                                   cols=sample_info_cols)
+        
+        
+        # Add a custom component: below, I add a component that allows you to manually set the 0 and 1 line combs (cgaitools)
+        # NOTE: the purity calculated is tau, NOT tau_g. 
+        # Use the called purity and tau as inputs to absolute_segforcecall to get tau_g (tau_hat)
+        def gen_custom_absolute_component(data_df, 
+                                          data_id, 
+                                          slider_value, # dash app parameters come first
+                                          cnp_fig_pkl_fn_col,
+                                          ):
+            r = data_df.loc[data_id]
+            cnp_fig = pickle.load(open(r[cnp_fig_pkl_fn_col], "rb"))
+
+            # add 1 and 0 lines
+            cnp_fig_with_lines = go.Figure(cnp_fig)
+            i = 0
+            line_0 = slider_value[0]
+            line_1 = slider_value[1]
+            line_height = line_0
+            step_size = line_1 - line_0
+            while line_height < 2:
+                line_height = line_0 + (step_size * i)
+                cnp_fig_with_lines.add_hline(y=line_height, 
+                                             line_dash="dash", 
+                                             line_color='black',
+                                             line_width=1
+                                            )
+                i += 1
+
+            purity = 1 - (float(line_0) / float(line_1))
+            ploidy = (2 * (1 - line_0) * (1 - purity)) / (purity * line_0) # tau, not tau_g
+            return [slider_value,
+                    cnp_fig_with_lines, 
+                    purity,
+                    ploidy]
+
+
+        # Adding another component to prebuilt dash board
+        app.add_component(AppComponent('custom-cnp-plot',
+                                     html.Div([html.H2('Custom Copy Number Profile', id='custom-header-cnp-id'),
+                                                   dbc.Row([
+                                                               dbc.Col([dcc.Graph(id='custom-cnp-graph', 
+                                                                                  figure={})
+                                                                       ], 
+                                                                       md=10),
+                                                               dbc.Col([
+                                                                        dbc.Row(html.Div([html.Div([html.P('Purity: ', 
+                                                                                                          style={'display': 'inline'}), 
+                                                                                                   html.P(0, 
+                                                                                                          id='custom-cnp-graph-purity', 
+                                                                                                          style={'display': 'inline'})]), 
+                                                                                         html.Div([html.P('Ploidy: ', 
+                                                                                                          style={'display': 'inline'}), 
+                                                                                                   html.P(0, 
+                                                                                                          id='custom-cnp-graph-ploidy', 
+                                                                                                          style={'display': 'inline'})]), 
+                                                                                         ])),
+                                                                        dbc.Row(dcc.RangeSlider(id='custom-cnp-slider', min=0.0, max=2.0, step=0.01, 
+                                                                                               allowCross=False, 
+                                                                                               value=[0.5, 1.0], 
+                                                                                               marks={i: f'{i}' for i in range(0, 3, 1)}, 
+                                                                                               vertical=True,
+                                                                                               tooltip={"placement": "right", 
+                                                                                                        "always_visible": True})),
+                                                                            ], 
+                                                                       md=1), 
+                                                   ]),
+                                     ]),
+                                     new_data_callback=gen_custom_absolute_component,
+                                     internal_callback=gen_custom_absolute_component,
+                                     callback_input=[Input('custom-cnp-slider', 'value')],
+                                     callback_output=[Output('custom-cnp-slider', 'value'),
+                                                      Output('custom-cnp-graph', 'figure'), 
+                                                      Output('custom-cnp-graph-purity', 'children'),
+                                                      Output('custom-cnp-graph-ploidy', 'children')
+                                                     ]),
+                         cnp_fig_pkl_fn_col='cnp_figs_pkl'
+                        )
+
+
         
         return app
     

@@ -90,7 +90,7 @@ def gen_mut_figure(maf_fn,
                    hover_data=[]  # TODO: include
                   ):
     fig = make_subplots(rows=1, cols=1)
-    maf_df = pd.read_csv(maf_fn, sep='\t', encoding='iso-8859-1')
+    maf_df = pd.read_csv(maf_fn, sep='\t')
     if maf_df[chromosome_col].dtype == 'object':
         maf_df[chromosome_col].replace({'X': 23, 'Y': 24}, inplace=True)
     maf_df[chromosome_col] = maf_df[chromosome_col].astype(str)
@@ -99,10 +99,7 @@ def gen_mut_figure(maf_fn,
     maf_df['tumor_f'] = maf_df[alt_count_col] / (maf_df[alt_count_col] + maf_df[ref_count_col])
     
     # color by clonal/subclonal
-    if len(hover_data) > 0:
-        fig = px.scatter(maf_df, x='new_position', y='tumor_f', marginal_y='histogram', hover_data=hover_data)
-    else:
-        fig = px.scatter(maf_df, x='new_position', y='tumor_f', marginal_y='histogram')
+    fig = px.scatter(maf_df, x='new_position', y='tumor_f', marginal_y='histogram')
     fig.update_layout(plot_bgcolor='rgba(0,0,0,0)')
     fig.update_yaxes(range=[0, 1])
     return fig
@@ -115,7 +112,7 @@ def gen_cnp_figure(acs_fn,
 #                    csize=csize
                   ):
     
-    seg_df = pd.read_csv(acs_fn, sep='\t', encoding='iso-8859-1')
+    seg_df = pd.read_csv(acs_fn, sep='\t')
     layout = go.Layout(
             plot_bgcolor='rgba(0,0,0,0)',
         )
@@ -138,12 +135,7 @@ def gen_absolute_component(data_df,
                            mut_fig_pkl_fn_col
                           ):
     r = data_df.loc[data_id]
-    try:
-        absolute_rdata_df = pd.read_csv(r[rdata_tsv_fn], sep='\t', index_col=0)
-    except:
-        absolute_rdata_df = pd.DataFrame()
-
-    absolute_rdata_df = pd.read_csv(r[rdata_tsv_fn], sep='\t', index_col=0)
+    absolute_rdata_df = pd.read_csv(r[rdata_tsv_fn], sep='\t')
 
     cnp_fig = load_pickle(r[cnp_fig_pkl_fn_col])
 
@@ -153,39 +145,31 @@ def gen_absolute_component(data_df,
     # add 1 and 0 lines
     mut_fig_with_lines = go.Figure(mut_fig)
     cnp_fig_with_lines = go.Figure(cnp_fig)
-    
-    purity = 0
-    ploidy = 0
-    
-    if absolute_rdata_df.shape[0] > 0:
-        solution_data = absolute_rdata_df.iloc[selected_row_array[0]]
-        i = 0
-        line_height = solution_data['0_line']
-        while line_height < 2:
-            line_height = solution_data['0_line'] + (solution_data['step_size'] * i)
-            cnp_fig_with_lines.add_hline(y=line_height, 
-                                         line_dash="dash", 
-                                         line_color='black',
-                                         line_width=1
-                                        )
-            i += 1
-
-        half_1_line = solution_data['alpha'] / 2.0
-        mut_fig_with_lines.add_hline(y=half_1_line, 
-                                    line_dash="dash", 
-                                    line_color='black',
-                                    line_width=1)
-
-        mut_fig_with_lines.update_yaxes(range=[0, half_1_line * 2])
+    solution_data = absolute_rdata_df.iloc[selected_row_array[0]]
+    i = 0
+    line_height = solution_data['0_line']
+    while line_height < 2:
+        line_height = solution_data['0_line'] + (solution_data['step_size'] * i)
+        cnp_fig_with_lines.add_hline(y=line_height, 
+                                     line_dash="dash", 
+                                     line_color='black',
+                                     line_width=1
+                                    )
+        i += 1
         
-        purity = solution_data['alpha']
-        ploidy = solution_data['tau_hat']
+    half_1_line = solution_data['alpha'] / 2.0
+    mut_fig_with_lines.add_hline(y=half_1_line, 
+                                line_dash="dash", 
+                                line_color='black',
+                                line_width=1)
+
+    mut_fig_with_lines.update_yaxes(range=[0, half_1_line * 2])
 
     return [absolute_rdata_df.to_dict('records'), 
             cnp_fig_with_lines, 
             mut_fig_with_lines,
-            purity,
-            ploidy, 
+            solution_data['alpha'],
+            solution_data['tau_hat'], 
             [0]]
 
 def internal_gen_absolute_component(data_df, 
@@ -206,37 +190,37 @@ def internal_gen_absolute_component(data_df,
 
 
 
-absolute_rdata_cols = ['alpha', 'tau', 'tau_hat', '0_line', '1_line',
-                       'sigma_H', 
-                       'theta_Q', 
-                       'lambda',  
-                       'SCNA_likelihood', 
-                       'Kar_likelihood', 
-                       'SSNVs_likelihood']
-def parse_absolute_soln(rdata_path: str): # has to be a local path   
-    r_list_vector = robjects.r['load'](rdata_path)
-    r_list_vector = robjects.r[r_list_vector[0]]
-    r_data_id = r_list_vector.names[0]
+# absolute_rdata_cols = ['alpha', 'tau', 'tau_hat', '0_line', '1_line',
+#                        'sigma_H', 
+#                        'theta_Q', 
+#                        'lambda',  
+#                        'SCNA_likelihood', 
+#                        'Kar_likelihood', 
+#                        'SSNVs_likelihood']
+# def parse_absolute_soln(rdata_path: str): # has to be a local path   
+#     r_list_vector = robjects.r['load'](rdata_path)
+#     r_list_vector = robjects.r[r_list_vector[0]]
+#     r_data_id = r_list_vector.names[0]
 
-    rdata_tables = r_list_vector.rx2(str(r_data_id))
+#     rdata_tables = r_list_vector.rx2(str(r_data_id))
     
-    mode_res = rdata_tables.rx2('mode.res')
-    mode_tab = mode_res.rx2('mode.tab')
-    mod_tab_df = pd.DataFrame(columns=absolute_rdata_cols)
-    mod_tab_df['alpha'] = mode_tab[:, 0]
-    mod_tab_df['tau'] = mode_tab[:, 1]
-    mod_tab_df['tau_hat'] = mode_tab[:, 7]
-    mod_tab_df['0_line'] = mode_tab[:, 3]
-    mod_tab_df['step_size'] = mode_tab[:, 4] * 2
-    mod_tab_df['1_line'] = mod_tab_df['step_size'] + mod_tab_df['0_line']
-    mod_tab_df['sigma_H'] = mode_tab[:, 8]
-    mod_tab_df['theta_Q'] = mode_tab[:, 11]
-    mod_tab_df['lambda'] = mode_tab[:, 12]
-    mod_tab_df['SCNA_likelihood'] = mode_tab[:, 15]
-    mod_tab_df['Kar_likelihood'] = mode_tab[:, 17]
-    mod_tab_df['SSNVs_likelihood'] = mode_tab[:, 20]
-    end = time.time()
-    return mod_tab_df
+#     mode_res = rdata_tables.rx2('mode.res')
+#     mode_tab = mode_res.rx2('mode.tab')
+#     mod_tab_df = pd.DataFrame(columns=absolute_rdata_cols)
+#     mod_tab_df['alpha'] = mode_tab[:, 0]
+#     mod_tab_df['tau'] = mode_tab[:, 1]
+#     mod_tab_df['tau_hat'] = mode_tab[:, 7]
+#     mod_tab_df['0_line'] = mode_tab[:, 3]
+#     mod_tab_df['step_size'] = mode_tab[:, 4] * 2
+#     mod_tab_df['1_line'] = mod_tab_df['step_size'] + mod_tab_df['0_line']
+#     mod_tab_df['sigma_H'] = mode_tab[:, 8]
+#     mod_tab_df['theta_Q'] = mode_tab[:, 11]
+#     mod_tab_df['lambda'] = mode_tab[:, 12]
+#     mod_tab_df['SCNA_likelihood'] = mode_tab[:, 15]
+#     mod_tab_df['Kar_likelihood'] = mode_tab[:, 17]
+#     mod_tab_df['SSNVs_likelihood'] = mode_tab[:, 20]
+#     end = time.time()
+#     return mod_tab_df
 
 
 def load_pickle(fn):
@@ -249,7 +233,7 @@ def validate_ploidy(x):
     return (x >=0)
     
 
-class MatchedPurityReviewer(ReviewerTemplate):
+class ManualPurityReviewer(ReviewerTemplate):
     
     def gen_review_data(self, 
                         review_data_fn: str, 
@@ -260,37 +244,12 @@ class MatchedPurityReviewer(ReviewerTemplate):
                        preprocess_data_dir='.',
                        acs_col='',
                        maf_col='',
-                       rdata_fn_col='',
                        reload_cnp_figs=False,
                        reload_mut_figs=False,
-                       mut_fig_hover_data=[]
                       ):
         pandas2ri.activate()
         if not os.path.exists(preprocess_data_dir):
             os.mkdir(preprocess_data_dir)
-        
-        # preprocessing
-        # 1. download rdata 
-        rdata_dir = f'{preprocess_data_dir}/rdata_to_tsv'
-        if not os.path.exists(rdata_dir):
-            print(f'Converting ABSOLUTE rdata into tsv files in {rdata_dir}')
-            os.mkdir(rdata_dir)
-            df[f'{rdata_fn_col}_as_tsv'] = ''
-            for i, r in df.iterrows():
-                output_fn = f'{rdata_dir}/{i}.rdata.tsv'
-                try:
-                    parse_absolute_soln(df.loc[i, rdata_fn_col]).to_csv(output_fn, sep='\t')
-                    df.loc[i, f'{rdata_fn_col}_as_tsv'] = output_fn
-                except:
-                    continue
-        else:
-            print(f'rdata tsv directory already exists: {rdata_dir}')
-            df[f'{rdata_fn_col}_as_tsv'] = ''
-            for i, r in df.iterrows():
-                output_fn = f'{rdata_dir}/{i}.rdata.tsv'
-                df.loc[i, f'{rdata_fn_col}_as_tsv'] = output_fn
-            
-            
         
         # 2. Process cnp figures
         cnp_figs_dir = f'{preprocess_data_dir}/cnp_figs'
@@ -319,7 +278,7 @@ class MatchedPurityReviewer(ReviewerTemplate):
             print('Reloading mut figs')
             for i, r in df.iterrows():
                 output_fn = f'{mut_figs_dir}/{i}.cnp_fig.pkl'
-                fig = gen_mut_figure(df.loc[i, maf_col], hover_data=mut_fig_hover_data)
+                fig = gen_mut_figure(df.loc[i, maf_col])
                 pickle.dump(fig, open(output_fn, "wb"))
                 df.loc[i, f'mut_figs_pkl'] = output_fn
             
@@ -343,55 +302,7 @@ class MatchedPurityReviewer(ReviewerTemplate):
                            ) -> ReviewDataApp:
 
         app = ReviewDataApp()
-        app.add_component(AppComponent('cnp-plot',
-                                                 html.Div(children=[html.H1('Absolute Solutions'), 
-                                                                    html.H2('Absolute Solutions Table'), 
-                                                                    dash_table.DataTable(
-                                                                                        id='absolute-rdata-select-table',
-                                                                                        columns=[
-                                                                                            {"name": i, 
-                                                                                             "id": i} for i in absolute_rdata_cols
-                                                                                        ],
-                                                                        data=pd.DataFrame(columns=absolute_rdata_cols).to_dict('records'),
-                                                                                        editable=False,
-                                                                                        filter_action="native",
-                                                                                        sort_action="native",
-                                                                                        sort_mode="multi",
-                                                                                        row_selectable="single",
-                                                                                        row_deletable=False,
-                                                                                        selected_columns=[],
-                                                                                        selected_rows=[0],
-                                                                                        page_action="native",
-                                                                                        page_current= 0,
-                                                                                        page_size= 5),
-                                                                    html.H2('Copy Number Profile'), 
-                                                                    html.Div([html.P('Purity: ', 
-                                                                                     style={'display': 'inline'}), 
-                                                                              html.P(0, id='absolute-purity', 
-                                                                                     style={'display': 'inline'})]), 
-                                                                    html.Div([html.P('Ploidy: ', 
-                                                                                     style={'display': 'inline'}), 
-                                                                              html.P(0, id='absolute-ploidy', 
-                                                                                     style={'display': 'inline'})]), 
-                                                                    dcc.Graph(id='cnp-graph', figure={}),
-                                                                    dcc.Graph(id='mut-graph', figure={})
-                                                                   ]),
-                                                 new_data_callback=gen_absolute_component,
-                                                 internal_callback=internal_gen_absolute_component,
-                                                 callback_input=[Input('absolute-rdata-select-table', 'selected_rows')],
-                                                 callback_output=[Output('absolute-rdata-select-table', 'data'),
-                                                                  Output('cnp-graph', 'figure'), 
-                                                                  Output('mut-graph', 'figure'),
-                                                                  Output('absolute-purity', 'children'),
-                                                                  Output('absolute-ploidy', 'children'),
-                                                                  Output('absolute-rdata-select-table', 'selected_rows')
-                                                                 ],
-                                              callback_states_for_autofill=[State('absolute-purity', 'children'), State('absolute-ploidy', 'children')]
-                                             ),
-                                 rdata_tsv_fn=rdata_tsv_fn,
-                                 cnp_fig_pkl_fn_col=cnp_fig_pkl_fn_col,
-                                 mut_fig_pkl_fn_col=mut_fig_pkl_fn_col)
-        
+
         app.add_component(AppComponent('sample-info-component', 
                                               html.Div(children=[html.H1('Data Summary'), 
                                                                  dbc.Table.from_dataframe(df=pd.DataFrame())],
@@ -475,7 +386,9 @@ class MatchedPurityReviewer(ReviewerTemplate):
                                                       Output('custom-cnp-graph', 'figure'), 
                                                       Output('custom-cnp-graph-purity', 'children'),
                                                       Output('custom-cnp-graph-ploidy', 'children')
-                                                     ]),
+                                                     ],
+                                       callback_states_for_autofill=[State('custom-cnp-graph-purity', 'children'), State('custom-cnp-graph-ploidy', 'children')]
+                                      ),
                          cnp_fig_pkl_fn_col='cnp_figs_pkl'
                         )
 
@@ -484,6 +397,6 @@ class MatchedPurityReviewer(ReviewerTemplate):
         return app
     
     def gen_autofill(self):
-        self.add_autofill('cnp-plot', {'purity': State('absolute-purity', 'children'),
-                                       'ploidy': State('absolute-ploidy', 'children')})
+        self.add_autofill('custom-cnp-plot', {'purity': State('custom-cnp-graph-purity', 'children'),
+                                             'ploidy': State('custom-cnp-graph-ploidy', 'children')})
                     

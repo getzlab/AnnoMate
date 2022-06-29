@@ -24,6 +24,10 @@ import networkx as nx
 from networkx.drawing.nx_pydot import graphviz_layout
 import pydot
 
+import cnv_suite
+from cnv_suite.visualize import plot_acr_interactive, update_cnv_scatter_cn, update_cnv_scatter_color, update_cnv_scatter_sigma_toggle
+from cnv_suite import calc_avg_cn, calc_absolute_cn, calc_cn_levels, return_seg_data_at_loci, apply_segment_data_to_df, get_segment_interval_trees, switch_contigs
+
 from JupyterReviewer.ReviewData import ReviewData, ReviewDataAnnotation
 from JupyterReviewer.ReviewDataApp import ReviewDataApp, AppComponent
 from JupyterReviewer.ReviewerTemplate import ReviewerTemplate
@@ -167,8 +171,8 @@ def gen_style_data_conditional(df, custom_colors):
     return style_data_conditional
 
 def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
-    maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
-    #maf_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/all_mut_ccfs_maf_annotated_w_cnv_single_participant.txt', sep='\t')
+    #maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
+    maf_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/all_mut_ccfs_maf_annotated_w_cnv_single_participant.txt', sep='\t')
     maf_cols_options = (list(maf_df))
 
     for col in default_maf_cols:
@@ -180,13 +184,16 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
             maf_cols_value.append(col)
 
     for symbol in maf_df.Hugo_Symbol.unique():
-        hugo_symbols.append(symbol)
+        if symbol not in hugo_symbols:
+            hugo_symbols.append(symbol)
 
     for classification in maf_df.Variant_Classification.unique():
-        variant_classifications.append(classification)
+        if classification not in variant_classifications:
+            variant_classifications.append(classification)
 
     for n in maf_df.Cluster_Assignment.unique():
-        cluster_assignments.append(n)
+        if n not in cluster_assignments:
+            cluster_assignments.append(n)
 
     filtered_maf_df = maf_df.copy()
     if hugo:
@@ -253,7 +260,7 @@ def internal_gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster, cu
     ]
 
 def gen_ccf_plot(df, idx, time_scaled):
-    if time_scaled:
+    if time_scaled == 'Time Scaled':
         scatter_x = 'dfd'
         rect_x = 5
     else:
@@ -339,7 +346,7 @@ def gen_ccf_plot(df, idx, time_scaled):
     ccf_plot.update_layout(legend={'traceorder': 'reversed'})
     ccf_plot.update_yaxes(title='ccf(x)', dtick=0.1, ticks='outside', showline=True, linecolor='black', range=[-0.03,1.05], showgrid=False)
     ccf_plot.update_xaxes(ticks='outside', showline=True, linecolor='black', showgrid=False)
-    if time_scaled:
+    if time_scaled == 'Time Scaled':
         ccf_plot.update_xaxes(title='Time (dfd)')
     else:
         ccf_plot.update_xaxes(title='Samples (timing - dfd)', tickvals=np.arange(len(samples_in_order)),
@@ -407,8 +414,8 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
     tree_df = pd.read_csv('gs://fc-secure-c1d8f0c8-dc8c-418a-ac13-561b18de3d8e/1dc35867-4c57-487e-bcdd-e39820462211/phylogicndt/b007b77f-c150-490f-9d55-7ace9eb495dd/call-clustering/ONC106612_build_tree_posteriors.tsv', sep='\t')
     maf_df = pd.read_csv(df.loc[idx, 'phylogic_all_pairs_mut_ccfs'], sep='\t')
     maf_df.drop_duplicates(subset='Start_position', inplace=True)
-
-    drivers = pd.read_csv(f'~/Broad/JupyterReviewer/{drivers_fn}')
+    if drivers_fn:
+        drivers = pd.read_csv(f'~/Broad/JupyterReviewer/{drivers_fn}')
 
     possible_trees = []
     all_trees = []
@@ -457,12 +464,18 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
             nodes_copy = list(map(int,edge.split('-')))
             edges_list.append(nodes_copy)
 
-    edges = [{'data': {'source': 'normal', 'target': 'cluster_1', 'label': f'{cluster_count[1]}\n{gen_driver_edge_labels(drivers, clusters, 1)}'}}]
-
-    edges.extend([
-        {'data': {'source': f'cluster_{edge[0]}', 'target': f'cluster_{edge[1]}', 'label': f'{cluster_count[edge[1]]}\n{gen_driver_edge_labels(drivers, clusters, edge[1])}'}}
-        for edge in edges_list
-    ])
+    if drivers_fn:
+        edges = [{'data': {'source': 'normal', 'target': 'cluster_1', 'label': f'{cluster_count[1]}\n{gen_driver_edge_labels(drivers, clusters, 1)}'}}]
+        edges.extend([
+            {'data': {'source': f'cluster_{edge[0]}', 'target': f'cluster_{edge[1]}', 'label': f'{cluster_count[edge[1]]}\n{gen_driver_edge_labels(drivers, clusters, edge[1])}'}}
+            for edge in edges_list
+        ])
+    else:
+        edges = [{'data': {'source': 'normal', 'target': 'cluster_1', 'label': str(cluster_count[1])}}]
+        edges.extend([
+            {'data': {'source': f'cluster_{edge[0]}', 'target': f'cluster_{edge[1]}', 'label': str(cluster_count[edge[1]])}}
+            for edge in edges_list
+        ])
 
     elements = nodes + edges
 
@@ -471,7 +484,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
     return [
         cyto.Cytoscape(
             id='phylogic-tree',
-            style={'width': '100%', 'height': '350px'},
+            style={'width': '100%', 'height': '450px'},
             layout={
                 'name': 'breadthfirst',
                 'roots': '[id="normal"]'
@@ -483,13 +496,13 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
         possible_trees
     ]
 
-def gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, drivers_fn):
+def gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, drivers_fn):
     ccf_plot = gen_ccf_plot(df, idx, time_scaled)
     tree, possible_trees = gen_phylogic_tree(df, idx, 0, drivers_fn)
 
     return [ccf_plot, possible_trees, possible_trees[0], tree]
 
-def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, drivers_fn):
+def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, drivers_fn):
     tree_num = 0
     for n in chosen_tree.split():
         if n.isdigit():
@@ -500,6 +513,21 @@ def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, drivers_fn
 
     return [ccf_plot, possible_trees, chosen_tree, tree]
 
+def gen_cnv_plot(df, idx, samples_fn):
+    csize = {'1': 249250621, '2': 243199373, '3': 198022430, '4': 191154276, '5': 180915260,
+            '6': 171115067, '7': 159138663, '8': 146364022, '9': 141213431, '10': 135534747,
+            '11': 135006516, '12': 133851895, '13': 115169878, '14': 107349540, '15': 102531392,
+            '16': 90354753, '17': 81195210, '18': 78077248, '19': 59128983, '20': 63025520,
+            '21': 48129895, '22': 51304566, '23': 156040895, '24': 57227415}
+
+    sample_df = pd.read_csv(samples_fn)
+    seg_df = pd.read_csv(sample_df.loc[0, 'absolute_fn'], sep='\t')
+    seg_df['Sample_ID'] = sample_df.loc[0, 'Sample_ID']
+
+    cnv_plot = make_subplots(1, 1)
+    plot_acr_interactive(seg_df, cnv_plot, csize, sigmas=True, row=0)
+
+    return [cnv_plot]
 
 class PatientReviewer(ReviewerTemplate):
 
@@ -530,18 +558,18 @@ class PatientReviewer(ReviewerTemplate):
         return rd
 
     # list optional cols param
-    def gen_review_app(self, custom_colors=[], drivers_fn='drivers.csv') -> ReviewDataApp:
+    def gen_review_app(self, custom_colors=[], drivers_fn=None, samples_fn=None) -> ReviewDataApp:
         app = ReviewDataApp()
 
         app.add_component(AppComponent(
             'Clinical Data',
             html.Div(
-                dbc.Table.from_dataframe(df=pd.DataFrame()),
-                id='clinical-data-component'
+                id='clinical-data-component',
+                children=dbc.Table.from_dataframe(df=pd.DataFrame())
             ),
             callback_output=[Output('clinical-data-component', 'children')],
             new_data_callback=gen_clinical_data_table
-        ), cols=['participant_id', 'gender', 'age_at_diagnosis', 'vital_status', 'death_date_dfd'])
+        ), cols=['gender', 'age_at_diagnosis', 'vital_status', 'death_date_dfd'])
 
         app.add_component(AppComponent(
             'Mutations',
@@ -558,17 +586,17 @@ class PatientReviewer(ReviewerTemplate):
                     dbc.Row([
                         dbc.Col([
                             dcc.Dropdown(
+                                id='table-size-dropdown',
                                 options=[10,20,30],
-                                value=10,
-                                id='table-size-dropdown'
+                                value=10
                             )
                         ], width=2),
                         dbc.Col([
                             dcc.Dropdown(
-                                maf_cols_options,
-                                maf_cols_value,
+                                id='column-selection-dropdown',
+                                options=[],
+                                value=[],
                                 multi=True,
-                                id='column-selection-dropdown'
                             )
                         ], width=10)
                     ])
@@ -578,35 +606,35 @@ class PatientReviewer(ReviewerTemplate):
                     dbc.Row([
                         dbc.Col([
                             dcc.Dropdown(
-                                options=hugo_symbols,
+                                id='hugo-dropdown',
+                                options=[],
                                 multi=True,
                                 placeholder='Filter by Hugo Symbol',
-                                id='hugo-dropdown'
                             )
                         ], width=2),
                         dbc.Col([
                             dcc.Dropdown(
-                                options=variant_classifications,
+                                id='variant-classification-dropdown',
+                                options=[],
                                 multi=True,
-                                placeholder='Filter by Variant Classification',
-                                id='variant-classification-dropdown'
+                                placeholder='Filter by Variant Classification'
                             )
                         ], width=2),
                         dbc.Col([
                             dcc.Dropdown(
-                                options=cluster_assignments,
+                                id='cluster-assignment-dropdown',
+                                options=[],
                                 multi=True,
-                                placeholder='Filter by Cluster Assignment',
-                                id='cluster-assignment-dropdown'
+                                placeholder='Filter by Cluster Assignment'
                             )
                         ], width=2)
                     ])
                 ),
 
                 html.Div(dash_table.DataTable(
+                    id='mutation-table',
                     columns=[{'name': i, 'id': i, 'selectable': True} for i in pd.DataFrame().columns],
-                    data=pd.DataFrame().to_dict('records'),
-                    id='mutation-table'
+                    data=pd.DataFrame().to_dict('records')
                 ), id='mutation-table-component'),
             ]),
 
@@ -633,11 +661,11 @@ class PatientReviewer(ReviewerTemplate):
             'Phylogic Graphics',
             html.Div([
                 dcc.RadioItems(
-                    ['Time Scaled', 'Not Time Scaled'],
-                    'Time Scaled',
+                    id='time-scale-radio-item',
+                    options=['Time Scaled', 'Not Time Scaled'],
+                    value='Time Scaled',
                     inline=True,
-                    inputStyle={'margin-left': '20px', 'margin-right': '5px'},
-                    id='time-scale-radio-item'
+                    inputStyle={'margin-left': '20px', 'margin-right': '5px'}
                 ),
                 dbc.Container([
                     dbc.Row([
@@ -654,18 +682,13 @@ class PatientReviewer(ReviewerTemplate):
                                 cyto.Cytoscape(
                                     id='phylogic-tree',
                                     elements=[],
-                                    style={'width': '100%', 'height': '350px'},
-                                    layout={
-                                        'name': 'breadthfirst',
-                                        'roots': '[id="cluster_1"]'
-                                    }
+                                    style={'width': '100%', 'height': '450px'},
                                 ),
                                 id='phylogic-tree-component'
                             ),
                             dcc.Dropdown(
-                                options=possible_trees,
-                                #value=possible_trees[0],
-                                id='tree-dropdown'
+                                id='tree-dropdown',
+                                options=[]
                             )
                         ], width=7, align='center')
                     ])
@@ -676,6 +699,9 @@ class PatientReviewer(ReviewerTemplate):
                 Input('time-scale-radio-item', 'value'),
                 Input('tree-dropdown', 'value')
             ],
+            callback_state_external=[
+                State('mutation-table-component', 'children')
+            ],
             callback_output=[
                 Output('ccf-plot', 'figure'),
                 Output('tree-dropdown', 'options'),
@@ -685,6 +711,21 @@ class PatientReviewer(ReviewerTemplate):
             new_data_callback=gen_phylogic_graphics,
             internal_callback=internal_gen_phylogic_graphics
         ), drivers_fn=drivers_fn)
+
+        app.add_component(AppComponent(
+            'CNV Plot',
+            html.Div([
+                dcc.Graph(
+                    id='cnv_plot',
+                    figure=go.Figure()
+                )
+            ]),
+            callback_output=[
+                Output('cnv_plot', 'figure')
+            ],
+            new_data_callback=gen_cnv_plot,
+            internal_callback=gen_cnv_plot
+        ), samples_fn=samples_fn)
 
         app.add_component(AppComponent(
             'Purity Slider',

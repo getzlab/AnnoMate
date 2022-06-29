@@ -30,9 +30,10 @@ class AppComponent:
     def __init__(self,
                  name: str,
                  layout,
-                 callback_output: [Output]=[],
-                 callback_input: [Input]=[],
-                 callback_state: [State]=[],
+                 callback_output: [Output] = [],
+                 callback_input: [Input] = [],
+                 callback_state: [State] = [],
+                 callback_state_external: [State] = [],
                  new_data_callback=None,
                  internal_callback=None,
                  callback_states_for_autofill: [State]=[],
@@ -51,13 +52,21 @@ class AppComponent:
                           specified Input objects will activate the callback function and its current value will be used as an input
 
         callback_state:   List of State() objects pointing to objects in the layout (ex. [State('heading', 'children')]). It's value will
-                          be used as a parameter if the component's callback function is activated
+                          be used as a parameter if the component's callback function is activated.
+
+        callback_state_external: List of State() objects pointing to objects in the layout
+                                 (ex. [State('heading', 'children')]) that do NOT exist in the layout,
+                                 but instead from other AppComponent objects included in the same ReviewDataApp.
+                                 Note that there will be no native check if the component id exists until runtime
+                                 instantiation of the ReviewDataApp.
+                                 It's value will be used as a parameter if the component's callback function is activated.
 
         new_data_callback: a function (defined separately or a lambda) that defines how the component will be updated when the ReviewData
                            object switches to a new index or row to review. Requirements are:
                                - The first two parameters will be the ReviewData object data dataframe and the index of the current row to be reviewed.
                                - The following parameters will be the inputs defined IN ORDER by the order of the Inputs() in callback_input
                                - The next parameters will be the states defined IN ORDER by the order of the States() in callback_state
+                               - The next parameters will be the states defined IN ORDER by the order of the States() in callback_state_external
                                - Any remaining parameters have keywords and are at the end
                                - **new_data_callbackinternal_callback must have the same signature
                            Example:
@@ -110,6 +119,7 @@ class AppComponent:
         self.callback_output = callback_output
         self.callback_input = callback_input
         self.callback_state = callback_state
+        self.callback_state_external = callback_state_external
 
         self.new_data_callback = new_data_callback
         self.internal_callback = internal_callback
@@ -180,7 +190,10 @@ class ReviewDataApp:
                                   autofill_states=autofill_states,
                                   submit_annot_button=Input('APP-submit-button-state', 'n_clicks'),
                                   annot_input_state=annotation_panel_component.callback_state,
-                                  more_component_inputs={c.name: c.callback_input for c_name, c in self.more_components.items()}
+                                  more_component_inputs={c.name: c.callback_input +
+                                                                 c.callback_state +
+                                                                 c.callback_state_external for c_name, c in
+                                                         self.more_components.items()}
                                  )
                      )
         def component_callback(dropdown_value,
@@ -293,7 +306,6 @@ class ReviewDataApp:
         check_duplicates(all_ids, 'full component')
 
         return layout, annotation_panel_component, autofill_buttons, autofill_states, autofill_literals
-
 
     def gen_dropdown_labels(self, review_data: ReviewData, r: pd.Series):
         data_history_df = review_data.history[review_data.history["index"] == r.name]
