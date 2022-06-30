@@ -512,21 +512,34 @@ def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, 
 
     return [ccf_plot, possible_trees, chosen_tree, tree]
 
-def gen_cnv_plot(df, idx, samples_fn):
+def gen_cnv_plot(df, idx, sample_selection, samples_fn):
     csize = {'1': 249250621, '2': 243199373, '3': 198022430, '4': 191154276, '5': 180915260,
             '6': 171115067, '7': 159138663, '8': 146364022, '9': 141213431, '10': 135534747,
             '11': 135006516, '12': 133851895, '13': 115169878, '14': 107349540, '15': 102531392,
             '16': 90354753, '17': 81195210, '18': 78077248, '19': 59128983, '20': 63025520,
             '21': 48129895, '22': 51304566, '23': 156040895, '24': 57227415}
 
-    sample_df = pd.read_csv(samples_fn)
-    seg_df = pd.read_csv(sample_df.loc[0, 'absolute_fn'], sep='\t')
-    seg_df['Sample_ID'] = sample_df.loc[0, 'Sample_ID']
+    all_samples_df = pd.read_csv(samples_fn).set_index('Sample_ID')
 
-    cnv_plot = make_subplots(1, 1)
-    plot_acr_interactive(seg_df, cnv_plot, csize, sigmas=True, row=0)
+    sample_list = all_samples_df[all_samples_df['participant_id'] == idx].index.tolist()
+    # restrict sample selection to only two samples at a time
+    sample_selection_corrected = [sample_list[0]] if sample_selection == [] else sample_selection[:2]
 
-    return [cnv_plot]
+    seg_df = []
+    for sample_id in sample_selection_corrected:
+        this_seg_df = pd.read_csv(all_samples_df.loc[sample_id, 'absolute_fn'], sep='\t')
+        this_seg_df['Sample_ID'] = sample_id
+        seg_df.append(this_seg_df)
+
+    cnv_plot = make_subplots(len(sample_selection_corrected), 1)
+    for i, sample_id in enumerate(sample_selection_corrected):
+        plot_acr_interactive(seg_df[i], cnv_plot, csize, sigmas=True, row=i)
+
+    return [
+        cnv_plot,
+        sample_list,
+        sample_selection_corrected
+    ]
 
 class PatientReviewer(ReviewerTemplate):
 
@@ -717,10 +730,20 @@ class PatientReviewer(ReviewerTemplate):
                 dcc.Graph(
                     id='cnv_plot',
                     figure=go.Figure()
+                ),
+                dcc.Checklist(
+                    id='sample-selection-checklist',
+                    options=[],
+                    value=[],
                 )
             ]),
+            callback_input=[
+                Input('sample-selection-checklist', 'value')
+            ],
             callback_output=[
-                Output('cnv_plot', 'figure')
+                Output('cnv_plot', 'figure'),
+                Output('sample-selection-checklist', 'options'),
+                Output('sample-selection-checklist', 'value')
             ],
             new_data_callback=gen_cnv_plot,
             internal_callback=gen_cnv_plot
