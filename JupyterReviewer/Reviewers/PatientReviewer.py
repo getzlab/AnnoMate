@@ -260,7 +260,7 @@ def internal_gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster, cu
     ]
 
 def gen_ccf_plot(df, idx, time_scaled):
-    if time_scaled == 'Time Scaled':
+    if 'Time Scaled' in time_scaled:
         scatter_x = 'dfd'
         rect_x = 5
     else:
@@ -345,7 +345,7 @@ def gen_ccf_plot(df, idx, time_scaled):
     ccf_plot.update_layout(legend={'traceorder': 'reversed'})
     ccf_plot.update_yaxes(title='ccf(x)', dtick=0.1, ticks='outside', showline=True, linecolor='black', range=[-0.03,1.05], showgrid=False)
     ccf_plot.update_xaxes(ticks='outside', showline=True, linecolor='black', showgrid=False)
-    if time_scaled == 'Time Scaled':
+    if 'Time Scaled' in time_scaled:
         ccf_plot.update_xaxes(title='Time (dfd)')
     else:
         ccf_plot.update_xaxes(title='Samples (timing - dfd)', tickvals=np.arange(len(samples_in_order)),
@@ -512,7 +512,7 @@ def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, 
 
     return [ccf_plot, possible_trees, chosen_tree, tree]
 
-def gen_cnv_plot(df, idx, sample_selection, samples_fn):
+def gen_cnv_plot(df, idx, sample_selection, sigmas, color, samples_fn):
     csize = {'1': 249250621, '2': 243199373, '3': 198022430, '4': 191154276, '5': 180915260,
             '6': 171115067, '7': 159138663, '8': 146364022, '9': 141213431, '10': 135534747,
             '11': 135006516, '12': 133851895, '13': 115169878, '14': 107349540, '15': 102531392,
@@ -525,6 +525,21 @@ def gen_cnv_plot(df, idx, sample_selection, samples_fn):
     # restrict sample selection to only two samples at a time
     sample_selection_corrected = [sample_list[0]] if sample_selection == [] else sample_selection[:2]
 
+    sigmas_val = False
+    if 'Show CNV Sigmas' in sigmas:
+        sigmas_val = True
+
+    if color == 'Differential':
+        segment_colors = 'difference'
+    elif color == 'Cluster':
+        segment_colors = 'cluster'
+    # unsure what this color means
+    elif color == 'Clonal/Subclonal':
+        segment_colors = 'black'
+    else:
+        segment_colors = color
+
+
     seg_df = []
     for sample_id in sample_selection_corrected:
         this_seg_df = pd.read_csv(all_samples_df.loc[sample_id, 'absolute_fn'], sep='\t')
@@ -533,7 +548,7 @@ def gen_cnv_plot(df, idx, sample_selection, samples_fn):
 
     cnv_plot = make_subplots(len(sample_selection_corrected), 1)
     for i, sample_id in enumerate(sample_selection_corrected):
-        plot_acr_interactive(seg_df[i], cnv_plot, csize, sigmas=True, row=i)
+        plot_acr_interactive(seg_df[i], cnv_plot, csize, segment_colors=segment_colors, sigmas=sigmas_val, row=i)
 
     return [
         cnv_plot,
@@ -672,12 +687,10 @@ class PatientReviewer(ReviewerTemplate):
         app.add_component(AppComponent(
             'Phylogic Graphics',
             html.Div([
-                dcc.RadioItems(
-                    id='time-scale-radio-item',
-                    options=['Time Scaled', 'Not Time Scaled'],
-                    value='Time Scaled',
-                    inline=True,
-                    inputStyle={'margin-left': '20px', 'margin-right': '5px'}
+                dcc.Checklist(
+                    id='time-scale-checklist',
+                    options=['Time Scaled'],
+                    value=['Time Scaled'],
                 ),
                 dbc.Container([
                     dbc.Row([
@@ -708,7 +721,7 @@ class PatientReviewer(ReviewerTemplate):
             ]),
 
             callback_input=[
-                Input('time-scale-radio-item', 'value'),
+                Input('time-scale-checklist', 'value'),
                 Input('tree-dropdown', 'value')
             ],
             callback_state_external=[
@@ -727,18 +740,44 @@ class PatientReviewer(ReviewerTemplate):
         app.add_component(AppComponent(
             'CNV Plot',
             html.Div([
-                dcc.Graph(
-                    id='cnv_plot',
-                    figure=go.Figure()
-                ),
-                dcc.Checklist(
-                    id='sample-selection-checklist',
-                    options=[],
-                    value=[],
-                )
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Graph(
+                            id='cnv_plot',
+                            figure=go.Figure()
+                        ),
+                    ], width=10),
+                    dbc.Col([
+                        html.H3('Customize Plot'),
+                        html.H5('Samples:'),
+                        dcc.Checklist(
+                            id='sample-selection-checklist',
+                            options=[],
+                            value=[],
+                            labelStyle={'display': 'block'}
+                        ),
+                        html.P(''),
+                        html.H5('Sigmas:'),
+                        dcc.Checklist(
+                            id='sigma_checklist',
+                            options=['Show CNV Sigmas'],
+                            value=['Show CNV Sigmas']
+                        ),
+                        html.P(''),
+                        html.H5('Colors:'),
+                        dcc.RadioItems(
+                            id='cnv-color-radioitem',
+                            options=['Differential', 'Cluster', 'Red/Blue', 'Clonal/Subclonal'],
+                            value='Differential',
+                            labelStyle={'display': 'block'}
+                       )
+                    ], width=2)
+                ]),
             ]),
             callback_input=[
-                Input('sample-selection-checklist', 'value')
+                Input('sample-selection-checklist', 'value'),
+                Input('sigma_checklist', 'value'),
+                Input('cnv-color-radioitem', 'value')
             ],
             callback_output=[
                 Output('cnv_plot', 'figure'),
