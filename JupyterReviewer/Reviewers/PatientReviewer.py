@@ -533,9 +533,7 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, samples_fn):
         segment_colors = 'difference'
     elif color == 'Cluster':
         segment_colors = 'cluster'
-    # unsure what this color means
-    elif color == 'Clonal/Subclonal':
-        segment_colors = 'black'
+    # unsure about clonal/subclonal
     else:
         segment_colors = color
 
@@ -570,7 +568,7 @@ class PatientReviewer(ReviewerTemplate):
         review_data_annotation_dict = {
             'purity': ReviewDataAnnotation('number', validate_input=validate_purity),
             'ploidy': ReviewDataAnnotation('number', validate_input=validate_ploidy),
-            'mutation': ReviewDataAnnotation('text'),
+            'tree': ReviewDataAnnotation('text'),
             'class': ReviewDataAnnotation('radioitem', options=['Possible Driver', 'Likely Driver', 'Possible Artifact', 'Likely Artifact']),
             'description': ReviewDataAnnotation('text')
         }
@@ -733,6 +731,9 @@ class PatientReviewer(ReviewerTemplate):
                 Output('tree-dropdown', 'value'),
                 Output('phylogic-tree-component', 'children')
             ],
+            callback_states_for_autofill=[
+                State('tree-dropdown', 'value')
+            ],
             new_data_callback=gen_phylogic_graphics,
             internal_callback=internal_gen_phylogic_graphics
         ), drivers_fn=drivers_fn)
@@ -799,3 +800,4 @@ class PatientReviewer(ReviewerTemplate):
 
     def gen_autofill(self):
         self.add_autofill('Purity Slider', {'purity': State('a-slider', 'value')})
+        self.add_autofill('Phylogic Graphics', {'tree': State('tree-dropdown', 'value')})
