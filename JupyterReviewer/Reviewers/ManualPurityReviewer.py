@@ -397,6 +397,6 @@ class ManualPurityReviewer(ReviewerTemplate):
         return app
     
     def gen_autofill(self):
-        self.add_autofill('custom-cnp-plot', {'purity': State('custom-cnp-graph-purity', 'children'),
-                                             'ploidy': State('custom-cnp-graph-ploidy', 'children')})
+        self.add_autofill('custom-cnp-plot', State('custom-cnp-graph-purity', 'children'), 'purity')
+        self.add_autofill('custom-cnp-plot', State('custom-cnp-graph-ploidy', 'children'), 'ploidy')
                     

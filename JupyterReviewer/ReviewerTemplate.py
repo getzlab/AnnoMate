@@ -2,12 +2,9 @@ from .ReviewData import ReviewData, ReviewDataAnnotation
 from .ReviewDataApp import ReviewDataApp
 
 import pandas as pd
-import numpy as np
-import functools
-import time
-import typing
 import os
-
+from dash.dependencies import State
+from typing import Union
 from abc import ABC, abstractmethod
 
 
@@ -25,7 +22,7 @@ class ReviewerTemplate(ABC):
                         review_data_fn: str, 
                         description: str='', 
                         df: pd.DataFrame = pd.DataFrame(), 
-                        review_data_annotation_dict: {str:ReviewDataAnnotation} = {}, 
+                        review_data_annotation_dict: {str: ReviewDataAnnotation} = {},
                         reuse_existing_review_data_fn: str = None, *args, **kwargs) -> ReviewData:
         
         return None
@@ -70,8 +67,11 @@ class ReviewerTemplate(ABC):
         self.app = self.gen_review_app(*args, **kwargs)
         self.gen_autofill()
         
-    def add_autofill(self, component_name: str, autofill_dict: dict):
-        self.autofill_dict[component_name] = autofill_dict
+    def add_autofill(self, component_name: str, fill_value: Union[State, str, float], annot_col: str):
+        if component_name not in self.autofill_dict.keys():
+            self.autofill_dict[component_name] = {annot_col: fill_value}
+        else:
+            self.autofill_dict[component_name][annot_col] = fill_value
         
         # verify 
         self.app.gen_autofill_buttons_and_states(self.review_data, self.autofill_dict)

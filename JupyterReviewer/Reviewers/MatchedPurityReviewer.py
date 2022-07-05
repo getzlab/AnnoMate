@@ -484,6 +484,5 @@ class MatchedPurityReviewer(ReviewerTemplate):
         return app
     
     def gen_autofill(self):
-        self.add_autofill('cnp-plot', {'purity': State('absolute-purity', 'children'),
-                                       'ploidy': State('absolute-ploidy', 'children')})
-                    
+        self.add_autofill('cnp-plot', State('absolute-purity', 'children'), 'purity')
+        self.add_autofill('cnp-plot', State('absolute-ploidy', 'children'), 'ploidy')
