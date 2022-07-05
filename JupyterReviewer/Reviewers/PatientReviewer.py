@@ -259,16 +259,27 @@ def internal_gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster, cu
         cluster_assignments
     ]
 
-def gen_ccf_plot(df, idx, time_scaled):
+def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
+    maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
+    samples = maf_df.drop_duplicates('Sample_ID').Sample_ID.tolist()
+
+    biospecimens_df = pd.read_csv(biospecimens_fn, sep='\t').set_index('participant_id').loc[idx]
+    biospecimens_df = biospecimens_df.set_index('collaborator_sample_id')
+    biospecimens_df = biospecimens_df.loc[[sample for sample in samples if sample in biospecimens_df.index]]
+
+    timing_data = {}
+    for sample in samples:
+        if sample in biospecimens_df.index:
+            timing_data[sample] = biospecimens_df.loc[sample,'collection_date_dfd']
+        else:
+            timing_data[sample] = 0
+
     if 'Time Scaled' in time_scaled:
         scatter_x = 'dfd'
         rect_x = 5
     else:
         scatter_x = 'order'
         rect_x = 6
-
-    # random dict for now
-    timing_data = {'17318_13_OCT_052219':	5, '17318_13_BB_111119': 10}
 
     cluster_ccfs = pd.read_csv(df.loc[idx, 'cluster_ccfs_fn'], sep='\t')
     mut_ccfs = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
@@ -300,6 +311,10 @@ def gen_ccf_plot(df, idx, time_scaled):
             y = [this_cluster.iloc[i, 4], this_cluster.iloc[i + 1, 4], this_cluster.iloc[i + 1, 3],
                  this_cluster.iloc[i, 3], this_cluster.iloc[i, 4]]
             # plot points
+            legend = False
+            if i == 0:
+                legend = True
+
             ccf_plot.add_trace(
                 go.Scatter(
                     x=this_cluster[scatter_x],
@@ -307,7 +322,8 @@ def gen_ccf_plot(df, idx, time_scaled):
                     legendgroup=f'group{c}',
                     name=c,
                     marker_color=color,
-                    mode='markers'
+                    mode='markers',
+                    showlegend=legend
                 )
             )
 
@@ -341,7 +357,8 @@ def gen_ccf_plot(df, idx, time_scaled):
             )
 
     ccf_plot.update_traces(marker_size=15)
-    ccf_plot.update_layout(plot_bgcolor='rgba(0,0,0,0)', height=400, width=600)
+    #ccf_plot.update_layout(plot_bgcolor='rgba(0,0,0,0)', height=400, width=600)
+    ccf_plot.update_layout(plot_bgcolor='rgba(0,0,0,0)')
     ccf_plot.update_layout(legend={'traceorder': 'reversed'})
     ccf_plot.update_yaxes(title='ccf(x)', dtick=0.1, ticks='outside', showline=True, linecolor='black', range=[-0.03,1.05], showgrid=False)
     ccf_plot.update_xaxes(ticks='outside', showline=True, linecolor='black', showgrid=False)
@@ -495,35 +512,37 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
         possible_trees
     ]
 
-def gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, drivers_fn):
-    ccf_plot = gen_ccf_plot(df, idx, time_scaled)
+def gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, drivers_fn, biospecimens_fn):
+    ccf_plot = gen_ccf_plot(df, idx, time_scaled, biospecimens_fn)
     tree, possible_trees = gen_phylogic_tree(df, idx, 0, drivers_fn)
 
     return [ccf_plot, possible_trees, possible_trees[0], tree]
 
-def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, drivers_fn):
+def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, drivers_fn, biospecimens_fn):
     tree_num = 0
     for n in chosen_tree.split():
         if n.isdigit():
             tree_num = int(n)
 
-    ccf_plot = gen_ccf_plot(df, idx, time_scaled)
+    ccf_plot = gen_ccf_plot(df, idx, time_scaled, biospecimens_fn)
     tree, possible_trees = gen_phylogic_tree(df, idx, tree_num-1, drivers_fn)
 
     return [ccf_plot, possible_trees, chosen_tree, tree]
 
-def gen_cnv_plot(df, idx, sample_selection, sigmas, color, samples_fn):
+def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute_fn):
     csize = {'1': 249250621, '2': 243199373, '3': 198022430, '4': 191154276, '5': 180915260,
             '6': 171115067, '7': 159138663, '8': 146364022, '9': 141213431, '10': 135534747,
             '11': 135006516, '12': 133851895, '13': 115169878, '14': 107349540, '15': 102531392,
             '16': 90354753, '17': 81195210, '18': 78077248, '19': 59128983, '20': 63025520,
             '21': 48129895, '22': 51304566, '23': 156040895, '24': 57227415}
 
-    all_samples_df = pd.read_csv(samples_fn).set_index('Sample_ID')
+    all_samples_df = pd.read_csv(absolute_fn)
+    all_samples_df.set_index('Sample_ID', inplace=True)
 
     sample_list = all_samples_df[all_samples_df['participant_id'] == idx].index.tolist()
     # restrict sample selection to only two samples at a time
     sample_selection_corrected = [sample_list[0]] if sample_selection == [] else sample_selection[:2]
+    #sample_selection_corrected = sample_selection
 
     sigmas_val = False
     if 'Show CNV Sigmas' in sigmas:
@@ -583,7 +602,7 @@ class PatientReviewer(ReviewerTemplate):
         return rd
 
     # list optional cols param
-    def gen_review_app(self, custom_colors=[], drivers_fn=None, samples_fn=None) -> ReviewDataApp:
+    def gen_review_app(self, biospecimens_fn, custom_colors=[], drivers_fn=None, absolute_fn=None) -> ReviewDataApp:
         app = ReviewDataApp()
 
         app.add_component(AppComponent(
@@ -699,7 +718,7 @@ class PatientReviewer(ReviewerTemplate):
                                     figure=go.Figure()
                                 ),
                             ])
-                        ], width=5),
+                        ], width=6),
                         dbc.Col([
                             html.Div(
                                 cyto.Cytoscape(
@@ -713,7 +732,7 @@ class PatientReviewer(ReviewerTemplate):
                                 id='tree-dropdown',
                                 options=[]
                             )
-                        ], width=7, align='center')
+                        ], width=6, align='center')
                     ])
                 ])
             ]),
@@ -736,7 +755,7 @@ class PatientReviewer(ReviewerTemplate):
             ],
             new_data_callback=gen_phylogic_graphics,
             internal_callback=internal_gen_phylogic_graphics
-        ), drivers_fn=drivers_fn)
+        ), drivers_fn=drivers_fn, biospecimens_fn=biospecimens_fn)
 
         app.add_component(AppComponent(
             'CNV Plot',
@@ -787,7 +806,7 @@ class PatientReviewer(ReviewerTemplate):
             ],
             new_data_callback=gen_cnv_plot,
             internal_callback=gen_cnv_plot
-        ), samples_fn=samples_fn)
+        ), absolute_fn=absolute_fn)
 
         app.add_component(AppComponent(
             'Purity Slider',
