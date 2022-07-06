@@ -572,7 +572,7 @@ def gen_mut_scatter(maf_df, mut_sigma, sample):
                      'Cluster: %{customdata[4]:d}')
     return mut_scatter
 
-def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, samples_fn):
+def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, samples_fn):
     csize = {'1': 249250621, '2': 243199373, '3': 198022430, '4': 191154276, '5': 180915260,
             '6': 171115067, '7': 159138663, '8': 146364022, '9': 141213431, '10': 135534747,
             '11': 135006516, '12': 133851895, '13': 115169878, '14': 107349540, '15': 102531392,
@@ -584,6 +584,14 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, samples_fn)
 
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     maf_df['Chromosome'] = maf_df['Chromosome'].astype(int)
+    maf_df.set_index('Cluster_Assignment', inplace=True)
+
+    if clusters != None:
+        for cluster in cluster_assignments:
+            if cluster not in clusters:
+                maf_df.drop(cluster, inplace=True)
+
+    maf_df.reset_index(inplace=True)
 
     sample_list = all_samples_df[all_samples_df['participant_id'] == idx].index.tolist()
     # restrict sample selection to only two samples at a time
@@ -600,7 +608,6 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, samples_fn)
     # unsure about clonal/subclonal
     else:
         segment_colors = color
-
 
     seg_df = []
     for sample_id in sample_selection_corrected:
@@ -626,8 +633,12 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, samples_fn)
 
         this_maf_df = maf_df[maf_df['Sample_ID'] == sample_id]
         this_seg_df = seg_df[i]
-        this_maf_df['mu_major_adj'] = (this_seg_df['mu.major'] - c_0) / c_delta
-        this_maf_df['mu_minor_adj'] = (this_seg_df['mu.minor'] - c_0) / c_delta
+        if 'Display Absolute CN' in absolute:
+            this_maf_df['mu_major_adj'] = (this_seg_df['mu.major'] - c_0) / c_delta
+            this_maf_df['mu_minor_adj'] = (this_seg_df['mu.minor'] - c_0) / c_delta
+        else:
+            this_maf_df['mu_major_adj'] = this_seg_df['mu.major']
+            this_maf_df['mu_minor_adj'] = this_seg_df['mu.minor']
 
         this_maf_df['multiplicity_ccf'] = this_maf_df.apply(
             lambda x: x.VAF * (purity * (x.mu_major_adj + x.mu_minor_adj) + 2 * (1 - purity)) / purity, axis=1
@@ -647,22 +658,35 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, samples_fn)
         sample_selection_corrected
     ]
 
-def gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, samples_fn):
-    cnv_plot, sample_list, sample_selection_corrected = gen_cnv_plot(df, idx, [], sigmas, color, absolute, samples_fn)
+def gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, clusters, samples_fn):
+    cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, [], sigmas, color, absolute, clusters, samples_fn)
+    button_clicks = None
 
     return [
         cnv_plot,
         sample_list,
-        sample_selection_corrected
+        sample_selection,
+        button_clicks
     ]
 
-def internal_gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, samples_fn):
-    cnv_plot, sample_list, sample_selection_corrected = gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, samples_fn)
+def internal_gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, clusters, samples_fn):
+    if button_clicks == None:
+        return [
+            cnv_plot,
+            sample_list,
+            sample_selection,
+            button_clicks
+        ]
+
+    else:
+        cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, samples_fn)
+        button_clicks = None
 
     return [
         cnv_plot,
         sample_list,
-        sample_selection_corrected
+        sample_selection,
+        button_clicks
     ]
 
 class PatientReviewer(ReviewerTemplate):
@@ -889,7 +913,9 @@ class PatientReviewer(ReviewerTemplate):
                             options=['Display Absolute CN'],
                             value=['Display Absolute CN'],
                             id='absolute-cnv-box'
-                        )
+                        ),
+                        html.P(''),
+                        html.Button('Submit', id='cnv-button')
                     ], width=2)
                 ]),
             ]),
@@ -897,12 +923,19 @@ class PatientReviewer(ReviewerTemplate):
                 Input('sample-selection-checklist', 'value'),
                 Input('sigma_checklist', 'value'),
                 Input('cnv-color-radioitem', 'value'),
-                Input('absolute-cnv-box', 'value')
+                Input('absolute-cnv-box', 'value'),
+                Input('cnv-button', 'n_clicks'),
+                Input('cnv_plot', 'figure'),
+                Input('sample-selection-checklist', 'options')
             ],
             callback_output=[
                 Output('cnv_plot', 'figure'),
                 Output('sample-selection-checklist', 'options'),
-                Output('sample-selection-checklist', 'value')
+                Output('sample-selection-checklist', 'value'),
+                Output('cnv-button', 'n_clicks')
+            ],
+            callback_state_external=[
+                State('cluster-assignment-dropdown', 'value')
             ],
             new_data_callback=gen_absolute_components,
             internal_callback=internal_gen_absolute_components
