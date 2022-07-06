@@ -23,6 +23,7 @@ import itertools
 import networkx as nx
 from networkx.drawing.nx_pydot import graphviz_layout
 import pydot
+from scipy.stats import beta
 
 import cnv_suite
 from cnv_suite.visualize import plot_acr_interactive, update_cnv_scatter_cn, update_cnv_scatter_color, update_cnv_scatter_sigma_toggle
@@ -529,20 +530,64 @@ def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, 
 
     return [ccf_plot, possible_trees, chosen_tree, tree]
 
-def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute_fn):
+def calculate_error(alt, ref, purity, percentile):
+    if alt == 0:
+        return 0
+    else:
+        return (beta.ppf(percentile, alt, ref) - alt / (alt + ref)) / purity
+
+def gen_mut_scatter(maf_df, mut_sigma, sample):
+    mut_scatter = go.Scatter(
+        x=maf_df['x_loc'],
+        y=maf_df['multiplicity_ccf'],
+        mode='markers',
+        marker_size=5,
+        marker_color=maf_df['cluster_color'],
+        name=f'Mutations ({sample})',
+        error_y=dict(
+            type='data',
+            array=maf_df['error_top'],
+            arrayminus=maf_df['error_bottom'],
+            color='gray',
+            visible=mut_sigma,
+            width=0
+        ),
+        customdata=np.stack((
+            maf_df['Hugo_Symbol'].tolist(),
+            maf_df['Chromosome'].tolist(),
+            maf_df['Start_position'].tolist(),
+            maf_df['VAF'].tolist(),
+            maf_df['Cluster_Assignment'].tolist(),
+            maf_df['Variant_Type'].tolist(),
+            maf_df['Variant_Classification'].tolist(),
+            maf_df['Protein_change']),
+            axis=-1
+        ),
+        hovertemplate='<extra></extra>' +
+                     'Gene: %{customdata[0]} %{customdata[1]}:%{customdata[2]} <br>' +
+                     'Variant: %{customdata[5]}, %{customdata[6]} <br>' +
+                     'Protein Change: %{customdata[7]} <br>' +
+                     'Multiplicity: %{y:.3f} <br>' +
+                     'VAF: %{customdata[3]:.3f} <br>' +
+                     'Cluster: %{customdata[4]:d}')
+    return mut_scatter
+
+def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, samples_fn):
     csize = {'1': 249250621, '2': 243199373, '3': 198022430, '4': 191154276, '5': 180915260,
             '6': 171115067, '7': 159138663, '8': 146364022, '9': 141213431, '10': 135534747,
             '11': 135006516, '12': 133851895, '13': 115169878, '14': 107349540, '15': 102531392,
             '16': 90354753, '17': 81195210, '18': 78077248, '19': 59128983, '20': 63025520,
             '21': 48129895, '22': 51304566, '23': 156040895, '24': 57227415}
 
-    all_samples_df = pd.read_csv(absolute_fn)
+    all_samples_df = pd.read_csv(samples_fn)
     all_samples_df.set_index('Sample_ID', inplace=True)
+
+    maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
+    maf_df['Chromosome'] = maf_df['Chromosome'].astype(int)
 
     sample_list = all_samples_df[all_samples_df['participant_id'] == idx].index.tolist()
     # restrict sample selection to only two samples at a time
     sample_selection_corrected = [sample_list[0]] if sample_selection == [] else sample_selection[:2]
-    #sample_selection_corrected = sample_selection
 
     sigmas_val = False
     if 'Show CNV Sigmas' in sigmas:
@@ -563,9 +608,56 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute_fn):
         this_seg_df['Sample_ID'] = sample_id
         seg_df.append(this_seg_df)
 
+    seg_trees = get_segment_interval_trees(pd.concat(seg_df))
+    #maf_df = apply_segment_data_to_df(maf_df, seg_trees)
+
+    c_size_cumsum = np.cumsum([0] + list(csize.values()))
+    maf_df['x_loc'] = maf_df.apply(lambda x: c_size_cumsum[x['Chromosome'] - 1] + x['Start_position'], axis=1)
+    maf_df['cluster_color'] = maf_df['Cluster_Assignment'].apply(lambda x: cluster_color(x))
+    maf_df['VAF'] = maf_df['t_alt_count'] / (maf_df['t_alt_count'] + maf_df['t_ref_count'])
+
     cnv_plot = make_subplots(len(sample_selection_corrected), 1)
     for i, sample_id in enumerate(sample_selection_corrected):
         plot_acr_interactive(seg_df[i], cnv_plot, csize, segment_colors=segment_colors, sigmas=sigmas_val, row=i)
+
+        purity = all_samples_df.loc[sample_id, 'wxs_purity']
+        ploidy = all_samples_df.loc[sample_id, 'wxs_ploidy']
+        c_0, c_delta = calc_cn_levels(purity, ploidy)
+
+        this_maf_df = maf_df[maf_df['Sample_ID'] == sample_id]
+        this_seg_df = seg_df[i]
+        this_maf_df['mu_major_adj'] = (this_seg_df['mu.major'] - c_0) / c_delta
+        this_maf_df['mu_minor_adj'] = (this_seg_df['mu.minor'] - c_0) / c_delta
+
+        this_maf_df['multiplicity_ccf'] = this_maf_df.apply(
+            lambda x: x.VAF * (purity * (x.mu_major_adj + x.mu_minor_adj) + 2 * (1 - purity)) / purity, axis=1
+        )
+
+         # calculate error bars for mutations
+        this_maf_df['error_top'] = this_maf_df.apply(
+            lambda x: calculate_error(x.t_alt_count, x.t_ref_count, purity, 0.975), axis=1)
+        this_maf_df['error_bottom'] = this_maf_df.apply(
+            lambda x: -1 * calculate_error(x.t_alt_count, x.t_ref_count, purity, 0.025), axis=1)
+
+        cnv_plot.add_trace(gen_mut_scatter(this_maf_df, sigmas_val, sample_id), row=i+1, col=1)
+
+    return [
+        cnv_plot,
+        sample_list,
+        sample_selection_corrected
+    ]
+
+def gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, samples_fn):
+    cnv_plot, sample_list, sample_selection_corrected = gen_cnv_plot(df, idx, [], sigmas, color, absolute, samples_fn)
+
+    return [
+        cnv_plot,
+        sample_list,
+        sample_selection_corrected
+    ]
+
+def internal_gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, samples_fn):
+    cnv_plot, sample_list, sample_selection_corrected = gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, samples_fn)
 
     return [
         cnv_plot,
@@ -602,7 +694,7 @@ class PatientReviewer(ReviewerTemplate):
         return rd
 
     # list optional cols param
-    def gen_review_app(self, biospecimens_fn, custom_colors=[], drivers_fn=None, absolute_fn=None) -> ReviewDataApp:
+    def gen_review_app(self, biospecimens_fn, custom_colors=[], drivers_fn=None, samples_fn=None) -> ReviewDataApp:
         app = ReviewDataApp()
 
         app.add_component(AppComponent(
@@ -790,23 +882,31 @@ class PatientReviewer(ReviewerTemplate):
                             options=['Differential', 'Cluster', 'Red/Blue', 'Clonal/Subclonal'],
                             value='Differential',
                             labelStyle={'display': 'block'}
-                       )
+                        ),
+                        html.P(''),
+                        html.H5('Scale:'),
+                        dcc.Checklist(
+                            options=['Display Absolute CN'],
+                            value=['Display Absolute CN'],
+                            id='absolute-cnv-box'
+                        )
                     ], width=2)
                 ]),
             ]),
             callback_input=[
                 Input('sample-selection-checklist', 'value'),
                 Input('sigma_checklist', 'value'),
-                Input('cnv-color-radioitem', 'value')
+                Input('cnv-color-radioitem', 'value'),
+                Input('absolute-cnv-box', 'value')
             ],
             callback_output=[
                 Output('cnv_plot', 'figure'),
                 Output('sample-selection-checklist', 'options'),
                 Output('sample-selection-checklist', 'value')
             ],
-            new_data_callback=gen_cnv_plot,
-            internal_callback=gen_cnv_plot
-        ), absolute_fn=absolute_fn)
+            new_data_callback=gen_absolute_components,
+            internal_callback=internal_gen_absolute_components
+        ), samples_fn=samples_fn)
 
         app.add_component(AppComponent(
             'Purity Slider',
