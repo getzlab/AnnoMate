@@ -570,9 +570,10 @@ def gen_mut_scatter(maf_df, mut_sigma, sample):
                      'Multiplicity: %{y:.3f} <br>' +
                      'VAF: %{customdata[3]:.3f} <br>' +
                      'Cluster: %{customdata[4]:d}')
+
     return mut_scatter
 
-def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, samples_fn):
+def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, hugo, variant_classification, samples_fn):
     csize = {'1': 249250621, '2': 243199373, '3': 198022430, '4': 191154276, '5': 180915260,
             '6': 171115067, '7': 159138663, '8': 146364022, '9': 141213431, '10': 135534747,
             '11': 135006516, '12': 133851895, '13': 115169878, '14': 107349540, '15': 102531392,
@@ -582,16 +583,16 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, s
     all_samples_df = pd.read_csv(samples_fn)
     all_samples_df.set_index('Sample_ID', inplace=True)
 
-    maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
-    maf_df['Chromosome'] = maf_df['Chromosome'].astype(int)
-    maf_df.set_index('Cluster_Assignment', inplace=True)
+    original_maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
+    original_maf_df['Chromosome'] = original_maf_df['Chromosome'].astype(int)
 
-    if clusters != None:
-        for cluster in cluster_assignments:
-            if cluster not in clusters:
-                maf_df.drop(cluster, inplace=True)
-
-    maf_df.reset_index(inplace=True)
+    maf_df = original_maf_df.copy()
+    if hugo:
+        maf_df = maf_df[maf_df.Hugo_Symbol.isin(hugo)]
+    if variant_classification:
+        maf_df = maf_df[maf_df.Variant_Classification.isin(variant_classification)]
+    if clusters:
+        maf_df = maf_df[maf_df.Cluster_Assignment.isin(clusters)]
 
     sample_list = all_samples_df[all_samples_df['participant_id'] == idx].index.tolist()
     # restrict sample selection to only two samples at a time
@@ -658,8 +659,8 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, s
         sample_selection_corrected
     ]
 
-def gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, clusters, samples_fn):
-    cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, [], sigmas, color, absolute, clusters, samples_fn)
+def gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, clusters, hugo, variant_classification, samples_fn):
+    cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, [], sigmas, color, absolute, clusters, hugo, variant_classification, samples_fn)
     button_clicks = None
 
     return [
@@ -669,17 +670,9 @@ def gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, 
         button_clicks
     ]
 
-def internal_gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, clusters, samples_fn):
-    if button_clicks == None:
-        return [
-            cnv_plot,
-            sample_list,
-            sample_selection,
-            button_clicks
-        ]
-
-    else:
-        cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, samples_fn)
+def internal_gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, clusters, hugo, variant_classification, samples_fn):
+    if button_clicks != None:
+        cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, hugo, variant_classification, samples_fn)
         button_clicks = None
 
     return [
@@ -935,7 +928,9 @@ class PatientReviewer(ReviewerTemplate):
                 Output('cnv-button', 'n_clicks')
             ],
             callback_state_external=[
-                State('cluster-assignment-dropdown', 'value')
+                State('cluster-assignment-dropdown', 'value'),
+                State('hugo-dropdown', 'value'),
+                State('variant-classification-dropdown', 'value')
             ],
             new_data_callback=gen_absolute_components,
             internal_callback=internal_gen_absolute_components
