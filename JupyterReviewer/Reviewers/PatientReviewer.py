@@ -69,6 +69,12 @@ hugo_symbols = []
 variant_classifications = []
 cluster_assignments = []
 
+treatment_category_colors = {
+    'Chemotherapy': 'MidnightBlue',
+    'Hormone/Endocrine therapy': 'MistyRose',
+    'Precision/Targeted therapy': 'Plum'
+}
+
 def get_hex_string(c):
     return '#{:02X}{:02X}{:02X}'.format(*c)
 
@@ -291,6 +297,13 @@ def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
     ordered_samples_dict = {s: o for s, o in zip(samples_in_order, np.arange(len(samples_in_order)))}
     cluster_df.loc[:, 'order'] = [ordered_samples_dict[s] for s in cluster_ccfs['Sample_ID']]
 
+    treatments_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/treatments.tsv', sep='\t').set_index('participant_id').loc[idx]
+    #treatments_df = treatments_df[treatment['stop_date_dfd'] >= timing_data[samples_in_order[0]] or treatment['start_date_dfd'] <= timing_data[samples_in_order[-1]] for treatment in treatments_df]
+    treatments_in_frame_df = pd.DataFrame()
+    for start, stop in zip(treatments_df.start_date_dfd, treatments_df.stop_date_dfd):
+        if stop >= timing_data[samples_in_order[0]] and start <= timing_data[samples_in_order[-1]]:
+            treatments_in_frame_df = pd.concat([treatments_df[treatments_df.start_date_dfd == start], treatments_in_frame_df])
+
     mut_count_dict = mut_ccfs.drop_duplicates([
         'Patient_ID',
         'Hugo_Symbol',
@@ -302,7 +315,7 @@ def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
     cluster_colors = [cluster_color(i) for i in cluster_df['Cluster_ID'].unique()]
     cluster_df['Cluster_ID'] = cluster_df['Cluster_ID'].astype(str)
 
-    ccf_plot = go.Figure()
+    ccf_plot = make_subplots(rows=2, cols=1, row_heights=[15,1], shared_xaxes=True)
 
     for c, color in zip(cluster_df['Cluster_ID'].unique(), cluster_colors):
         this_cluster = cluster_df[cluster_df['Cluster_ID'] == c]
@@ -325,7 +338,8 @@ def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
                     marker_color=color,
                     mode='markers',
                     showlegend=legend
-                )
+                ),
+                row=1, col=1
             )
 
             #confidence interval
@@ -341,7 +355,8 @@ def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
                     opacity=0.4,
                     mode='none',
                     showlegend=False
-                )
+                ),
+                row=1, col=1
             )
             # line
             ccf_plot.add_trace(
@@ -354,8 +369,10 @@ def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
                     line_color=color,
                     opacity=0.4,
                     showlegend=False
-                )
+                ),
+                row=1, col=1
             )
+
 
     ccf_plot.update_traces(marker_size=15)
     #ccf_plot.update_layout(plot_bgcolor='rgba(0,0,0,0)', height=400, width=600)
@@ -369,6 +386,59 @@ def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
         ccf_plot.update_xaxes(title='Samples (timing - dfd)', tickvals=np.arange(len(samples_in_order)),
                          ticktext=[f'{s} ({timing_data[s]})' for s in samples_in_order])
     ccf_plot.data = ccf_plot.data[::-1]  # make the circles appear on top layer
+
+    ccf_plot.add_trace(
+        go.Scatter(
+            x=this_cluster[scatter_x],
+            y=[0,0],
+            line_width=20,
+            line_color='white',
+            fill='toself',
+            #hovertemplate = 'treatments',
+            showlegend=False
+        ),
+        row=2, col=1
+    )
+
+    for start, stop, drug, drug_combo, category, stop_reason, post_status in zip(treatments_in_frame_df.start_date_dfd, treatments_in_frame_df.stop_date_dfd, treatments_in_frame_df.drugs, treatments_in_frame_df.drug_combination, treatments_df.categories, treatments_in_frame_df.stop_reason, treatments_in_frame_df.post_status):
+        drugs=drug
+        if pd.isna(drug):
+            drugs=drug_combo
+
+        ccf_plot.add_trace(
+            go.Scatter(
+                x=[max(start, timing_data[samples_in_order[0]]), min(stop, timing_data[samples_in_order[-1]])],
+                y=[0,0],
+                line_width=20,
+                line_color=treatment_category_colors[category],
+                fill='toself',
+                hovertemplate = f'Treatment Regimen: {drugs}; '
+                    f'Stop Reason: {stop_reason}; '
+                    f'Post Status: {post_status}',
+                showlegend=False
+            ),
+            row=2, col=1
+        )
+        ccf_plot.add_vline(
+            x=max(start, timing_data[samples_in_order[0]]),
+            line_width=2,
+            line_color='black',
+            row=2, col=1
+        )
+        ccf_plot.add_vline(
+            x=ccf_plot.add_vline(
+                x=min(stop, timing_data[samples_in_order[-1]]),
+                line_width=2,
+                line_color='black',
+                row=2, col=1
+            ),
+            line_width=2,
+            line_color='black',
+            row=2, col=1
+        )
+
+    ccf_plot.update_yaxes(row=2, visible=False)
+    ccf_plot.update_xaxes(row=1, visible=False, showticklabels=False)
 
     return ccf_plot
 
@@ -827,7 +897,7 @@ class PatientReviewer(ReviewerTemplate):
                                     figure=go.Figure()
                                 ),
                             ])
-                        ], width=6),
+                        ], width=8, align='center'),
                         dbc.Col([
                             html.Div(
                                 cyto.Cytoscape(
@@ -841,7 +911,7 @@ class PatientReviewer(ReviewerTemplate):
                                 id='tree-dropdown',
                                 options=[]
                             )
-                        ], width=6, align='center')
+                        ], width=4, align='center')
                     ])
                 ])
             ]),
