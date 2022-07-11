@@ -1,5 +1,15 @@
+"""PatientReviewer.py module
+
+Interactive dashboard for reviewing and annotating data on a patient-by-patient basis
+Includes app layout and callback functionality
+
+Run by the user with a Jupyter Notbook: UserPatientReviewer.ipynb
+
+"""
+
 import pandas as pd
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import functools
 import time
@@ -35,16 +45,7 @@ from JupyterReviewer.ReviewerTemplate import ReviewerTemplate
 from JupyterReviewer.AppComponents.PatientReviewerLayout import PatientReviewerLayout
 #from JupyterReviewer.lib.plot_cnp import plot_acr_interactive
 
-def validate_purity(x):
-    return (x >= 0) and (x <= 1)
-
-def validate_ploidy(x):
-    return x >= 0
-
-def gen_clinical_data_table(df, idx, cols):
-    r=df.loc[idx]
-    return [dbc.Table.from_dataframe(r[cols].to_frame().reset_index())]
-
+# mutation table variables
 start_pos = 'Start_position' or 'Start_Position'
 end_pos = 'End_position' or 'End_Position'
 protein_change = 'Protein_change' or 'Protein_Change'
@@ -70,11 +71,23 @@ hugo_symbols = []
 variant_classifications = []
 cluster_assignments = []
 
+# phylogic vatiables
 treatment_category_colors = {
     'Chemotherapy': 'MidnightBlue',
     'Hormone/Endocrine therapy': 'MistyRose',
     'Precision/Targeted therapy': 'Plum'
 }
+
+possible_trees = []
+all_trees = []
+clusters = {}
+cluster_count = {}
+
+def validate_purity(x):
+    return (x >= 0) and (x <= 1)
+
+def validate_ploidy(x):
+    return x >= 0
 
 def get_hex_string(c):
     return '#{:02X}{:02X}{:02X}'.format(*c)
@@ -142,7 +155,31 @@ def cluster_color(v):
 
     return colors_dict[str(v)]
 
-def style_data_format(column_id, filter_query, color='Black', backgroundColor='White'):
+# clinical data table functions
+def gen_clinical_data_table(df, idx, cols):
+    r=df.loc[idx]
+    return [dbc.Table.from_dataframe(r[cols].to_frame().reset_index())]
+
+# mutation table functions
+def format_style_data(column_id, filter_query, color='Black', backgroundColor='White'):
+    """
+
+    Parameters
+    ----------
+    column_id
+        name of the column that the content to be colored is in
+    filter_query
+        content to be colored
+    color
+        text color
+    backgroundColor
+
+    Returns
+    -------
+    dict
+        dict following the style_data_conditinal format for a dash table
+
+    """
     return {
         'if': {
             'column_id': column_id,
@@ -154,31 +191,79 @@ def style_data_format(column_id, filter_query, color='Black', backgroundColor='W
     }
 
 def gen_style_data_conditional(df, custom_colors):
+    """Generate default mutation table coloring and add custom colors if given.
+
+    Parameters
+    ----------
+    df
+        df from gen_review_data
+    custom_colors
+        custom_colors kwarg from gen_review_app
+
+    Returns
+    -------
+    style_data_conditinal : list of dicts
+        list of dicts from format_style_data
+
+    """
     style_data_conditional = []
 
     if 'Cluster_Assignment' in maf_cols_value:
         for n in df.Cluster_Assignment.unique():
-            style_data_conditional.append(style_data_format('Cluster_Assignment', n, color=cluster_color(n)))
+            style_data_conditional.append(format_style_data('Cluster_Assignment', n, color=cluster_color(n)))
 
     if 'functional_effect' in maf_cols_value:
         style_data_conditional.extend([
-            style_data_format('functional_effect', 'Likely Loss-of-function', backgroundColor='DarkOliveGreen'),
-            style_data_format('functional_effect', 'Likely Gain-of-function', backgroundColor='DarkSeaGreen')
+            format_style_data('functional_effect', 'Likely Loss-of-function', backgroundColor='DarkOliveGreen'),
+            format_style_data('functional_effect', 'Likely Gain-of-function', backgroundColor='DarkSeaGreen')
         ])
 
     if 'oncogenic' in maf_cols_value:
-        style_data_conditional.append(style_data_format('oncogenic', 'Likely Oncogenic', backgroundColor='DarkOliveGreen'))
+        style_data_conditional.append(format_style_data('oncogenic', 'Likely Oncogenic', backgroundColor='DarkOliveGreen'))
 
     if 'dbNSFP_Polyphen2_HDIV_ann' in maf_cols_value:
-        style_data_conditional.append(style_data_format('dbNSFP_Polyphen2_HDIV_ann', 'D', backgroundColor='FireBrick'))
+        style_data_conditional.append(format_style_data('dbNSFP_Polyphen2_HDIV_ann', 'D', backgroundColor='FireBrick'))
 
     if custom_colors != []:
         for list in custom_colors:
-            style_data_conditional.append(style_data_format(list[0], list[1], list[2], list[3]))
+            style_data_conditional.append(format_style_data(list[0], list[1], list[2], list[3]))
 
     return style_data_conditional
 
 def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
+    """Generate mutation table columns from selected columns and filtering dropdowns.
+
+    Parameters
+    ----------
+    df
+    idx
+    cols
+        column selection dropdown value
+    hugo
+        hugo symbol filtering dropdown value
+    variant
+        variant classification filtering dropdown value
+    cluster
+        cluster assignment filtering dropdown value
+
+    Returns
+    -------
+    maf_df : pd.DataFrame
+        unchanged df from maf_fn
+    maf_cols_options : list of str
+        options in mutation table columns dropdown
+    maf_cols_value : list of str
+        values selected in mutation table columns dropdown
+    hugo_symbols : list of str
+        all hugo symbols present in given data
+    variant_classifications : list of str
+        all variant classifications present in given data
+    sorted(cluster_assignments) : list of int
+        all cluster assignments present in given data, in order
+    filtered_maf_df: pd.DataFrame
+        maf_df after being filtered by hugo, variant, and cluster
+
+    """
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     #maf_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/all_mut_ccfs_maf_annotated_w_cnv_single_participant.txt', sep='\t')
     maf_cols_options = (list(maf_df))
@@ -222,6 +307,7 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
     ]
 
 def gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster, custom_colors):
+    """Mutation table callback function with parameters being the callback inputs and returns being callback outputs."""
     maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
 
     return [
@@ -245,6 +331,7 @@ def gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster, custom_colo
     ]
 
 def internal_gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster, custom_colors):
+    """Mutation table internal callback function with parameters being the callback inputs and returns being callback outputs."""
     maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
 
     return [
@@ -267,7 +354,24 @@ def internal_gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster, cu
         cluster_assignments
     ]
 
+# phylogic graphics functions
 def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
+    """Generate CCF plot including treatment bars.
+
+    Parameters
+    ----------
+    df
+    idx
+    time_scaled
+        time scaled checkbox value
+    biospecimens_fn
+        name of the biospeciments file from the portal
+
+    Returns
+    -------
+    ccf_plot : go.Figure
+
+    """
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     samples = maf_df.drop_duplicates('Sample_ID').Sample_ID.tolist()
 
@@ -299,7 +403,7 @@ def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
     cluster_df.loc[:, 'order'] = [ordered_samples_dict[s] for s in cluster_ccfs['Sample_ID']]
 
     treatments_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/treatments.tsv', sep='\t').set_index('participant_id').loc[idx]
-    #treatments_df = treatments_df[treatment['stop_date_dfd'] >= timing_data[samples_in_order[0]] or treatment['start_date_dfd'] <= timing_data[samples_in_order[-1]] for treatment in treatments_df]
+
     treatments_in_frame_df = pd.DataFrame()
     for start, stop in zip(treatments_df.start_date_dfd, treatments_df.stop_date_dfd):
         if stop >= timing_data[samples_in_order[0]] and start <= timing_data[samples_in_order[-1]]:
@@ -444,6 +548,20 @@ def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
     return ccf_plot
 
 def gen_stylesheet(cluster_list, color_list):
+    """Format Phylogic tree to have correct cluster colors and labels
+
+    Parameters
+    ----------
+    cluster_list
+        list of clusters in given data
+    color_list
+        list of colors from cluster_color function
+
+    Returns
+    -------
+    stylesheet : list of dicts
+
+    """
     stylesheet = [
         {
             'selector': 'node',
@@ -485,20 +603,34 @@ def gen_stylesheet(cluster_list, color_list):
 
     return stylesheet
 
-possible_trees = []
-all_trees = []
-clusters = {}
-cluster_count = {}
-
-def gen_driver_edge_labels(drivers, clusters, cluster):
+def gen_driver_edge_labels(drivers, cluster):
     label = ''
     for driver in drivers.drivers:
-        if driver in clusters[cluster]:
+        if driver in cluster:
             label += ('%s \n' % driver)
 
     return label
 
 def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
+    """Generate Phylogic tree and dropdown to choose from all possible trees.
+
+    Parameters
+    ----------
+    df
+    idx
+    tree_num
+        number assigned to the chosen tree that is to be displayed
+    drivers_fn
+        name of the drivers file passed into to gen_review_app as kwarg
+
+    Returns
+    -------
+    cyto.Cytoscape
+        the tree image
+    possible_trees : list of str
+        possible tree options for dropdown
+
+    """
     tree_df = pd.read_csv(df.loc[idx, 'build_tree_posterior_fn'], sep='\t')
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     maf_df.drop_duplicates(subset='Start_position', inplace=True)
@@ -553,9 +685,9 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
             edges_list.append(nodes_copy)
 
     if drivers_fn:
-        edges = [{'data': {'source': 'normal', 'target': 'cluster_1', 'label': f'{cluster_count[1]}\n{gen_driver_edge_labels(drivers, clusters, 1)}'}}]
+        edges = [{'data': {'source': 'normal', 'target': 'cluster_1', 'label': f'{cluster_count[1]}\n{gen_driver_edge_labels(drivers, clusters[1])}'}}]
         edges.extend([
-            {'data': {'source': f'cluster_{edge[0]}', 'target': f'cluster_{edge[1]}', 'label': f'{cluster_count[edge[1]]}\n{gen_driver_edge_labels(drivers, clusters, edge[1])}'}}
+            {'data': {'source': f'cluster_{edge[0]}', 'target': f'cluster_{edge[1]}', 'label': f'{cluster_count[edge[1]]}\n{gen_driver_edge_labels(drivers, clusters[edge[1]])}'}}
             for edge in edges_list
         ])
     else:
@@ -585,12 +717,14 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
     ]
 
 def gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, drivers_fn, biospecimens_fn):
+    """Phylogic graphics callback function with parameters being the callback inputs and returns being callback outputs."""
     ccf_plot = gen_ccf_plot(df, idx, time_scaled, biospecimens_fn)
     tree, possible_trees = gen_phylogic_tree(df, idx, 0, drivers_fn)
 
     return [ccf_plot, possible_trees, possible_trees[0], tree]
 
 def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, drivers_fn, biospecimens_fn):
+    """Phylogic graphics internal callback function with parameters being the callback inputs and returns being callback outputs."""
     tree_num = 0
     for n in chosen_tree.split():
         if n.isdigit():
@@ -601,6 +735,7 @@ def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, 
 
     return [ccf_plot, possible_trees, chosen_tree, tree]
 
+# CN functions
 def calculate_error(alt, ref, purity, percentile):
     if alt == 0:
         return 0
@@ -608,6 +743,22 @@ def calculate_error(alt, ref, purity, percentile):
         return (beta.ppf(percentile, alt, ref) - alt / (alt + ref)) / purity
 
 def gen_mut_scatter(maf_df, mut_sigma, sample):
+    """Generate mutation scatterplot trace.
+
+    Parameters
+    ----------
+    maf_df
+        df from maf_fn filtered by the mutation table filtering dropdowns
+    mut_sigma : bool
+        sigmas value based on the sigma checkbox
+    sample
+        sample selected in the sample selection checkbox
+
+    Returns
+    -------
+    mut_scatter : go.Scatter
+
+    """
     mut_scatter = go.Scatter(
         x=maf_df['x_loc'],
         y=maf_df['multiplicity_ccf'],
@@ -645,6 +796,37 @@ def gen_mut_scatter(maf_df, mut_sigma, sample):
     return mut_scatter
 
 def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, hugo, variant_classification, samples_fn):
+    """Generate CNV Plot with all customizations.
+
+    Parameters
+    ----------
+    df
+    idx
+    sample_selection
+        sample selection checkbox value
+    sigmas
+        sigma checkbox value
+    color
+        color checkbox value
+    absolute
+        absolute CN checkbox value
+    clusters
+        mutation table cluster assignment filtering dropdown value
+    hugo
+        mutation table hugo symbol filtering dropdown value
+    variant_classification
+        mutation table variant classification filtering dropdown value
+    samples_fn
+        name of the samples file passed into review_data_app as kwarg
+
+    Returns
+    -------
+    cnv_plot : go.Figure
+    sample_list : list of str
+        sample checkbox options
+    sample_selection_corrected
+        sample checkbox value
+    """
     csize = {'1': 249250621, '2': 243199373, '3': 198022430, '4': 191154276, '5': 180915260,
             '6': 171115067, '7': 159138663, '8': 146364022, '9': 141213431, '10': 135534747,
             '11': 135006516, '12': 133851895, '13': 115169878, '14': 107349540, '15': 102531392,
@@ -731,6 +913,7 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, h
     ]
 
 def gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, clusters, hugo, variant_classification, samples_fn):
+    """Absolute components callback function with parameters being the callback inputs/states and returns being callback outputs."""
     cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, [], sigmas, color, absolute, clusters, hugo, variant_classification, samples_fn)
     button_clicks = None
 
@@ -742,6 +925,7 @@ def gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, 
     ]
 
 def internal_gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, clusters, hugo, variant_classification, samples_fn):
+    """Absolute components internal callback function with parameters being the callback inputs/states and returns being callback outputs."""
     if button_clicks != None:
         cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, hugo, variant_classification, samples_fn)
         button_clicks = None
@@ -754,6 +938,17 @@ def internal_gen_absolute_components(df, idx, sample_selection, sigmas, color, a
     ]
 
 class PatientReviewer(ReviewerTemplate, PatientReviewerLayout):
+    """Interactively review multiple types of data on a patient-by-patient basis.
+
+    Notes
+    -----
+    - Display clinical data
+    - Display cusomizable mutation table
+    - Display CCF plot
+    - Display Phylogic trees
+    - Display cusomizable CNV plot
+
+    """
 
     def gen_review_data(
         self,
@@ -763,6 +958,27 @@ class PatientReviewer(ReviewerTemplate, PatientReviewerLayout):
         review_data_annotation_dict: {str: ReviewDataAnnotation} = {},
         reuse_existing_review_data_fn: str = None
     ):
+
+        """
+
+        Parameters
+        ----------
+        review_data_fn
+            name of a pkl file path where review data is stored
+        description
+            description of the data source and purpose
+        df
+            dataframe containing the data to be reviewed
+            contains build_tree_posterior_fn, cluster_ccfs_fn, maf_fn, treatments_fn
+        review_data_annotation_dict
+            dictionary containing annotation fields
+        reuse_existing_review_data_fn
+
+        Returns
+        -------
+        ReviewData object
+
+        """
 
         review_data_annotation_dict = {
             'purity': ReviewDataAnnotation('number', validate_input=validate_purity),
@@ -783,6 +999,26 @@ class PatientReviewer(ReviewerTemplate, PatientReviewerLayout):
 
     # list optional cols param
     def gen_review_app(self, biospecimens_fn, custom_colors=[], drivers_fn=None, samples_fn=None) -> ReviewDataApp:
+        """Generate app layout.
+
+        Parameters
+        ----------
+        biospecimens_df
+            dataframe containing biospecimens data from the Cancer Drug Resistance Portal
+        custom_colors : list of lists
+            specify colummn colors in mutation table with format:
+            [[column_id_1, filter_query_1, text_color_1, background_color_1]]
+        drivers_fn
+            file path to csv file of drivers
+        samples_fn
+            file path to csv file of sample information including absolute_fn (alleliccapseg_tsv)
+
+        Returns
+        -------
+        ReviewDataApp object
+
+        """
+
         app = ReviewDataApp()
 
         app.add_component(AppComponent(
