@@ -8,8 +8,6 @@ from typing import Union, List
 from abc import ABC, abstractmethod
 
 
-# class ReviewerTemplate(ABC):
-    
 class ReviewerTemplate(ABC):
     
     def __init__(self):
@@ -43,7 +41,7 @@ class ReviewerTemplate(ABC):
         return app
 
     @abstractmethod
-    def gen_review_data_annotation_app_display(self):
+    def gen_review_data_annotations_app_display(self):
         return None
 
     @abstractmethod
@@ -84,7 +82,7 @@ class ReviewerTemplate(ABC):
         self.app = self.gen_review_app(*args, **kwargs)
 
     def set_review_data_annotations_app_display(self):
-        self.gen_review_data_annotation_app_display()
+        self.gen_review_data_annotations_app_display()
 
     def add_review_data_annotations_app_display(self, name, app_display_type):
         if name not in self.review_data.review_data_annotation_dict.keys():
