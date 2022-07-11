@@ -4,7 +4,7 @@ from .ReviewDataApp import ReviewDataApp, valid_annotation_app_display_types
 import pandas as pd
 import os
 from dash.dependencies import State
-from typing import Union, List
+from typing import Union
 from abc import ABC, abstractmethod
 
 

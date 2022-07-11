@@ -64,8 +64,6 @@ class ReviewData:
                                        
         df:                            pandas dataframe with the data to review
         
-        # review_data_annotations_list:  List of ReviewDataAnnotation objects to define the ReviewData.annot table
-        
         reuse_existing_review_data_fn: path to existing review data object to copy
         """
         if df.index.shape[0] != df.index.unique().shape[0]:
