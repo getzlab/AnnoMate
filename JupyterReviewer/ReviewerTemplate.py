@@ -74,11 +74,8 @@ class ReviewerTemplate(ABC):
                                                     reuse_existing_review_data_fn,
                                                     **kwargs)
 
-    def set_review_data_annotations(self, custom_list=None):
-        if custom_list is None:
-            self.gen_review_data_annotations()
-        else:
-            self.review_data._add_annotations(custom_list)
+    def set_review_data_annotations(self):
+        self.gen_review_data_annotations()
 
     def add_review_data_annotation(self, annot_name: str, review_data_annotation: ReviewDataAnnotation):
         self.review_data.add_annotation(annot_name, review_data_annotation)
@@ -86,11 +83,8 @@ class ReviewerTemplate(ABC):
     def set_review_app(self, *args, **kwargs):
         self.app = self.gen_review_app(*args, **kwargs)
 
-    def set_review_data_annotations_app_display(self, custom_list=None):
-        if custom_list is not None:
-            print("custom list")
-        else:
-            self.gen_review_data_annotation_app_display()
+    def set_review_data_annotations_app_display(self):
+        self.gen_review_data_annotation_app_display()
 
     def add_review_data_annotations_app_display(self, name, app_display_type):
         if name not in self.review_data.review_data_annotation_dict.keys():
