@@ -37,13 +37,12 @@ from scipy.stats import beta
 
 import cnv_suite
 from cnv_suite.visualize import plot_acr_interactive, update_cnv_scatter_cn, update_cnv_scatter_color, update_cnv_scatter_sigma_toggle
-from cnv_suite import calc_avg_cn, calc_absolute_cn, calc_cn_levels, return_seg_data_at_loci, apply_segment_data_to_df, get_segment_interval_trees, switch_contigs
+from cnv_suite.utils import calc_avg_cn, calc_absolute_cn, calc_cn_levels, return_seg_data_at_loci, apply_segment_data_to_df, get_segment_interval_trees, switch_contigs
 
 from JupyterReviewer.ReviewData import ReviewData, ReviewDataAnnotation
 from JupyterReviewer.ReviewDataApp import ReviewDataApp, AppComponent
 from JupyterReviewer.ReviewerTemplate import ReviewerTemplate
-from JupyterReviewer.AppComponents.PatientReviewerLayout import PatientReviewerLayout
-#from JupyterReviewer.lib.plot_cnp import plot_acr_interactive
+from JupyterReviewer.AppComponents.ReviewerLayout import gen_mutation_table_layout, gen_phylogic_components_layout, gen_cnv_plot_layout
 
 # mutation table variables
 start_pos = 'Start_position' or 'Start_Position'
@@ -71,7 +70,7 @@ hugo_symbols = []
 variant_classifications = []
 cluster_assignments = []
 
-# phylogic vatiables
+# phylogic variables
 treatment_category_colors = {
     'Chemotherapy': 'MidnightBlue',
     'Hormone/Endocrine therapy': 'MistyRose',
@@ -79,7 +78,7 @@ treatment_category_colors = {
 }
 
 possible_trees = []
-all_trees = []
+possible_trees_edges = []
 clusters = {}
 cluster_count = {}
 
@@ -638,13 +637,15 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
         drivers = pd.read_csv(f'~/Broad/JupyterReviewer/{drivers_fn}')
 
     possible_trees = []
-    all_trees = []
+    possible_trees_edges = []
     clusters = {}
     cluster_count = {}
+    cluster_list = []
+    color_list = []
 
     trees = tree_df.loc[:, 'edges']
     for i, tree in enumerate(trees):
-        all_trees.append(tree.split(','))
+        possible_trees_edges.append(tree.split(','))
         possible_trees.append(f'Tree {i+1} ({tree_df.n_iter[i]})')
 
     for i in range(len(cluster_assignments)):
@@ -653,16 +654,14 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
     for clust in clusters:
         cluster_count[clust] = len(clusters[clust])
 
-    edges = all_trees[tree_num]
+    edges = possible_trees_edges[tree_num]
 
-    cluster_list = []
     for i in edges:
         new_list = i.split('-')
         for j in new_list:
             if (j !='None') & (j not in cluster_list):
                 cluster_list.append(j)
 
-    color_list=[]
     for node in cluster_list:
         color_list.append(cluster_color(node))
 
@@ -791,7 +790,8 @@ def gen_mut_scatter(maf_df, mut_sigma, sample):
                      'Protein Change: %{customdata[7]} <br>' +
                      'Multiplicity: %{y:.3f} <br>' +
                      'VAF: %{customdata[3]:.3f} <br>' +
-                     'Cluster: %{customdata[4]:d}')
+                     'Cluster: %{customdata[4]:d}'
+    )
 
     return mut_scatter
 
@@ -937,7 +937,7 @@ def internal_gen_absolute_components(df, idx, sample_selection, sigmas, color, a
         button_clicks
     ]
 
-class PatientReviewer(ReviewerTemplate, PatientReviewerLayout):
+class PatientReviewer(ReviewerTemplate):
     """Interactively review multiple types of data on a patient-by-patient basis.
 
     Notes
@@ -1033,7 +1033,7 @@ class PatientReviewer(ReviewerTemplate, PatientReviewerLayout):
 
         app.add_component(AppComponent(
             'Mutations',
-            layout=PatientReviewerLayout.gen_mutation_table_layout(),
+            layout=gen_mutation_table_layout(),
 
             callback_input=[
                 Input('column-selection-dropdown', 'value'),
@@ -1056,7 +1056,7 @@ class PatientReviewer(ReviewerTemplate, PatientReviewerLayout):
 
         app.add_component(AppComponent(
             'Phylogic Graphics',
-            layout=PatientReviewerLayout.gen_phylogic_components_layout(),
+            layout=gen_phylogic_components_layout(),
 
             callback_input=[
                 Input('time-scale-checklist', 'value'),
@@ -1080,7 +1080,7 @@ class PatientReviewer(ReviewerTemplate, PatientReviewerLayout):
 
         app.add_component(AppComponent(
             'CNV Plot',
-            layout=PatientReviewerLayout.gen_cnv_plot_layout(),
+            layout=gen_cnv_plot_layout(),
             callback_input=[
                 Input('sample-selection-checklist', 'value'),
                 Input('sigma_checklist', 'value'),
