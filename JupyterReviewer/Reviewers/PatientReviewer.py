@@ -837,7 +837,9 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, h
     all_samples_df.set_index('Sample_ID', inplace=True)
 
     original_maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
-    original_maf_df['Chromosome'] = original_maf_df['Chromosome'].astype(int)
+    # original_maf_df['Chromosome'] = original_maf_df['Chromosome'].astype(str)
+    # original_maf_df = switch_contigs(original_maf_df)
+    # original_maf_df['Chromosome'] = original_maf_df['Chromosome'].astype(int)
 
     maf_df = original_maf_df.copy()
     if hugo:
@@ -864,13 +866,19 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, h
         segment_colors = color
 
     seg_df = []
-    for sample_id in sample_selection_corrected:
+    #for sample_id in sample_selection_corrected:
+    for sample_id in sample_list:
         this_seg_df = pd.read_csv(all_samples_df.loc[sample_id, 'absolute_fn'], sep='\t')
         this_seg_df['Sample_ID'] = sample_id
         seg_df.append(this_seg_df)
 
+    #maf_df = maf_df[maf_df.Sample_ID.isin(sample_selection_corrected)]
+
     seg_trees = get_segment_interval_trees(pd.concat(seg_df))
-    #maf_df = apply_segment_data_to_df(maf_df, seg_trees)
+    maf_df = apply_segment_data_to_df(maf_df, seg_trees)
+
+    maf_df['Chromosome'] = original_maf_df['Chromosome'].astype(int)
+    maf_df['Cluster_Assignment'] = original_maf_df['Cluster_Assignment'].astype(int)
 
     c_size_cumsum = np.cumsum([0] + list(csize.values()))
     maf_df['x_loc'] = maf_df.apply(lambda x: c_size_cumsum[x['Chromosome'] - 1] + x['Start_position'], axis=1)
@@ -879,20 +887,20 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, h
 
     cnv_plot = make_subplots(len(sample_selection_corrected), 1)
     for i, sample_id in enumerate(sample_selection_corrected):
-        plot_acr_interactive(seg_df[i], cnv_plot, csize, segment_colors=segment_colors, sigmas=sigmas_val, row=i)
+        plot_acr_interactive(seg_df[sample_list.index(sample_id)], cnv_plot, csize, segment_colors=segment_colors, sigmas=sigmas_val, row=i)
 
         purity = all_samples_df.loc[sample_id, 'wxs_purity']
         ploidy = all_samples_df.loc[sample_id, 'wxs_ploidy']
         c_0, c_delta = calc_cn_levels(purity, ploidy)
 
         this_maf_df = maf_df[maf_df['Sample_ID'] == sample_id]
-        this_seg_df = seg_df[i]
+        this_seg_df = seg_df[sample_list.index(sample_id)]
         if 'Display Absolute CN' in absolute:
-            this_maf_df['mu_major_adj'] = (this_seg_df['mu.major'] - c_0) / c_delta
-            this_maf_df['mu_minor_adj'] = (this_seg_df['mu.minor'] - c_0) / c_delta
+            this_maf_df['mu_major_adj'] = (this_maf_df['mu_major'] - c_0) / c_delta
+            this_maf_df['mu_minor_adj'] = (this_maf_df['mu_minor'] - c_0) / c_delta
         else:
-            this_maf_df['mu_major_adj'] = this_seg_df['mu.major']
-            this_maf_df['mu_minor_adj'] = this_seg_df['mu.minor']
+            this_maf_df['mu_major_adj'] = this_maf_df['mu_major']
+            this_maf_df['mu_minor_adj'] = this_maf_df['mu_minor']
 
         this_maf_df['multiplicity_ccf'] = this_maf_df.apply(
             lambda x: x.VAF * (purity * (x.mu_major_adj + x.mu_minor_adj) + 2 * (1 - purity)) / purity, axis=1
