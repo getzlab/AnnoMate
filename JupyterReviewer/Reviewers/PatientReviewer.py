@@ -516,8 +516,9 @@ def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
                 line_width=20,
                 line_color=treatment_category_colors[category],
                 fill='toself',
-                hovertemplate = f'Treatment Regimen: {drugs}; '
-                    f'Stop Reason: {stop_reason}; '
+                hovertemplate = '<extra></extra>' +
+                    f'Treatment Regimen: {drugs} <br>' +
+                    f'Stop Reason: {stop_reason} <br>' +
                     f'Post Status: {post_status}',
                 showlegend=False
             ),
@@ -872,7 +873,7 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, h
         this_seg_df['Sample_ID'] = sample_id
         seg_df.append(this_seg_df)
 
-    #maf_df = maf_df[maf_df.Sample_ID.isin(sample_selection_corrected)]
+    maf_df = maf_df[maf_df.Sample_ID.isin(sample_list)]
 
     seg_trees = get_segment_interval_trees(pd.concat(seg_df))
     maf_df = apply_segment_data_to_df(maf_df, seg_trees)
