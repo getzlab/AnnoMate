@@ -1,0 +1,7 @@
+﻿participant_id,Sample_ID,cnv_seg_fn,wxs_purity,wxs_ploidy
+ONC106612,17318_13_OCT_052219,gs://fc-1a555083-a070-4b51-b592-72abd3d5f6b7/1a6b3d5e-1e60-4add-bdd2-610b512c98dc/CGA_Production_Analysis_Workflow/a818bb5a-3cc6-4d74-9524-6ed608c71f42/call-gatk_acnv_only/cacheCopy/results/17318_13_OCT_052219_pair.tsv,0.63,3.5
+ONC106612,17318_13_BB_111119,gs://fc-1a555083-a070-4b51-b592-72abd3d5f6b7/1a6b3d5e-1e60-4add-bdd2-610b512c98dc/CGA_Production_Analysis_Workflow/713d929b-845e-437e-8de9-c2ef5dace290/call-gatk_acnv_only/cacheCopy/results/17318_13_BB_111119_pair.tsv,0.0235,3.7
+ONC110293,06213_101_BB_090712,gs://fc-1a555083-a070-4b51-b592-72abd3d5f6b7/1a6b3d5e-1e60-4add-bdd2-610b512c98dc/CGA_Production_Analysis_Workflow/0fe1a935-3416-4940-a029-34fabef1f419/call-gatk_acnv_only/cacheCopy/results/06213_101_BB_090712_pair.tsv,0.18,1.83
+ONC110293,BB-09204_517_BOB24226P,gs://fc-1a555083-a070-4b51-b592-72abd3d5f6b7/1a6b3d5e-1e60-4add-bdd2-610b512c98dc/CGA_Production_Analysis_Workflow/f9266c3e-dd22-45c1-81bf-b943cf559f1d/call-gatk_acnv_only/cacheCopy/results/BB-09204_517_BOB24226P_pair.tsv,0.29,1.83
+ONC110293,BB-09204_517_BOB24312P,gs://fc-1a555083-a070-4b51-b592-72abd3d5f6b7/1a6b3d5e-1e60-4add-bdd2-610b512c98dc/CGA_Production_Analysis_Workflow/93d6dd65-da14-4e3f-a3ba-1cdf5d688989/call-gatk_acnv_only/cacheCopy/results/BB-09204_517_BOB24312P_pair.tsv,0.21,1.83
+,,,,
