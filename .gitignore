@@ -78,6 +78,7 @@ target/
 .ipynb_checkpoints
 /.ipynb_checkpoints
 *.ipynb_checkpoints
+/JupyterReviewer/Reviewers/.ipynb_checkpoints/
 
 # IPython
 profile_default/
@@ -108,14 +109,11 @@ celerybeat.pid
 .venv
 env/
 venv/
-venv_gbm/
 venv*/
-venv_new/
 ENV/
 env.bak/
 venv.bak/
-conda_gbm/
-conda*/
+
 
 # Spyder project settings
 .spyderproject
@@ -185,3 +183,7 @@ po/*~
 
 # additional folders
 data/*
+
+# .idea files
+.idea/
+
