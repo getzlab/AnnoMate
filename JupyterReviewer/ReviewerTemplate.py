@@ -35,7 +35,7 @@ class ReviewerTemplate(ABC):
         return None
 
     @abstractmethod
-    def gen_review_app(self) -> ReviewDataApp:
+    def gen_review_app(self, *args) -> ReviewDataApp:
         app = ReviewDataApp()
         app.add_component()
         

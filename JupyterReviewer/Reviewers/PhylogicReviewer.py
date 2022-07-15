@@ -10,6 +10,7 @@ from jupyter_dash import JupyterDash
 from dash import html, dcc
 from dash.dependencies import Input, Output, State
 from scipy.stats import beta
+import re
 
 from cnv_suite.visualize import plot_acr_interactive, update_cnv_scatter_cn, update_cnv_scatter_color, update_cnv_scatter_sigma_toggle
 from cnv_suite import calc_avg_cn, calc_absolute_cn, calc_cn_levels, return_seg_data_at_loci, apply_segment_data_to_df, get_segment_interval_trees, switch_contigs
@@ -48,7 +49,6 @@ class PhylogicReviewer(ReviewerTemplate):
                         review_data_fn: str,
                         description: str='',
                         df: pd.DataFrame = pd.DataFrame(),
-                        review_data_annotation_dict: {str: ReviewDataAnnotation} = None,
                         reuse_existing_review_data_fn: str = None, *args, **kwargs) -> ReviewData:
         """
 
@@ -60,7 +60,6 @@ class PhylogicReviewer(ReviewerTemplate):
         df
             dataframe containing input data, including columns
             (mut_ccfs, cluster_ccfs, tree_tsv, unclustered_muts, cell_pop_mcmc_trace).
-        review_data_annotation_dict
         reuse_existing_review_data_fn
 
         Returns
@@ -74,18 +73,24 @@ class PhylogicReviewer(ReviewerTemplate):
         # todo get number of tree options for tree validation; don't think this is possible now
 
         # create review data object
-        if review_data_annotation_dict is None:
-            review_data_annotation_dict = { # 'variant_blocklist': ReviewDataAnnotation(),  # needs to go in separate reviewer
-                                           'cluster_annotation': ReviewDataAnnotation('text'),
-                                           'selected_tree_idx': ReviewDataAnnotation('number', default=1),  # options=range(1, tree_num+1),
-                                           'selected_tree': ReviewDataAnnotation('text'),
-                                           'notes': ReviewDataAnnotation('textarea')}
         rd = ReviewData(review_data_fn=review_data_fn,
                         description=description,
                         df=df,
-                        review_data_annotation_dict=review_data_annotation_dict,
                         reuse_existing_review_data_fn=reuse_existing_review_data_fn)
         return rd
+
+    def gen_review_data_annotations(self):
+        self.add_review_data_annotation('cluster_annotation', ReviewDataAnnotation('string'))
+        self.add_review_data_annotation('selected_tree_idx', ReviewDataAnnotation('int', default=1))  # options=range(1, tree_num+1) how to access this?
+        self.add_review_data_annotation('selected_tree', ReviewDataAnnotation('string'))
+        self.add_review_data_annotation('notes', ReviewDataAnnotation('string'))
+        # 'variant_blocklist': ReviewDataAnnotation(),  # needs to go in separate reviewer
+
+    def gen_review_data_annotations_app_display(self):
+        self.add_review_data_annotations_app_display('cluster_annotation', 'text')
+        self.add_review_data_annotations_app_display('selected_tree_idx', 'number')
+        self.add_review_data_annotations_app_display('selected_tree', 'text')
+        self.add_review_data_annotations_app_display('notes', 'textarea')
 
     def gen_review_app(self, sample_data_df) -> ReviewDataApp:
         app = ReviewDataApp()
@@ -279,6 +284,45 @@ def calculate_error(alt, ref, purity, percentile):
         return 0
     else:
         return (beta.ppf(percentile, alt, ref) - alt / (alt + ref)) / purity
+
+
+def ccf_pmf_plot(data_df, idx, mut_ids, sample_selection):
+    """Plots the CCF pmf distribution for the chosen mutation(s).
+
+    Notes
+    -----
+    - Displays the pmf distribution as a normalized histogram
+    - Samples are shown in separate rows
+    - Clusters displayed with different colors, with adjacent bars
+
+    """
+    mut_ccfs_df = pd.read_csv(data_df.loc[idx, 'mut_ccfs'], sep='\t')
+    mut_ccfs_df['unique_mut_id'] = mut_ccfs_df.apply(get_unique_identifier, axis=1)
+    chosen_muts_df = mut_ccfs_df[mut_ccfs_df['unique_mut_id'].isin(mut_ids)].copy()
+
+    ccfs_headers = [re.search('.*[01].[0-9]+', i) for i in mut_ccfs_df.columns]
+    ccfs_headers = [x.group() for x in ccfs_headers if x]
+
+    #pmf_plot = make_subplots(1, len(sample_selection))
+    stacked_muts = chosen_muts_df.set_index(['Sample_ID', 'unique_mut_id', 'Cluster_Assignment'])[
+        ccfs_headers].stack().reset_index().rename(columns={'level_3': 'ccf_val', 0: 'pmf_val'})
+    fig = px.histogram(stacked_muts, x='ccf_val', y='pmf_val', color='Cluster_Assignment', facet_row='Sample_ID', barmode='group', histfunc='avg')
+    return fig
+
+
+def get_unique_identifier(row, chrom='Chromosome', start_pos='Start_position',
+                          ref='Reference_Allele', alt='Tumor_Seq_Allele'):
+    """Generates unique string for this mutation, including contig, start position, ref and alt alleles.
+
+    Does not include End Position, for this field is not present in mut_ccfs Phylogic output. However, specification of both the alt and ref alleles are enough to distinguish InDels.
+
+    :param row: pd.Series giving the data for one mutation from a maf or maf-like dataframe
+    :param chrom: the name of the contig/chromosome column/field; default: Chromosome
+    :param start_pos: the name of the start position column/field; default: Start_position
+    :param ref: the name of the reference allele column/field; default: Reference_Allele
+    :param alt: the name of the alternate allele column/field; default: Tumor_Seq_Allele
+    """
+    return f"{row[chrom]}:{row[start_pos]}{row[ref]}>{row[alt]}"
 
 
 def get_phylogic_color_scale():
