@@ -28,7 +28,6 @@ def validate_purity(x):
 def validate_ploidy(x):
     return x >= 0
 
-# clinical data table functions
 def gen_clinical_data_table(df, idx, cols):
     r=df.loc[idx]
     return [dbc.Table.from_dataframe(r[cols].to_frame().reset_index())]
@@ -116,7 +115,6 @@ class PatientReviewer(ReviewerTemplate):
 
         return rd
 
-    # list optional cols param
     def gen_review_app(self, biospecimens_fn, samples_fn, preprocess_data_dir, custom_colors=[], drivers_fn=None) -> ReviewDataApp:
         """Generate app layout.
 
@@ -156,15 +154,7 @@ class PatientReviewer(ReviewerTemplate):
 
         app.add_component(gen_cnv_plot_app_component(), samples_fn=samples_fn, preprocess_data_dir=preprocess_data_dir)
 
-        # app.add_component(AppComponent(
-        #     'Purity Slider',
-        #     html.Div(dcc.Slider(0, 1, 0.1, value=0.5, id='a-slider')),
-        #     callback_output=[Output('a-slider', 'value')],
-        #     callback_states_for_autofill=[State('a-slider', 'value')]
-        # ))
-
         return app
 
     def gen_autofill(self):
-        #self.add_autofill('Purity Slider', {'purity': State('a-slider', 'value')})
         self.add_autofill('Phylogic Graphics', {'tree': State('tree-dropdown', 'value')})
