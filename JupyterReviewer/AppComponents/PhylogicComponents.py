@@ -204,7 +204,6 @@ def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
 
 
     ccf_plot.update_traces(marker_size=15)
-    #ccf_plot.update_layout(plot_bgcolor='rgba(0,0,0,0)', height=400, width=600)
     ccf_plot.update_layout(plot_bgcolor='rgba(0,0,0,0)')
     ccf_plot.update_layout(legend={'traceorder': 'reversed'})
     ccf_plot.update_yaxes(title='ccf(x)', dtick=0.1, ticks='outside', showline=True, linecolor='black', range=[-0.03,1.05], showgrid=False)
@@ -223,7 +222,6 @@ def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
             line_width=20,
             line_color='white',
             fill='toself',
-            #hovertemplate = 'treatments',
             showlegend=False
         ),
         row=2, col=1
@@ -360,7 +358,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     maf_df.drop_duplicates(subset='Start_position', inplace=True)
     if drivers_fn:
-        drivers = pd.read_csv(f'~/Broad/JupyterReviewer/{drivers_fn}')
+        drivers = pd.read_csv(f'~/Broad/JupyterReviewer/example_notebooks/example_data/{drivers_fn}')
 
     cluster_assignments = maf_df.Cluster_Assignment.unique().tolist()
     possible_trees = []

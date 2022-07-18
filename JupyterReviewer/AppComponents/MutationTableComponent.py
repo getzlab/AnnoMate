@@ -206,8 +206,10 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
     start_pos = 'Start_position' or 'Start_Position'
     end_pos = 'End_position' or 'End_Position'
     protein_change = 'Protein_change' or 'Protein_Change'
-    t_ref_count = 't_ref_count' or 't_ref_count_pre_forecall'
-    t_alt_count = 't_alt_count' or 't_alt_count_pre_forecall'
+    t_ref_count = 't_ref_count' or 't_ref_count_post_forcecall'
+    t_alt_count = 't_alt_count' or 't_alt_count_post_forcecall'
+    n_ref_count = 'n_ref_count' or 'n_ref_count_post_forcecall'
+    n_alt_count = 'n_alt_count' or 'n_alt_count_post_forcecall'
 
     default_maf_cols = [
         'Hugo_Symbol',
@@ -218,11 +220,10 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
         'Variant_Classification',
         t_ref_count,
         t_alt_count,
-        'n_ref_count',
-        'n_alt_count'
+        n_ref_count,
+        n_alt_count
     ]
 
-    #maf_cols_options = (list(maf_df))
     maf_cols_value = []
     hugo_symbols = []
     variant_classifications = []
@@ -230,6 +231,9 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
 
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     #maf_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/all_mut_ccfs_maf_annotated_w_cnv_single_participant.txt', sep='\t')
+    maf_df['id'] = maf_df.apply(lambda x: f'{x.Chromosome}:{x.Start_position}{x.Reference_Allele}>{x.Tumor_Seq_Allele}', axis=1)
+    maf_df.set_index('id', inplace=True, drop=False)
+
     maf_cols_options = (list(maf_df))
 
     for col in default_maf_cols:
@@ -275,11 +279,12 @@ def maf_callback_return(maf_cols_options, values, maf_cols_value, filtered_maf_d
         maf_cols_options,
         values,
         dash_table.DataTable(
+            id='mutation-table',
             data=filtered_maf_df.to_dict('records'),
             columns=[{'name': i, 'id': i, 'selectable': True} for i in values],
             filter_action='native',
             sort_action='native',
-            row_selectable='single',
+            row_selectable='multi',
             column_selectable='multi',
             page_action='native',
             page_current=0,
