@@ -27,9 +27,10 @@ class ReviewerTemplate(ABC):
         return None
 
     @abstractmethod
-    def gen_review_data_annotations(self):
+    def set_default_review_data_annotations(self):
         """
-        Add annotations to review data object
+        Add annotations to review data object.
+        Use self.add_review_data_annotation
         """
         return None
 
@@ -41,11 +42,15 @@ class ReviewerTemplate(ABC):
         return app
 
     @abstractmethod
-    def gen_review_data_annotations_app_display(self):
+    def set_default_review_data_annotations_app_display(self):
+        """
+        Define how annotation columns are displayed in the app.
+        Use self.add_review_data_annotation()
+        """
         return None
 
     @abstractmethod
-    def gen_autofill(self):
+    def set_default_autofill(self):
         return None
     
     # Public methods
@@ -72,17 +77,15 @@ class ReviewerTemplate(ABC):
                                                     reuse_existing_review_data_fn,
                                                     **kwargs)
 
-    def set_review_data_annotations(self):
-        self.gen_review_data_annotations()
+    def set_default_review_data_annotations_configuration(self):
+        self.set_default_review_data_annotations()
+        self.set_default_review_data_annotations_app_display()
 
     def add_review_data_annotation(self, annot_name: str, review_data_annotation: ReviewDataAnnotation):
         self.review_data.add_annotation(annot_name, review_data_annotation)
     
     def set_review_app(self, *args, **kwargs):
         self.app = self.gen_review_app(*args, **kwargs)
-
-    def set_review_data_annotations_app_display(self):
-        self.gen_review_data_annotations_app_display()
 
     def add_review_data_annotations_app_display(self, name, app_display_type):
         if name not in self.review_data.review_data_annotation_dict.keys():
@@ -96,9 +99,6 @@ class ReviewerTemplate(ABC):
         # TODO: check if display type matches annotation type (list vs single value)
 
         self.annot_app_display_types_dict[name] = app_display_type
-
-    def set_autofill(self):
-        self.gen_autofill()
         
     def add_autofill(self, component_name: str, fill_value: Union[State, str, float], annot_col: str):
         if component_name not in self.autofill_dict.keys():
