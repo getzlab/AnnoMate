@@ -190,5 +190,5 @@ class PatientReviewer(ReviewerTemplate):
 
         return app
 
-    def gen_autofill(self):
-        self.add_autofill('Phylogic Graphics', {'tree': State('tree-dropdown', 'value')})
+    def set_default_autofill(self):
+        self.add_autofill('Phylogic Graphics', State('tree-dropdown', 'value'), 'Selected Tree (idx)')
