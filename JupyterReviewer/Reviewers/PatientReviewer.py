@@ -13,6 +13,7 @@ import os
 from dash import html
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
+import dalmatian
 
 from JupyterReviewer.ReviewData import ReviewData, ReviewDataAnnotation
 from JupyterReviewer.ReviewDataApp import ReviewDataApp, AppComponent
@@ -31,6 +32,21 @@ def validate_ploidy(x):
 def gen_clinical_data_table(df, idx, cols):
     r=df.loc[idx]
     return [dbc.Table.from_dataframe(r[cols].to_frame().reset_index())]
+
+def collect_data():
+    wm = dalmatian.WorkspaceManager('broad-getzlab-ibm-prans-t/Parsons_Breast_MASTER-PrAn-final')
+
+    samples_df = wm.get_samples()
+    samples_df = samples_df[['participant','unmatched_alleliccapseg_tsv']].dropna()
+
+    pairs_df = wm.get_pairs()
+    pairs_df = pairs_df[['participant', 'alleliccapseg_tsv']].dropna()
+
+    patients_df = wm.get_participants()
+    patients_df = patients_df[['pdb_age_at_diagnosis', 'pdb_death_date_dfd', 'pdb_gender', 'pdb_vital_status']].dropna()
+
+    print(samples_df, pairs_df, patients_df)
+
 
 class PatientReviewer(ReviewerTemplate):
     """Interactively review multiple types of data on a patient-by-patient basis.
