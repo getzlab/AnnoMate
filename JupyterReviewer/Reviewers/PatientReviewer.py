@@ -36,7 +36,6 @@ def gen_clinical_data_table(df, idx, cols):
     r=df.loc[idx]
     return [dbc.Table.from_dataframe(r[cols].to_frame().reset_index())]
 
-<<<<<<< HEAD
 def collect_data():
     wm = dalmatian.WorkspaceManager('broad-getzlab-ibm-prans-t/Parsons_Breast_MASTER-PrAn-final')
 
@@ -50,9 +49,6 @@ def collect_data():
     patients_df = patients_df[['pdb_age_at_diagnosis', 'pdb_death_date_dfd', 'pdb_gender', 'pdb_vital_status']].dropna()
 
     print(samples_df, pairs_df, patients_df)
-
-=======
->>>>>>> 89f0df0fbf890942c0b110c5c0b133d26571e74d
 
 class PatientReviewer(ReviewerTemplate):
     """Interactively review multiple types of data on a patient-by-patient basis.
