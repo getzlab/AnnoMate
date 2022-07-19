@@ -23,16 +23,20 @@ from JupyterReviewer.AppComponents.MutationTableComponent import gen_mutation_ta
 from JupyterReviewer.AppComponents.PhylogicComponents import gen_phylogic_app_component
 from JupyterReviewer.AppComponents.CNVPlotComponent import gen_cnv_plot_app_component
 
-def validate_purity(x):
-    return (x >= 0) and (x <= 1)
 
-def validate_ploidy(x):
-    return x >= 0
+def validate_string_list(x):
+    if type(x) == str:
+        split_list = [i.strip().isdigit() for i in x.split(',')]
+        return all(split_list)
+    else:
+        return False
+
 
 def gen_clinical_data_table(df, idx, cols):
     r=df.loc[idx]
     return [dbc.Table.from_dataframe(r[cols].to_frame().reset_index())]
 
+<<<<<<< HEAD
 def collect_data():
     wm = dalmatian.WorkspaceManager('broad-getzlab-ibm-prans-t/Parsons_Breast_MASTER-PrAn-final')
 
@@ -47,6 +51,8 @@ def collect_data():
 
     print(samples_df, pairs_df, patients_df)
 
+=======
+>>>>>>> 89f0df0fbf890942c0b110c5c0b133d26571e74d
 
 class PatientReviewer(ReviewerTemplate):
     """Interactively review multiple types of data on a patient-by-patient basis.
@@ -114,22 +120,38 @@ class PatientReviewer(ReviewerTemplate):
                 pickle.dump(fig, open(output_fn, 'wb'))
                 #samples_df.loc[sample, 'cnv_plots_pkl'] = output_fn
 
-        review_data_annotation_dict = {
-            'purity': ReviewDataAnnotation('number', validate_input=validate_purity),
-            'ploidy': ReviewDataAnnotation('number', validate_input=validate_ploidy),
-            'tree': ReviewDataAnnotation('text'),
-            'class': ReviewDataAnnotation('radioitem', options=['Possible Driver', 'Likely Driver', 'Possible Artifact', 'Likely Artifact']),
-            'description': ReviewDataAnnotation('text')
-        }
-
         rd = ReviewData(
             review_data_fn=review_data_fn,
             description=description,
             df=df,
-            review_data_annotation_dict = review_data_annotation_dict
         )
 
         return rd
+
+    def set_default_review_data_annotations(self):
+        self.add_review_data_annotation('Resistance Explained', ReviewDataAnnotation('string',
+                                                                                     options=['Mutation', 'CNV',
+                                                                                              'Partial/Hypothesized',
+                                                                                              'Unknown']))
+        self.add_review_data_annotation('Resistance Notes', ReviewDataAnnotation('string'))
+        self.add_review_data_annotation('Growing Clones',
+                                        ReviewDataAnnotation('string', validate_input=validate_string_list))
+        self.add_review_data_annotation('Shrinking Clones',
+                                        ReviewDataAnnotation('string', validate_input=validate_string_list))
+        self.add_review_data_annotation('Annotations', ReviewDataAnnotation('string', options=['Hypermutated',
+                                                                                               'Convergent Evolution',
+                                                                                               'Strong clonal changes']))
+        self.add_review_data_annotation('Selected Tree (idx)', ReviewDataAnnotation('int', default=1))
+        self.add_review_data_annotation('Other Notes', ReviewDataAnnotation('string'))
+
+    def set_default_review_data_annotations_app_display(self):
+        self.add_review_data_annotations_app_display('Resistance Explained', 'radioitem')
+        self.add_review_data_annotations_app_display('Resistance Notes', 'textarea')
+        self.add_review_data_annotations_app_display('Growing Clones', 'text')
+        self.add_review_data_annotations_app_display('Shrinking Clones', 'text')
+        self.add_review_data_annotations_app_display('Annotations', 'checklist')
+        self.add_review_data_annotations_app_display('Selected Tree (idx)', 'number')
+        self.add_review_data_annotations_app_display('Other Notes', 'textarea')
 
     def gen_review_app(self, biospecimens_fn, samples_fn, preprocess_data_dir, custom_colors=[], drivers_fn=None) -> ReviewDataApp:
         """Generate app layout.
