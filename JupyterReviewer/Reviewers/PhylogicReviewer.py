@@ -68,14 +68,14 @@ class PhylogicReviewer(ReviewerTemplate):
                         reuse_existing_review_data_fn=reuse_existing_review_data_fn)
         return rd
 
-    def gen_review_data_annotations(self):
+    def set_default_review_data_annotations(self):
         self.add_review_data_annotation('cluster_annotation', ReviewDataAnnotation('string'))
         self.add_review_data_annotation('selected_tree_idx', ReviewDataAnnotation('int', default=1))  # options=range(1, tree_num+1) how to access this?
         self.add_review_data_annotation('selected_tree', ReviewDataAnnotation('string'))
         self.add_review_data_annotation('notes', ReviewDataAnnotation('string'))
         # 'variant_blocklist': ReviewDataAnnotation(),  # needs to go in separate reviewer
 
-    def gen_review_data_annotations_app_display(self):
+    def set_default_review_data_annotations_app_display(self):
         self.add_review_data_annotations_app_display('cluster_annotation', 'text')
         self.add_review_data_annotations_app_display('selected_tree_idx', 'number')
         self.add_review_data_annotations_app_display('selected_tree', 'text')
@@ -99,5 +99,5 @@ class PhylogicReviewer(ReviewerTemplate):
 
         return app
 
-    def gen_autofill(self):
+    def set_default_autofill(self):
         pass
