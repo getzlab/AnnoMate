@@ -3,15 +3,20 @@ import numpy as np
 from dash import dcc
 from dash import html
 from dash.dependencies import Input, Output, State
+import dash_daq as daq
 import dash
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
+import plotly.express as px
 from plotly.subplots import make_subplots
 import dash_cytoscape as cyto
+import re
 
 from JupyterReviewer.ReviewDataApp import AppComponent
-from JupyterReviewer.AppComponents.utils import cluster_color
+from JupyterReviewer.AppComponents.utils import cluster_color, get_unique_identifier
 
+
+# --------------------- Phylogic CCF Plot and Tree ------------------------
 
 def gen_phylogic_app_component():
     return AppComponent(
@@ -458,3 +463,96 @@ def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, 
     tree, possible_trees = gen_phylogic_tree(df, idx, tree_num-1, drivers_fn)
 
     return [ccf_plot, possible_trees, chosen_tree, tree]
+
+
+# -------------------------- Phylogic PMF Plot ----------------------------
+def gen_ccf_pmf_component():
+    return AppComponent(name='CCF pmf Mutation Plot',
+                        layout=html.Div([
+                           html.Div([
+                               dcc.Checklist(options=[],
+                                             value=[],
+                                             id='sample-selection'),
+                               daq.BooleanSwitch(id='group-clusters', on=False)
+                           ]),
+                           dcc.Graph(id='pmf-plot',
+                                     figure=go.Figure())
+                        ]),
+                        callback_input=[
+                            Input('sample-selection', 'value'),
+                            Input('group-clusters', 'on')
+                        ],
+                        callback_output=[
+                            Output('pmf-plot', 'figure'),
+                            Output('sample-selection', 'options'),
+                            Output('sample-selection', 'value')
+                        ],
+                        callback_state_external=[
+                            State('mutation-table', 'derived_virtual_selected_row_ids'),
+                            State('mutation-table', 'derived_virtual_row_ids')
+                        ],
+                        new_data_callback=gen_pmf_component,
+                        internal_callback=update_pmf_component
+                        )
+
+
+def ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids):
+    """Plots the CCF pmf distribution for the chosen mutation(s).
+
+    Notes
+    -----
+    - Displays the pmf distribution as a normalized histogram
+    - Samples are shown in separate rows
+    - Clusters displayed with different colors, with adjacent bars
+
+    TODO
+    ----
+    - Add a star (*) above the mode for each mutation
+    - Add an indication of mean?
+
+    """
+    mut_ccfs_df = pd.read_csv(data_df.loc[idx, 'mut_ccfs'], sep='\t')
+    mut_ccfs_df['unique_mut_id'] = mut_ccfs_df.apply(get_unique_identifier, axis=1)
+
+    # Use only the selected mutations unless no mutations selected, then use filtered list
+    mut_ids = selected_mut_ids if selected_mut_ids else filtered_mut_ids
+    chosen_muts_df = mut_ccfs_df[mut_ccfs_df['unique_mut_id'].isin(mut_ids)].copy()
+    sample_list = chosen_muts_df['Sample_ID'].unique()  # todo ensure sorted by collection date
+    sample_selection = sample_list if not sample_selection else sample_selection
+
+    ccfs_headers = [re.search('.*[01].[0-9]+', i) for i in mut_ccfs_df.columns]
+    ccfs_headers = [x.group() for x in ccfs_headers if x]
+    ccfs_header_dict = {i: re.search('[01].[0-9]+', i).group() for i in ccfs_headers}
+
+    stacked_muts = chosen_muts_df.set_index(['Sample_ID', 'unique_mut_id', 'Cluster_Assignment'])[
+        ccfs_headers].stack().reset_index().rename(columns={'level_3': 'CCF', 0: 'Probability'}).replace(
+        ccfs_header_dict)
+    if group_clusters:
+        stacked_muts['Cluster_Assignment'] = stacked_muts['Cluster_Assignment'].astype(str)
+        fig = px.histogram(stacked_muts, x='CCF', y='Probability', facet_row='Sample_ID', barmode='group',
+                           height=300 * len(sample_selection), color='Cluster_Assignment', histfunc='avg',
+                           color_discrete_map=cluster_color())
+    else:
+        fig = px.histogram(stacked_muts, x='CCF', y='Probability', facet_row='Sample_ID', barmode='group',
+                           height=300 * len(sample_selection), color='unique_mut_id',
+                           labels={'unique_mut_id': 'Mutation'})
+        mut_label_dict = {x['unique_mut_id']: f"{x['Hugo_Symbol']} - {x['Chromosome']}:{x['Start_position']}" for idx, x
+                          in chosen_muts_df.drop_duplicates('unique_mut_id').iterrows()}
+        fig.for_each_trace(lambda t: t.update(name=mut_label_dict[t.name]))
+
+    fig.update_layout(xaxis_tickangle=0, xaxis_ticklabelstep=5)
+    fig.update_yaxes(matches=None)
+
+    return fig, sample_list
+
+
+def gen_pmf_component(data_df, idx, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids):
+    fig, sample_list = ccf_pmf_plot(data_df, idx, None, group_clusters, selected_mut_ids, filtered_mut_ids)
+
+    return [fig, sample_list, sample_list]
+
+
+def update_pmf_component(data_df, idx, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids):
+    fig, sample_list = ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids)
+
+    return [fig, sample_list, sample_selection]

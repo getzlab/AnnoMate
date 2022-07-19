@@ -63,3 +63,18 @@ def cluster_color(v):
     colors_dict = {str(i): get_hex_string(c) for i, c in enumerate(phylogic_color_list)}
 
     return colors_dict[str(v)]
+
+
+def get_unique_identifier(row, chrom='Chromosome', start_pos='Start_position',
+                          ref='Reference_Allele', alt='Tumor_Seq_Allele'):
+    """Generates unique string for this mutation, including contig, start position, ref and alt alleles.
+
+    Does not include End Position, for this field is not present in mut_ccfs Phylogic output. However, specification of both the alt and ref alleles are enough to distinguish InDels.
+
+    :param row: pd.Series giving the data for one mutation from a maf or maf-like dataframe
+    :param chrom: the name of the contig/chromosome column/field; default: Chromosome
+    :param start_pos: the name of the start position column/field; default: Start_position
+    :param ref: the name of the reference allele column/field; default: Reference_Allele
+    :param alt: the name of the alternate allele column/field; default: Tumor_Seq_Allele
+    """
+    return f"{row[chrom]}:{row[start_pos]}{row[ref]}>{row[alt]}"
