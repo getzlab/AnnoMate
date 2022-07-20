@@ -46,14 +46,16 @@ def collect_data(workspace, treatments_fn, treatment_files_path, participant_maf
     pairs_df = pairs_df[['participant', 'alleliccapseg_tsv', 'mutation_validator_validated_maf']].dropna()
 
     new_samples_df = pd.concat([pairs_df, samples_df])
-    new_samples_df = samples_df.reset_index().apply(lambda x: x.str.replace('_pair', ''))
-    new_samples_df.rename(columns={'index': 'sample_id'}, inplace=True)
+    new_samples_df = new_samples_df.reset_index().apply(lambda x: x.str.replace('_pair', ''))
+    new_samples_df.rename(columns={'index': 'sample_id', 'participant': 'participant_id'}, inplace=True)
     new_samples_df['cnv_seg_fn'] = new_samples_df.apply(lambda x: x['alleliccapseg_tsv'] if pd.isna(x['unmatched_alleliccapseg_tsv']) else x['unmatched_alleliccapseg_tsv'], axis=1)
     new_samples_df['maf_fn'] = new_samples_df.apply(lambda x: x['mutation_validator_validated_maf'] if pd.isna(x['unmatched_mutation_validator_validated_maf']) else x['unmatched_mutation_validator_validated_maf'], axis=1)
     new_samples_df.dropna(axis=1, inplace=True)
 
     participants_df = wm.get_participants()
+    #participants_df.reset_index(inplace=True)
     participants_df = participants_df[['pdb_age_at_diagnosis', 'pdb_death_date_dfd', 'pdb_gender', 'pdb_vital_status']].dropna()
+    participants_df.rename(columns={'pdb_age_at_diagnosis': 'age_at_diagnosis', 'pdb_death_date_dfd': 'death_date_dfd', 'pdb_gender': 'gender', 'pdb_vital_status': 'vital_status'}, inplace=True)
 
     treatments_df = pd.read_csv(treatments_fn, sep='\t')
 
@@ -72,13 +74,14 @@ def collect_data(workspace, treatments_fn, treatment_files_path, participant_maf
 
         maf_file_name = f'{participant_maf_files_path}/{participant}_maf.txt'
         if not os.path.exists(maf_file_name):
-            this_p_mafs = new_samples_df[new_samples_df['participant'] == participant]['maf_fn'].tolist()
+            this_p_mafs = new_samples_df[new_samples_df['participant_id'] == participant]['maf_fn'].tolist()
             if len(this_p_mafs) > 0:
                 this_p_maf = pd.concat([pd.read_csv(maf, sep='\t', encoding = "ISO-8859-1") for maf in this_p_mafs])
                 this_p_maf.to_csv(maf_file_name, sep='\t', index=False)
         participants_df.loc[participant, 'maf_fn'] = os.path.normpath(maf_file_name)
 
     participants_df.dropna(inplace=True)
+    participants_df.reset_index()
 
     if not os.path.exists(participant_file_path):
         os.makedirs(participant_file_path)
@@ -91,7 +94,7 @@ def collect_data(workspace, treatments_fn, treatment_files_path, participant_maf
     if not os.path.exists(participant_file_name):
         participants_df.to_csv(participant_file_name, sep='\t', index=False)
     if not os.path.exists(samples_file_name):
-        new_samples_df.to_csv(samples_file_name, sep='\t', index=True)
+        new_samples_df.to_csv(samples_file_name, sep='\t', index=False)
 
 class PatientReviewer(ReviewerTemplate):
     """Interactively review multiple types of data on a patient-by-patient basis.
