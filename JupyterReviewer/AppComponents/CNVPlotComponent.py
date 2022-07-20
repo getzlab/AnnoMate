@@ -168,7 +168,6 @@ def gen_preloaded_cnv_plot(df, samples_df, sample):
     return cnv_plot
 
 
-#def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, hugo, variant_classification, samples_fn, preprocess_data_dir):
 def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, hugo, variant_classification, selected_mutation_rows, filtered_mutation_rows, samples_fn, preprocess_data_dir):
     """Generate CNV Plot with all customizations.
 
@@ -202,7 +201,7 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, h
         sample checkbox value
     """
 
-    all_samples_df = pd.read_csv(samples_fn)
+    all_samples_df = pd.read_csv(samples_fn, sep='\t')
     all_samples_df.set_index('Sample_ID', inplace=True)
 
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
@@ -306,7 +305,6 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, h
         sample_selection_corrected
     ]
 
-#def gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, clusters, hugo, variant_classification, samples_fn, preprocess_data_dir):
 def gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, clusters, hugo, variant_classification, selected_mutation_rows, filtered_mutation_rows, samples_fn, preprocess_data_dir):
     """Absolute components callback function with parameters being the callback inputs/states and returns being callback outputs."""
     cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, [], sigmas, color, absolute, clusters, hugo, variant_classification, selected_mutation_rows, filtered_mutation_rows, samples_fn, preprocess_data_dir)

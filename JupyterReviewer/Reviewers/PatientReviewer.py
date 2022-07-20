@@ -36,19 +36,62 @@ def gen_clinical_data_table(df, idx, cols):
     r=df.loc[idx]
     return [dbc.Table.from_dataframe(r[cols].to_frame().reset_index())]
 
-def collect_data():
-    wm = dalmatian.WorkspaceManager('broad-getzlab-ibm-prans-t/Parsons_Breast_MASTER-PrAn-final')
+def collect_data(workspace, treatments_fn, treatment_files_path, participant_maf_files_path, participant_file_path, samples_file_path):
+    wm = dalmatian.WorkspaceManager(workspace)
 
     samples_df = wm.get_samples()
-    samples_df = samples_df[['participant','unmatched_alleliccapseg_tsv']].dropna()
+    samples_df = samples_df[['participant', 'pdb_collection_date_dfd', 'unmatched_alleliccapseg_tsv', 'unmatched_mutation_validator_validated_maf']].dropna()
 
     pairs_df = wm.get_pairs()
-    pairs_df = pairs_df[['participant', 'alleliccapseg_tsv']].dropna()
+    pairs_df = pairs_df[['participant', 'alleliccapseg_tsv', 'mutation_validator_validated_maf']].dropna()
 
-    patients_df = wm.get_participants()
-    patients_df = patients_df[['pdb_age_at_diagnosis', 'pdb_death_date_dfd', 'pdb_gender', 'pdb_vital_status']].dropna()
+    new_samples_df = pd.concat([pairs_df, samples_df])
+    new_samples_df = samples_df.reset_index().apply(lambda x: x.str.replace('_pair', ''))
+    new_samples_df.rename(columns={'index': 'sample_id'}, inplace=True)
+    new_samples_df['cnv_seg_fn'] = new_samples_df.apply(lambda x: x['alleliccapseg_tsv'] if pd.isna(x['unmatched_alleliccapseg_tsv']) else x['unmatched_alleliccapseg_tsv'], axis=1)
+    new_samples_df['maf_fn'] = new_samples_df.apply(lambda x: x['mutation_validator_validated_maf'] if pd.isna(x['unmatched_mutation_validator_validated_maf']) else x['unmatched_mutation_validator_validated_maf'], axis=1)
+    new_samples_df.dropna(axis=1, inplace=True)
 
-    print(samples_df, pairs_df, patients_df)
+    participants_df = wm.get_participants()
+    participants_df = participants_df[['pdb_age_at_diagnosis', 'pdb_death_date_dfd', 'pdb_gender', 'pdb_vital_status']].dropna()
+
+    treatments_df = pd.read_csv(treatments_fn, sep='\t')
+
+    if not os.path.exists(treatment_files_path):
+        os.makedirs(treatment_files_path)
+    if not os.path.exists(participant_maf_files_path):
+        os.makedirs(participant_maf_files_path)
+
+    for participant in participants_df.index:
+        treatments_file_name = f'{treatment_files_path}/{participant}_treatment.txt'
+        if not os.path.exists(treatments_file_name):
+            this_p_treatments = treatments_df[treatments_df['participant_id'] == participant]
+            if this_p_treatments.shape[0] > 0:
+                this_p_treatments.to_csv(treatments_file_name, sep='\t', index=False)
+        participants_df.loc[participant, 'treatments_fn'] = os.path.normpath(treatments_file_name)
+
+        maf_file_name = f'{participant_maf_files_path}/{participant}_maf.txt'
+        if not os.path.exists(maf_file_name):
+            this_p_mafs = new_samples_df[new_samples_df['participant'] == participant]['maf_fn'].tolist()
+            if len(this_p_mafs) > 0:
+                this_p_maf = pd.concat([pd.read_csv(maf, sep='\t', encoding = "ISO-8859-1") for maf in this_p_mafs])
+                this_p_maf.to_csv(maf_file_name, sep='\t', index=False)
+        participants_df.loc[participant, 'maf_fn'] = os.path.normpath(maf_file_name)
+
+    participants_df.dropna(inplace=True)
+
+    if not os.path.exists(participant_file_path):
+        os.makedirs(participant_file_path)
+    if not os.path.exists(samples_file_path):
+        os.makedirs(samples_file_path)
+
+    participant_file_name = f'{participant_file_path}/participants.txt'
+    samples_file_name = f'{samples_file_path}/samples.txt'
+
+    if not os.path.exists(participant_file_name):
+        participants_df.to_csv(participant_file_name, sep='\t', index=False)
+    if not os.path.exists(samples_file_name):
+        new_samples_df.to_csv(samples_file_name, sep='\t', index=True)
 
 class PatientReviewer(ReviewerTemplate):
     """Interactively review multiple types of data on a patient-by-patient basis.
@@ -106,8 +149,8 @@ class PatientReviewer(ReviewerTemplate):
             print(f'cnv figs directory already exists: {cnv_figs_dir}')
 
         if reload_cnv_figs:
-            samples_df = pd.read_csv(samples_fn).dropna()
-            samples_df.set_index('Sample_ID', inplace=True)
+            samples_df = pd.read_csv(samples_fn, sep='\t').dropna()
+            samples_df.set_index('sample_id', inplace=True)
             sample_list = samples_df.index.tolist()
 
             for sample in sample_list:
