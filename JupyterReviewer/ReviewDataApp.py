@@ -48,57 +48,73 @@ class AppComponent:
                  use_name_as_title=True):
         
         """
-        name:             Unique name for the component. Will be used as the title displayed in the dashboard
-                         (preceeding the layout)
-        
-        layout:           dash html layout object (ex. html.Div([html.H1(children="heading", id='heading'), ...])), 
-        
-        callback_output:  List of Output() objects pointing to objects in the layout
-                          (ex. [Output('heading', 'children')]) where callback function outputs will be stored
-                          
-        callback_input:   List of Input() objects pointing to objects in the layout
-                          (ex. [Input('heading', 'children')]). Changes to these specified Input objects
-                          will activate the callback function and its current value will be used as an input
-                          
-        callback_state:   List of State() objects pointing to objects in the layout
-                          (ex. [State('heading', 'children')]). It's value will be used as a parameter
-                          if the component's callback function is activated.
+        Component in the plotly dashboard app. Each component is made up of a layout and callback functions
+        defining interactive behaviors
 
-        callback_state_external: List of State() objects pointing to objects in the layout
-                                 (ex. [State('heading', 'children')]) that do NOT exist in the layout,
-                                 but instead from other AppComponent objects included in the same ReviewDataApp.
-                                 Note that there will be no native check if the component id exists until runtime
-                                 instantiation of the ReviewDataApp.
-                                 It's value will be used as a parameter if the component's callback function
-                                 is activated.
+        Parameters
+        ----------
+        name: str
+            Unique name for the component. Will be used as the title displayed in the dashboard
+            (preceeding the layout)
+        
+        layout: html
+            dash html layout object (ex. html.Div([html.H1(children="heading", id='heading'), ...])),
+        
+        callback_output: List[Output]
+            List of Output() objects pointing to objects in the layout
+            (ex. [Output('heading', 'children')]) where callback function outputs will be stored
                           
-        new_data_callback: a function (defined separately or a lambda) that defines how the component will be updated
-                           when the ReviewData
-                           object switches to a new index or row to review. Requirements are:
-                               - The first two parameters will be the ReviewData.data object and the index of
-                                    the current row to be reviewed.
-                               - The following parameters will be the inputs defined IN ORDER by the order of the
-                                    Inputs() in callback_input
-                               - The next parameters will be the states defined IN ORDER by the order of the States()
-                                    in callback_state
-                               - The next parameters will be the states defined IN ORDER by the order of the States()
-                                    in callback_state_external
-                               - Any remaining parameters have keywords and are at the end
-                               - **new_data_callbackinternal_callback must have the same signature
-                           Example:
-                              def myfunc(data: Data, idx, input1, input2, state1, **kwargs):...
-                              
-                              callback_input = [Input('id-of-object-with-value-for-input1', 'value'), 
-                                                Input('id-of-object-with-value-for-input2', 'children')]
+        callback_input: List[Input]
+            List of Input() objects pointing to objects in the layout
+            (ex. [Input('heading', 'children')]). Changes to these specified Input objects
+            will activate the callback function and its current value will be used as an input
+                          
+        callback_state: List[Input]
+            List of State() objects pointing to objects in the layout
+            (ex. [State('heading', 'children')]). It's value will be used as a parameter
+            if ANY components' callback function is activated.
 
-        internal_callback: a function (defined separately or a lambda) that defines how the component will be updated 
-                           when one of the defined callback_input Inputs are changed.
-                           Same requirements as new_data_callback
+        callback_state_external: List[State]
+            List of State() objects pointing to objects in the layout
+            (ex. [State('heading', 'children')]) that do NOT exist in the layout,
+            but instead from other AppComponent objects included in the same ReviewDataApp.
+            Note that there will be no native check if the component id exists until runtime
+            instantiation of the ReviewDataApp.
+            It's value will be used as a parameter if the component's callback function
+            is activated.
+                          
+        new_data_callback: func
+            a function (defined separately or a lambda) that defines how the component will be updated
+            when the ReviewData
+            object switches to a new index or row to review. Requirements are:
+            - The first two parameters will be the ReviewData.data object and the index of
+                the current row to be reviewed.
+            - The following parameters will be the inputs defined IN ORDER by the order of the
+                Inputs() in callback_input
+            - The next parameters will be the states defined IN ORDER by the order of the States()
+                in callback_state
+            - The next parameters will be the states defined IN ORDER by the order of the States()
+                in callback_state_external
+            - Any remaining parameters have keywords and are at the end
+            - **new_data_callbackinternal_callback must have the same signature
+                Example:
+                    def myfunc(data: Data, idx, input1, input2, state1, **kwargs):...
+
+                    callback_input = [Input('id-of-object-with-value-for-input1', 'value'),
+                                      Input('id-of-object-with-value-for-input2', 'children')]
+
+        internal_callback: func
+            a function (defined separately or a lambda) that defines how the component will be updated
+            when one of the defined callback_input Inputs are changed.
+            Same requirements as new_data_callback
                            
-        callback_states_for_autofill: List of State() objects pointing to objects in the layout
-                                      (ex. [State('heading', 'children')]) users of the app are allowed to
-                                      autofill with ('autofill_dict' parameter in ReviewDataApp.run())
-        use_name_as_title: use the `name` parameter as a title for the component.
+        callback_states_for_autofill:
+            List of State() objects pointing to objects in the layout
+            (ex. [State('heading', 'children')]) users of the app are allowed to
+            autofill with ('autofill_dict' parameter in ReviewDataApp.run())
+
+        use_name_as_title: bool
+            use the `name` parameter as a title for the component.
         """
         
         all_ids = np.array(get_component_ids(layout))
@@ -149,6 +165,11 @@ class AppComponent:
     
 class ReviewDataApp:
     def __init__(self):
+        """
+        Object that renders specified components and communicates with a ReviewData object to modify
+        ReviewData object's annotation and history.
+
+        """
         self.more_components = OrderedDict()  # TODO: set custom layout?
             
     def run(self, 
@@ -160,13 +181,34 @@ class ReviewDataApp:
             port=8050):
         
         """
-        review_data:   ReviewData object to review with the app
-        mode:          How to display the dashboard ['inline', 'external']
-        host:          Host address
-        port:          Port access number
-        annot_app_display_types_dict: at run time, determines how the inputs for annotations will be displayed
-        autofill_dict: At run time, adds buttons for each component included and if clicked, defines how to autofill 
-                       annotations for the review_data object using the specified data corresponding to the component
+        Run the app
+
+        Parameters
+        ----------
+        review_data: ReviewData
+            ReviewData object to review with the app
+
+        mode: {'inline', 'external'}
+            How to display the dashboard
+
+        host: str
+            Host address
+
+        port: int
+            Port access number
+
+        annot_app_display_types_dict: Dict
+            at run time, determines how the inputs for annotations will be displayed
+
+            Format: {annot_name: app_display_type}
+
+            Rules:
+                - annot_name: must be a key in ReviewData.data.annot_col_config_dict
+                - app_display_type: see valid_annotation_app_display_types
+
+        autofill_dict: Dict
+            At run time, adds buttons for each component included and if clicked, defines how to autofill
+            annotations for the review_data object using the specified data corresponding to the component
             
             Format: {component_name: {annot_name: State()}, 
                      another_compoment_name: {annot_name: State(), another_annot_name: 'a literal value'}}
@@ -177,6 +219,7 @@ class ReviewDataApp:
                                    annot_col_config_dict
                 - autofill values: State()'s referring to objects in the component named component name, or a 
                                    valid literal value according to the ReviewDataAnnotation object's validation method.
+
         """
         
         app = JupyterDash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
