@@ -42,7 +42,6 @@ class ReviewerTemplate(ABC):
                            func1_doc=type(self).set_review_data.__doc__,
                            func2=type(self).gen_data)
 
-
     @abstractmethod
     def gen_data(self,
                  description: str,
