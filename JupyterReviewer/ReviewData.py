@@ -6,53 +6,9 @@ import warnings
 import pickle
 from pathlib import Path
 from typing import List, Dict, Union
-from JupyterReviewer.Data import Data
+from JupyterReviewer.Data import Data, DataAnnotation
 
 valid_annotation_types = ["multi", "float", "int", "string"]
-
-
-class DataAnnotation:
-    
-    def __init__(self,
-                 annot_value_type: str,
-                 options: List = None,
-                 validate_input=None,
-                 default=None):
-        """
-        Configure annotation type, validation, and options
-
-        Parameters
-        ----------
-        annot_value_type: str
-            value for the annotation type. Determines dtype of the dataframe column
-        options: List
-            list of values inputs are allowed to be. For CHECKLIST, RADIOITEM, and DROPDOWN
-        validate_input: func
-            a custom function to verify annotation input. Takes a single input and returns a boolean
-        """
-
-        if annot_value_type not in valid_annotation_types:
-            raise ValueError(
-                f'annot_type {annot_value_type} is not a valid annotation value type. '
-                f'Valid types are {valid_annotation_types}')
-
-        self.annot_value_type = annot_value_type
-        self.options = options
-        self.validate_input = validate_input
-        self.default = default
-        
-    def validate(self, x):
-        if self.options is not None:
-            for item in np.array(x).flatten():
-                if item not in self.options and item != '':
-                    raise ValueError(f'Input {item} is not in the specified options {self.options}')
-                
-        if self.validate_input is not None:
-            if not self.validate_input(x):
-                raise ValueError(f'Input {x} is invalid')
-        
-    def __str__(self):
-        return str(self.__dict__)
 
 
 class ReviewData:
