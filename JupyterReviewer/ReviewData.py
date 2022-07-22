@@ -8,8 +8,6 @@ from pathlib import Path
 from typing import List, Dict, Union
 from JupyterReviewer.Data import Data, DataAnnotation
 
-valid_annotation_types = ["multi", "float", "int", "string"]
-
 
 class ReviewData:
     

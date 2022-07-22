@@ -1,5 +1,6 @@
 from typing import List, Dict
 import pandas as pd
+import numpy as np
 from abc import ABC, abstractmethod
 
 
@@ -53,6 +54,9 @@ class Data(ABC):
 
         self.history_df = history_df.loc[history_df['index'].isin(index)] if history_df is not None else pd.DataFrame(
             columns=['index', 'timestamp', 'source_data_fn'])
+
+
+valid_annotation_types = ["multi", "float", "int", "string"]
 
 
 class DataAnnotation:
