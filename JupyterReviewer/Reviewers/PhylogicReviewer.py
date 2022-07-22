@@ -95,7 +95,7 @@ class PhylogicReviewer(ReviewerTemplate):
         # todo finish mutation table updates
         # todo add button to switch mutations
         # do we want to allow multiple types of mutation selection (filter vs. selection)?
-        app.add_component(gen_ccf_pmf_component())
+        app.add_component(gen_ccf_pmf_component())  # todo debug
 
         return app
 
