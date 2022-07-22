@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 from scipy.stats import beta
 
 from JupyterReviewer.ReviewDataApp import AppComponent
-from JupyterReviewer.AppComponents.utils import cluster_color
+from JupyterReviewer.AppComponents.utils import cluster_color, get_unique_identifier
 
 import cnv_suite
 from cnv_suite.visualize import plot_acr_interactive, update_cnv_scatter_cn, update_cnv_scatter_color, update_cnv_scatter_sigma_toggle
@@ -40,8 +40,8 @@ def gen_cnv_plot_app_component():
             State('cluster-assignment-dropdown', 'value'),
             State('hugo-dropdown', 'value'),
             State('variant-classification-dropdown', 'value'),
-            State('mutation-table', 'derived_virtual_selected_row_ids'),
-            State('mutation-table', 'derived_virtual_row_ids')
+            State('mutation-table', 'selected_row_ids'),  # selected rows regardless of filtering
+            State('mutation-table', 'derived_virtual_row_ids')  # all rows in table after filtering (and sorting)
         ],
         new_data_callback=gen_absolute_components,
         internal_callback=internal_gen_absolute_components
@@ -168,8 +168,7 @@ def gen_preloaded_cnv_plot(df, samples_df, sample):
     return cnv_plot
 
 
-#def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, hugo, variant_classification, samples_fn, preprocess_data_dir):
-def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, hugo, variant_classification, selected_mutation_rows, filtered_mutation_rows, samples_fn, preprocess_data_dir):
+def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir):
     """Generate CNV Plot with all customizations.
 
     Parameters
@@ -184,14 +183,13 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, h
         color checkbox value
     absolute
         absolute CN checkbox value
-    # clusters
-    #     mutation table cluster assignment filtering dropdown value
-    # hugo
-    #     mutation table hugo symbol filtering dropdown value
-    # variant_classification
-    #     mutation table variant classification filtering dropdown value
-    samples_fn
-        name of the samples file passed into review_data_app as kwarg
+    samples_df
+        sample dataframe passed into review_data_app as kwarg
+    selected_mutation_rows
+
+    filtered_mutation_rows
+    preprocess_data_dir
+        directory path in which preprocessed CNV pickle files are stored
 
     Returns
     -------
@@ -202,26 +200,19 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, h
         sample checkbox value
     """
 
-    all_samples_df = pd.read_csv(samples_fn)
-    all_samples_df.set_index('Sample_ID', inplace=True)
-
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
-    maf_df['id'] = maf_df.apply(lambda x: f'{x.Chromosome}:{x.Start_position}{x.Reference_Allele}>{x.Tumor_Seq_Allele}', axis=1)
+    maf_df['id'] = maf_df.apply(lambda x: get_unique_identifier(x,
+                                                                start_pos='Start_position' or 'Start_Position',
+                                                                alt='Tumor_Seq_Allele2' or 'Tumor_Seq_Allele'), axis=1)
     maf_df.set_index('id', inplace=True, drop=False)
 
     if selected_mutation_rows:
-        maf_df = maf_df[maf_df.id.isin(selected_mutation_rows)]
-    if filtered_mutation_rows:
-        maf_df = maf_df[maf_df.id.isin(filtered_mutation_rows)]
+        maf_df = maf_df.loc[selected_mutation_rows]
+    elif filtered_mutation_rows:
+        maf_df = maf_df.loc[filtered_mutation_rows]
+    # else (if all mutations in table are filtered out and none selected): use all mutations
 
-    if hugo:
-        maf_df = maf_df[maf_df.Hugo_Symbol.isin(hugo)]
-    if variant_classification:
-        maf_df = maf_df[maf_df.Variant_Classification.isin(variant_classification)]
-    if clusters:
-        maf_df = maf_df[maf_df.Cluster_Assignment.isin(clusters)]
-
-    sample_list = all_samples_df[all_samples_df['participant_id'] == idx].index.tolist()
+    sample_list = samples_df[samples_df['participant_id'] == idx].index.tolist()
     # restrict sample selection to only two samples at a time
     sample_selection_corrected = [sample_list[0]] if sample_selection == [] else sample_selection[:2]
 
@@ -237,7 +228,7 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, h
 
     seg_df = []
     for sample_id in sample_list:
-        this_seg_df = pd.read_csv(all_samples_df.loc[sample_id, 'cnv_seg_fn'], sep='\t')
+        this_seg_df = pd.read_csv(samples_df.loc[sample_id, 'cnv_seg_fn'], sep='\t')
         this_seg_df['Sample_ID'] = sample_id
         seg_df.append(this_seg_df)
 
@@ -260,8 +251,8 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, h
         #current_cnv_plot = pickle.load(open(f'{preprocess_data_dir}/cnv_fig/{sample_id}.cnv_fig.pkl', "rb"))
         #cnv_plot.add_trace(current_cnv_plot, row=i, col=1)
 
-        purity = all_samples_df.loc[sample_id, 'wxs_purity']
-        ploidy = all_samples_df.loc[sample_id, 'wxs_ploidy']
+        purity = samples_df.loc[sample_id, 'wxs_purity']
+        ploidy = samples_df.loc[sample_id, 'wxs_ploidy']
         c_0, c_delta = calc_cn_levels(purity, ploidy)
 
         this_maf_df = maf_df[maf_df['Sample_ID'] == sample_id]
@@ -306,10 +297,9 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, h
         sample_selection_corrected
     ]
 
-#def gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, clusters, hugo, variant_classification, samples_fn, preprocess_data_dir):
-def gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, clusters, hugo, variant_classification, selected_mutation_rows, filtered_mutation_rows, samples_fn, preprocess_data_dir):
+def gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, clusters, hugo, variant_classification, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir):
     """Absolute components callback function with parameters being the callback inputs/states and returns being callback outputs."""
-    cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, [], sigmas, color, absolute, clusters, hugo, variant_classification, selected_mutation_rows, filtered_mutation_rows, samples_fn, preprocess_data_dir)
+    cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, [], sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir)
     button_clicks = None
 
     return [
@@ -319,10 +309,10 @@ def gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, 
         button_clicks
     ]
 
-def internal_gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, clusters, hugo, variant_classification, selected_mutation_rows, filtered_mutation_rows, samples_fn, preprocess_data_dir):
+def internal_gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, clusters, hugo, variant_classification, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir):
     """Absolute components internal callback function with parameters being the callback inputs/states and returns being callback outputs."""
     if button_clicks != None:
-        cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, clusters, hugo, variant_classification, selected_mutation_rows, filtered_mutation_rows, samples_fn, preprocess_data_dir)
+        cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir)
         button_clicks = None
 
     return [

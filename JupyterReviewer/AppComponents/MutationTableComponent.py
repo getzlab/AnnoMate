@@ -7,7 +7,7 @@ import dash
 import dash_bootstrap_components as dbc
 
 from JupyterReviewer.ReviewDataApp import AppComponent
-from JupyterReviewer.AppComponents.utils import cluster_color
+from JupyterReviewer.AppComponents.utils import cluster_color, get_unique_identifier
 
 
 def gen_mutation_table_app_component():
@@ -210,6 +210,7 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
     t_alt_count = 't_alt_count' or 't_alt_count_post_forcecall'
     n_ref_count = 'n_ref_count' or 'n_ref_count_post_forcecall'
     n_alt_count = 'n_alt_count' or 'n_alt_count_post_forcecall'
+    alt_allele = 'Tumor_Seq_Allele2' or 'Tumor_Seq_Allele'
 
     default_maf_cols = [
         'Hugo_Symbol',
@@ -230,8 +231,7 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
     cluster_assignments = []
 
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
-    #maf_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/all_mut_ccfs_maf_annotated_w_cnv_single_participant.txt', sep='\t')
-    maf_df['id'] = maf_df.apply(lambda x: f'{x.Chromosome}:{x.Start_position}{x.Reference_Allele}>{x.Tumor_Seq_Allele}', axis=1)
+    maf_df['id'] = maf_df.apply(lambda x: get_unique_identifier(x, start_pos=start_pos, alt=alt_allele), axis=1)
     maf_df.set_index('id', inplace=True, drop=False)
 
     maf_cols_options = (list(maf_df))
