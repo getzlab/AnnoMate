@@ -495,6 +495,7 @@ def ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_id
     - Displays the pmf distribution as a normalized histogram
     - Samples are shown in separate rows
     - Clusters displayed with different colors, with adjacent bars
+    - Given maf file in column 'maf_fn' in the df must be mut_ccfs file
 
     TODO
     ----
@@ -503,7 +504,7 @@ def ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_id
 
     """
     mut_ccfs_df = pd.read_csv(data_df.loc[idx, 'maf_fn'], sep='\t')
-    mut_ccfs_df['unique_mut_id'] = mut_ccfs_df.apply(get_unique_identifier, axis=1)
+    mut_ccfs_df['unique_mut_id'] = mut_ccfs_df.apply(get_unique_identifier, axis=1)  # must be mut_ccfs file with default columns
 
     # Use only the selected mutations unless no mutations selected, then use filtered list
     mut_ids = selected_mut_ids if selected_mut_ids else filtered_mut_ids
