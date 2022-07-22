@@ -502,7 +502,7 @@ def ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_id
     - Add an indication of mean?
 
     """
-    mut_ccfs_df = pd.read_csv(data_df.loc[idx, 'mut_ccfs'], sep='\t')
+    mut_ccfs_df = pd.read_csv(data_df.loc[idx, 'maf_fn'], sep='\t')
     mut_ccfs_df['unique_mut_id'] = mut_ccfs_df.apply(get_unique_identifier, axis=1)
 
     # Use only the selected mutations unless no mutations selected, then use filtered list
