@@ -28,7 +28,7 @@ def gen_phylogic_app_component():
             Input('tree-dropdown', 'value')
         ],
         callback_state_external=[
-            State('mutation-table-component', 'children')
+            State('mutation-table-component', 'children')  # todo is this needed?
         ],
         callback_output=[
             Output('ccf-plot', 'figure'),

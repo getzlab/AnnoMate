@@ -86,9 +86,9 @@ class PhylogicReviewer(ReviewerTemplate):
 
         app.add_component(gen_mutation_table_app_component(), custom_colors=custom_colors)
 
-        app.add_component(gen_phylogic_app_component(), drivers_fn=drivers_fn, biospecimens_fn=sample_data_df)
+        app.add_component(gen_phylogic_app_component(), drivers_fn=drivers_fn, samples_df=sample_data_df)
 
-        app.add_component(gen_cnv_plot_app_component(), samples_fn=sample_data_df, preprocess_data_dir=preprocess_data_dir)
+        app.add_component(gen_cnv_plot_app_component(), samples_df=sample_data_df, preprocess_data_dir=preprocess_data_dir)
 
         # app.add_component(cluster_metrics)
 
