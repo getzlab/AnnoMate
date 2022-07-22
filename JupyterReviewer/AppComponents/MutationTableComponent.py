@@ -210,7 +210,6 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
     t_alt_count = 't_alt_count' or 't_alt_count_post_forcecall'
     n_ref_count = 'n_ref_count' or 'n_ref_count_post_forcecall'
     n_alt_count = 'n_alt_count' or 'n_alt_count_post_forcecall'
-    alt_allele = 'Tumor_Seq_Allele2' or 'Tumor_Seq_Allele'
 
     default_maf_cols = [
         'Hugo_Symbol',
@@ -231,7 +230,9 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
     cluster_assignments = []
 
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
-    maf_df['id'] = maf_df.apply(lambda x: get_unique_identifier(x, start_pos=start_pos, alt=alt_allele), axis=1)
+    start_pos_id = maf_df.columns[maf_df.columns.isin(['Start_position', 'Start_Position'])][0]
+    alt_allele_id = maf_df.columns[maf_df.columns.isin(['Tumor_Seq_Allele2', 'Tumor_Seq_Allele'])][0]
+    maf_df['id'] = maf_df.apply(lambda x: get_unique_identifier(x, start_pos=start_pos_id, alt=alt_allele_id), axis=1)
     maf_df.set_index('id', inplace=True, drop=False)
 
     maf_cols_options = (list(maf_df))
