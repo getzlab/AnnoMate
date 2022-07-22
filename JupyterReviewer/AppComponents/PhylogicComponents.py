@@ -125,11 +125,8 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
         rect_x = 6
 
     treatments_df = pd.read_csv(df.loc[idx, 'treatment_fn'], sep='\t')
-
-    treatments_in_frame_df = pd.DataFrame()
-    for start, stop in zip(treatments_df.start_date_dfd, treatments_df.stop_date_dfd):
-        if stop >= timing_data[samples_in_order[0]] and start <= timing_data[samples_in_order[-1]]:
-            treatments_in_frame_df = pd.concat([treatments_df[treatments_df.start_date_dfd == start], treatments_in_frame_df])
+    treatments_in_frame_df = treatments_df[(treatments_df['stop_date_dfd'] >= timing_data[samples_in_order[0]]) &
+                                           (treatments_df['start_date_dfd'] <= timing_data[samples_in_order[-1]])]
 
     # get mutation counts
     mut_ccfs = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
@@ -226,11 +223,16 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
         row=2, col=1
     )
 
-    for start, stop, drug, drug_combo, category, stop_reason, post_status in zip(treatments_in_frame_df.start_date_dfd, treatments_in_frame_df.stop_date_dfd, treatments_in_frame_df.drugs, treatments_in_frame_df.drug_combination, treatments_df.categories, treatments_in_frame_df.stop_reason, treatments_in_frame_df.post_status):
-        drugs=drug
-        if pd.isna(drug):
-            drugs=drug_combo
+    for start, stop, drug, drug_combo, category, stop_reason, post_status in zip(treatments_in_frame_df.start_date_dfd,
+                                                                                 treatments_in_frame_df.stop_date_dfd,
+                                                                                 treatments_in_frame_df.drugs,
+                                                                                 treatments_in_frame_df.drug_combination,
+                                                                                 treatments_df.categories,
+                                                                                 treatments_in_frame_df.stop_reason,
+                                                                                 treatments_in_frame_df.post_status):
+        drug = drug_combo if pd.isna(drug) else drug
 
+        # todo deal with overlapping treatments
         ccf_plot.add_trace(
             go.Scatter(
                 x=[max(start, timing_data[samples_in_order[0]]), min(stop, timing_data[samples_in_order[-1]])],
@@ -239,7 +241,7 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
                 line_color=treatment_category_colors[category],
                 fill='toself',
                 hovertemplate = '<extra></extra>' +
-                    f'Treatment Regimen: {drugs} <br>' +
+                    f'Treatment Regimen: {drug} <br>' +
                     f'Stop Reason: {stop_reason} <br>' +
                     f'Post Status: {post_status}',
                 showlegend=False
