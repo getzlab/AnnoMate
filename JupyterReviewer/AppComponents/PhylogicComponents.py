@@ -78,7 +78,7 @@ def gen_phylogic_components_layout():
         ])
     ])
 
-def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
+def gen_ccf_plot(df, idx, time_scaled, samples_df):
     """Generate CCF plot including treatment bars.
 
     Parameters
@@ -87,33 +87,35 @@ def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
     idx
     time_scaled
         time scaled checkbox value
-    biospecimens_fn
-        name of the biospeciments file from the portal
+    samples_df
+        Samples dataframe, containing collection date data as 'collection_date_dfd' data
 
     Returns
     -------
     ccf_plot : go.Figure
 
     """
+    # todo add more categories
     treatment_category_colors = {
         'Chemotherapy': 'MidnightBlue',
         'Hormone/Endocrine therapy': 'MistyRose',
         'Precision/Targeted therapy': 'Plum'
     }
 
-    maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
-    samples = maf_df.drop_duplicates('Sample_ID').Sample_ID.tolist()
+    cluster_df = pd.read_csv(df.loc[idx, 'cluster_ccfs_fn'], sep='\t', usecols=['Cluster_ID', 'Sample_ID',
+                                                                                'postDP_ccf_mean', 'postDP_ccf_CI_low',
+                                                                                'postDP_ccf_CI_high'])
+    samples_list = cluster_df['Sample_ID'].unique()
 
-    biospecimens_df = pd.read_csv(biospecimens_fn, sep='\t').set_index('participant_id').loc[idx]
-    biospecimens_df = biospecimens_df.set_index('collaborator_sample_id')
-    biospecimens_df = biospecimens_df.loc[[sample for sample in samples if sample in biospecimens_df.index]]
+    # todo replace this with using sif file - to ensure all collection dates are present and correct
+    # pull collection dates from sample table, robust to missing values
+    timing_data = {sample: samples_df.loc[sample, 'collection_date_dfd'] if sample in samples_df else 0 for sample in samples_list}
+    samples_in_order = sorted(timing_data.keys(), key=lambda k: int(timing_data[k]))
+    ordered_samples_dict = {s: o for s, o in zip(samples_in_order, np.arange(len(samples_in_order)))}
 
-    timing_data = {}
-    for sample in samples:
-        if sample in biospecimens_df.index:
-            timing_data[sample] = biospecimens_df.loc[sample,'collection_date_dfd']
-        else:
-            timing_data[sample] = 0
+    # apply dates and sample order to cluster df
+    cluster_df.loc[:, 'dfd'] = cluster_df['Sample_ID'].apply(lambda s: int(timing_data[s]))
+    cluster_df.loc[:, 'order'] = cluster_df['Sample_ID'].apply(lambda s: ordered_samples_dict[s])
 
     if 'Time Scaled' in time_scaled:
         scatter_x = 'dfd'
@@ -122,22 +124,15 @@ def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
         scatter_x = 'order'
         rect_x = 6
 
-    cluster_ccfs = pd.read_csv(df.loc[idx, 'cluster_ccfs_fn'], sep='\t')
-    mut_ccfs = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
-    cluster_df = cluster_ccfs[['Cluster_ID', 'Sample_ID', 'postDP_ccf_mean', 'postDP_ccf_CI_low', 'postDP_ccf_CI_high']].copy()
-
-    cluster_df.loc[:, 'dfd'] = [int(timing_data[sample]) for sample in cluster_ccfs['Sample_ID']]
-    samples_in_order = sorted(timing_data.keys(), key=lambda k: int(timing_data[k]))
-    ordered_samples_dict = {s: o for s, o in zip(samples_in_order, np.arange(len(samples_in_order)))}
-    cluster_df.loc[:, 'order'] = [ordered_samples_dict[s] for s in cluster_ccfs['Sample_ID']]
-
-    treatments_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/treatments.tsv', sep='\t').set_index('participant_id').loc[idx]
+    treatments_df = pd.read_csv(df.loc[idx, 'treatment_fn'], sep='\t')
 
     treatments_in_frame_df = pd.DataFrame()
     for start, stop in zip(treatments_df.start_date_dfd, treatments_df.stop_date_dfd):
         if stop >= timing_data[samples_in_order[0]] and start <= timing_data[samples_in_order[-1]]:
             treatments_in_frame_df = pd.concat([treatments_df[treatments_df.start_date_dfd == start], treatments_in_frame_df])
 
+    # get mutation counts
+    mut_ccfs = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     mut_count_dict = mut_ccfs.drop_duplicates([
         'Patient_ID',
         'Hugo_Symbol',
@@ -207,7 +202,6 @@ def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
                 row=1, col=1
             )
 
-
     ccf_plot.update_traces(marker_size=15)
     ccf_plot.update_layout(plot_bgcolor='rgba(0,0,0,0)')
     ccf_plot.update_layout(legend={'traceorder': 'reversed'})
@@ -259,15 +253,10 @@ def gen_ccf_plot(df, idx, time_scaled, biospecimens_fn):
             row=2, col=1
         )
         ccf_plot.add_vline(
-            x=ccf_plot.add_vline(
                 x=min(stop, timing_data[samples_in_order[-1]]),
                 line_width=2,
                 line_color='black',
                 row=2, col=1
-            ),
-            line_width=2,
-            line_color='black',
-            row=2, col=1
         )
 
     ccf_plot.update_yaxes(row=2, visible=False)
@@ -445,21 +434,21 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
         possible_trees
     ]
 
-def gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, drivers_fn, biospecimens_fn):
+def gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, drivers_fn, samples_df):
     """Phylogic graphics callback function with parameters being the callback inputs and returns being callback outputs."""
-    ccf_plot = gen_ccf_plot(df, idx, time_scaled, biospecimens_fn)
+    ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
     tree, possible_trees = gen_phylogic_tree(df, idx, 0, drivers_fn)
 
     return [ccf_plot, possible_trees, possible_trees[0], tree]
 
-def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, drivers_fn, biospecimens_fn):
+def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, drivers_fn, samples_df):
     """Phylogic graphics internal callback function with parameters being the callback inputs and returns being callback outputs."""
     tree_num = 0
     for n in chosen_tree.split():
         if n.isdigit():
             tree_num = int(n)
 
-    ccf_plot = gen_ccf_plot(df, idx, time_scaled, biospecimens_fn)
+    ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
     tree, possible_trees = gen_phylogic_tree(df, idx, tree_num-1, drivers_fn)
 
     return [ccf_plot, possible_trees, chosen_tree, tree]
