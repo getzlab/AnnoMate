@@ -509,16 +509,20 @@ def ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_id
     mut_ccfs_df['unique_mut_id'] = mut_ccfs_df.apply(get_unique_identifier, axis=1)  # must be mut_ccfs file with default columns
 
     # Use only the selected mutations unless no mutations selected, then use filtered list
-    mut_ids = selected_mut_ids if selected_mut_ids else filtered_mut_ids
-    chosen_muts_df = mut_ccfs_df[mut_ccfs_df['unique_mut_id'].isin(mut_ids)].copy()
-    sample_list = chosen_muts_df['Sample_ID'].unique()  # todo ensure sorted by collection date
+    if selected_mut_ids:
+        mut_ccfs_df = mut_ccfs_df.loc[selected_mut_ids].copy()
+    elif filtered_mut_ids:
+        mut_ccfs_df = mut_ccfs_df.loc[filtered_mut_ids].copy()
+    # else (if all mutations in table are filtered out and none selected): use all mutations
+
+    sample_list = mut_ccfs_df['Sample_ID'].unique()  # todo ensure sorted by collection date
     sample_selection = sample_list if not sample_selection else sample_selection
 
     ccfs_headers = [re.search('.*[01].[0-9]+', i) for i in mut_ccfs_df.columns]
     ccfs_headers = [x.group() for x in ccfs_headers if x]
     ccfs_header_dict = {i: re.search('[01].[0-9]+', i).group() for i in ccfs_headers}
 
-    stacked_muts = chosen_muts_df.set_index(['Sample_ID', 'unique_mut_id', 'Cluster_Assignment'])[
+    stacked_muts = mut_ccfs_df.set_index(['Sample_ID', 'unique_mut_id', 'Cluster_Assignment'])[
         ccfs_headers].stack().reset_index().rename(columns={'level_3': 'CCF', 0: 'Probability'}).replace(
         ccfs_header_dict)
     if group_clusters:
@@ -531,7 +535,7 @@ def ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_id
                            height=300 * len(sample_selection), color='unique_mut_id',
                            labels={'unique_mut_id': 'Mutation'})
         mut_label_dict = {x['unique_mut_id']: f"{x['Hugo_Symbol']} - {x['Chromosome']}:{x['Start_position']}" for idx, x
-                          in chosen_muts_df.drop_duplicates('unique_mut_id').iterrows()}
+                          in mut_ccfs_df.drop_duplicates('unique_mut_id').iterrows()}
         fig.for_each_trace(lambda t: t.update(name=mut_label_dict[t.name]))
 
     fig.update_layout(xaxis_tickangle=0, xaxis_ticklabelstep=5)
