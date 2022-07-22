@@ -201,7 +201,9 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     """
 
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
-    maf_df['id'] = maf_df.apply(get_unique_identifier, axis=1)
+    maf_df['id'] = maf_df.apply(lambda x: get_unique_identifier(x,
+                                                                start_pos='Start_position' or 'Start_Position',
+                                                                alt='Tumor_Seq_Allele2' or 'Tumor_Seq_Allele'), axis=1)
     maf_df.set_index('id', inplace=True, drop=False)
 
     if selected_mutation_rows:
