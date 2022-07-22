@@ -4,202 +4,131 @@ import os
 import numpy as np
 import warnings
 import pickle
-from typing import List, Dict
-
-valid_annotation_types = ["multi", "float", "int", "string"]
-
-
-class ReviewDataAnnotation:
-    
-    def __init__(self,
-                 annot_value_type: str,
-                 options: List = None,
-                 validate_input=None,
-                 default=None
-                ):
-        """
-        annot_value_type: value for the annotation type. Determines dtype of the dataframe column
-        options:          list of values inputs are allowed to be. For CHECKLIST, RADIOITEM, and DROPDOWN
-        validate_input:   a custom function to verify annotation input. Takes a single input and returns a boolean
-        """
-
-        if annot_value_type not in valid_annotation_types:
-            raise ValueError(
-                f'annot_type {annot_value_type} is not a valid annotation value type. '
-                f'Valid types are {valid_annotation_types}')
-
-        self.annot_value_type = annot_value_type
-        self.options = options
-        self.validate_input = validate_input
-        self.default = default
-        
-    def validate(self, x):
-        if self.options is not None:
-            for item in np.array(x).flatten():
-                if item not in self.options and item != '':
-                    raise ValueError(f'Input {item} is not in the specified options {self.options}')
-                
-        if self.validate_input is not None:
-            if not self.validate_input(x):
-                raise ValueError(f'Input {x} is invalid')
-        
-    def __str__(self):
-        return str(self.__dict__)
+from pathlib import Path
+from typing import List, Dict, Union
+from JupyterReviewer.Data import Data, DataAnnotation
 
 
 class ReviewData:
     
-    def __init__(self, 
-                 review_data_fn: str, 
-                 description: str='', 
-                 df: pd.DataFrame = pd.DataFrame(), 
-                 # review_data_annotations_list: List[ReviewDataAnnotation] = None,
-                 reuse_existing_review_data_fn: str = None, 
-                ):
+    def __init__(self,
+                 data_pkl_fn: Union[str, Path],
+                 data: Data):
         """
-        review_data_fn:                path to save review data object
-        
-        description:                   describe the review session. This is useful if you copy the history of this 
-                                       object to a new review data object
-                                       
-        df:                            pandas dataframe with the data to review
-        
-        reuse_existing_review_data_fn: path to existing review data object to copy
+        Object that saves, loads, and edits Data objects
+
+        Parameters
+        ----------
+        data_pkl_fn: Union[str, Path]
+            pickle file to save/load data object from
+        data: Data
+            data object with the data to review
+
+        Notes
+        -----
+
+        If data_pkl_fn already exists, it will only load that file and ignore whatever the parameter data is.
+        This is to prevent accidentally overwriting annotations and the data being currently reviewed.
         """
-        if df.index.shape[0] != df.index.unique().shape[0]:
-            raise ValueError(f'Input dataframe df does not have unique index values.')
-        
-        self.review_data_annotation_dict = {}
-        
-        if reuse_existing_review_data_fn == review_data_fn:
-            raise ValueError(f'Inputs for review_data_fn and reuse_existing_review_data_fn are the same. '
-                             'Pass in a different file name for reuse_existing_review_data_fn\n'
-                             f'review_data_fn: {review_data_fn}\n'
-                             f'reuse_existing_review_data_fn: {reuse_existing_review_data_fn}')
-        
-        if not os.path.exists(review_data_fn):
-            if reuse_existing_review_data_fn is None:
-                # annotate_cols = [ann.annot_name for ann in review_data_annotations_list]
-                # self.annot = pd.DataFrame(index=df.index, columns=annotate_cols) # Add more columns. If updating an existing column, will make a new one
-                self.annot = pd.DataFrame(index=df.index)
-                # self.history = pd.DataFrame(columns=['index', 'timestamp', 'review_data_fn'] + annotate_cols) # track all the manual changes, including timestamp
-                self.history = pd.DataFrame(columns=['index', 'timestamp', 'review_data_fn'])
-            else:
-                print(f'Copying from existing review data session to new review data session...\n'
-                      f'{reuse_existing_review_data_fn} --> {review_data_fn}')
-                self.load(reuse_existing_review_data_fn)
-                
-                missing_df_indices = np.array([i not in self.annot.index for i in df.index])
-                if missing_df_indices.any():
-                    raise ValueError(f'df input contains indices that does not already exist in the previous '
-                                     f'review session.\n '
-                                     f'Unavailable indices: {df.loc[missing_df_indices].index.tolist()}')
-                if df.index.shape[0] != self.data.shape[0]:
-                    warnings.warn(f'df input has fewer indices ({df.index.shape[0]}) than the original '
-                                  f'review session df input ({self.data.shape[0]}). '
-                                  'New review session will only contain the previous data '
-                                  'corresponding to newest df indices')
-
-                self.annot = self.annot.loc[df.index]
-                self.history = self.history.loc[self.history['index'].isin(df.index)]
-
-            self.data = df  # overwrite data frame.
-            self.review_data_fn = review_data_fn # change path to save object
-            self.description = description
-            # self._add_annotations(review_data_annotations_list)
-            self.save()
+        self.data_pkl_fn = data_pkl_fn
+        if os.path.exists(data_pkl_fn):
+            f = open(data_pkl_fn, 'rb')
+            self.data = pickle.load(f)
+            f.close()
+            warnings.warn(f"Loading existing data pkl file")
         else:
-            print(f'Loading existing review session {review_data_fn}...')
-            self.load(review_data_fn)
+            self.data = data
 
-        # Add additional columns to table
-        if not df.equals(self.data):
-            new_data_cols = [c for c in df.columns if c not in self.data.columns]
-            not_new_data_cols = [c for c in df.columns if c in self.data.columns]
-            self.data[new_data_cols] = df[new_data_cols]
-            
-            if not self.data[not_new_data_cols].equals(df[not_new_data_cols]):
-                warnings.warn(f'Input data dataframe shares columns with existing data, but are not equal.\n' + 
-                              f'Only adding columns {new_data_cols} to the ReviewData.data dataframe\n' + 
-                              f'Remaining columns are not going to be updated.' + 
-                              f'If you intend to change the ReviewData.data attribute, '
-                              'make a new review data object and pass in this object\'s path to reuse_existing_'
-                              'review_data_fn:\n\n'
-                              f'new_rd = ReviewData(review_data_fn=new_fn, df=updated_df, '
-                              f'reuse_existing_review_data_fn={review_data_fn})')
-            
-    def load(self, review_data_fn):
-        f = open(review_data_fn, 'rb')
-        tmp_dict = pickle.load(f)
-        f.close()          
+        self.save_data()
 
-        self.__dict__.update(tmp_dict) 
-
-    def save(self):
-        f = open(self.review_data_fn, 'wb')
-        pickle.dump(self.__dict__, f, 2)
+    def save_data(self):
+        """
+        Saves Data object to pickle file
+        """
+        f = open(self.data_pkl_fn, 'wb')
+        pickle.dump(self.data, f, 2)
         f.close()
-    
-    def pre_fill_annot(self, df: pd.DataFrame):
-        """
-        df: Dataframe with indices and columns in the ReviewData.annot table
-        """
-        valid_annot_cols = [c for c in df.columns if c in self.annot.columns]
-        valid_data_idx = [data_idx for data_idx in df.index if data_idx in self.annot.index]
-        for data_idx in valid_data_idx:
-            self._update(data_idx, df.loc[data_idx, valid_annot_cols])
-            
-        invalid_annot_cols = [c for c in df.columns if c not in self.annot.columns]
-        invalid_data_idx = [data_idx for data_idx in df.index if data_idx not in self.annot.index]
-        warnings.warn(f'There was extra data in your input that was not added to the ReviewData object.\n' +
-                      f'Invalid annotation cols: {invalid_annot_cols}\n' +
-                      f'Invalid data indices: {invalid_data_idx}') 
         
     def add_annotation(self,
                        annot_name: str,
-                       review_annot: ReviewDataAnnotation):
+                       data_annot: DataAnnotation):
         """
-        review_annot: a ReviewDataAnnotation to add to the review data object
-        """
-        self._add_annotations({annot_name: review_annot})
-    
-    def _add_annotations(self, review_data_annotation_dict: Dict):
+        Adds annotation data to the Data object
 
-        new_annot_data = {annot_name: ann for annot_name, ann in review_data_annotation_dict.items() if
-                          annot_name not in self.review_data_annotation_dict.keys()}
+        Parameters
+        ----------
+        annot_name: str
+            Name of the annotation that will be a column in the Data object's annot_df dataframe
+        data_annot: DataAnnotation
+            a DataAnnotation to add to the review data object
+        """
+        self._add_annotations({annot_name: data_annot})
+    
+    def _add_annotations(self, annot_col_config_dict: Dict):
+        """
+        Adds or updates the configuration for annotations to be collected in the Data object
+
+        Parameters
+        ----------
+        annot_col_config_dict: Dict
+            A dictionary where the key is the name of the annotation (column) and the value is a DataAnnotation object
+        """
+
+        new_annot_data = {annot_name: ann for annot_name, ann in annot_col_config_dict.items() if
+                          annot_name not in self.data.annot_col_config_dict.keys()}
         
         for name, ann in new_annot_data.items():
-            self.review_data_annotation_dict[name] = ann
+            if not isinstance(ann, DataAnnotation):
+                raise ValueError(f'Annotation name {ann} has invalid value {ann}. '
+                                 f'Value in dictionary must be a DataAnnotation object')
+            self.data.annot_col_config_dict[name] = ann
 
-        self.annot[list(new_annot_data.keys())] = np.nan
-        self.history[list(new_annot_data.keys())] = np.nan
+        self.data.annot_df[list(new_annot_data.keys())] = np.nan
+        self.data.history_df[list(new_annot_data.keys())] = np.nan
         
         for name, annot_data in new_annot_data.items():
             if annot_data.annot_value_type == 'multi':
-                self.annot[name] = self.annot[name].astype(object)
+                self.data.annot_df[name] = self.data.annot_df[name].astype(object)
             elif annot_data.annot_value_type == 'float':
-                self.annot[name] = self.annot[name].astype(float)
-            # elif annot_data.annot_value_type == 'int':
-            #     self.annot[name] = self.annot[name].astype(int)
+                self.data.annot_df[name] = self.data.annot_df[name].astype(float)
             elif annot_data.annot_value_type == 'string':
-                self.annot[name] = self.annot[name].astype(str)
+                self.data.annot_df[name] = self.data.annot_df[name].astype(str)
 
-        self.save()
+        self.save_data()
         
-    def _update(self, data_idx, dictionary):
-        if list(self.annot.loc[data_idx, list(dictionary.keys())].values) != list(dictionary.values()):
-            self.annot.loc[data_idx, list(dictionary.keys())] = list(dictionary.values())
+    def _update(self, data_idx, dictionary: Dict):
+        """
+        Update data annotation table with values in dictionary at index data_idx
+
+        Parameters
+        ----------
+        data_idx:
+            Index in self.data.annot_df
+        dictionary: Dict
+            A dictionary with keys that exist in self.data.annot_df.columns, and values to put in self.data.annot_df
+            at data_idx
+        """
+        if list(self.data.annot_df.loc[data_idx, list(dictionary.keys())].values) != list(dictionary.values()):
+            self.data.annot_df.loc[data_idx, list(dictionary.keys())] = list(dictionary.values())
             dictionary['timestamp'] = datetime.today()
             dictionary['index'] = data_idx
-            dictionary['review_data_fn'] = self.review_data_fn
-            self.history = pd.concat([self.history, pd.Series(dictionary).to_frame().T])
-            self.save()
+            dictionary['source_data_fn'] = self.data_pkl_fn
+            self.data.history_df = pd.concat([self.data.history_df, pd.Series(dictionary).to_frame().T])
+            self.save_data()
+        else:
+            pass
             
-    def export(self, path: str):
+    def export_data(self, path: Union[str, Path]):
         """
-        path: local or gsurl path to directory to save object's dataframe objects
+        Export tables in self.data to tsv files in specified directory
+
+        Parameters
+        ----------
+        path: Union[str, Path]
+            local or gsurl path to directory to save object's dataframe objects
         """
-        self.data.to_csv(f'{path}/data.tsv', sep='\t')
-        self.annot.to_csv(f'{path}/annot.tsv', sep='\t')
-        self.history.to_csv(f'{path}/history.tsv', sep='\t')
-        
+
+        for attribute_name in self.data.__dict__:
+            x = getattr(self.data, attribute_name)
+            if isinstance(x, pd.DataFrame):
+                x.to_csv(f'{path}/{attribute_name}.tsv', sep='\t')
