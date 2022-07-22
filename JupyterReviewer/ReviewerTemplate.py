@@ -4,7 +4,7 @@ from .ReviewDataApp import ReviewDataApp, valid_annotation_app_display_types
 import pandas as pd
 import os
 from dash.dependencies import State
-from typing import Union, Dict
+from typing import Union, Dict, List
 from abc import ABC, abstractmethod
 import pathlib
 import pickle
@@ -44,6 +44,7 @@ class ReviewerTemplate(ABC):
 
     @abstractmethod
     def gen_data(self,
+                 index: List,
                  description: str,
                  annot_df: pd.DataFrame,
                  annot_col_config_dict: Dict,
@@ -248,22 +249,22 @@ class ReviewerTemplate(ABC):
         self.app = self.gen_review_app(*args, **kwargs)
 
     def add_review_data_annotations_app_display(self,
-                                                name: str,
+                                                annot_name: str,
                                                 app_display_type: str):
         """
         Set display type for annotations
 
         Parameters
         ----------
-        name: str
+        annot_name: str
             Name of an annotation column in self.review_data.data annotation table.
             The annotation must be configured in self.review_data.data.annot_col_config_dict
         app_display_type: str
             Type of input display for the annotation. See ReviewDataApp.valid_annotation_app_display_types
 
         """
-        if name not in self.review_data.data.annot_col_config_dict.keys():
-            raise ValueError(f"Invalid annotation name '{name}'. "
+        if annot_name not in self.review_data.data.annot_col_config_dict.keys():
+            raise ValueError(f"Invalid annotation name '{annot_name}'. "
                              f"Does not exist in review data object annotation table")
 
         if app_display_type not in valid_annotation_app_display_types:
@@ -272,9 +273,9 @@ class ReviewerTemplate(ABC):
 
         # TODO: check if display type matches annotation type (list vs single value)
 
-        self.annot_app_display_types_dict[name] = app_display_type
+        self.annot_app_display_types_dict[annot_name] = app_display_type
         
-    def add_autofill(self, component_name: str, fill_value: Union[State, str, float], annot_col: str):
+    def add_autofill(self, autofill_button_name: str, fill_value: Union[State, str, float], annot_col: str):
         """
         Configures the option to use the state of a component in the ReviewDataApp to
         autofill the annotation input form.
@@ -285,13 +286,12 @@ class ReviewerTemplate(ABC):
 
         Parameters
         ----------
-        component_name: str
-            The name of a component in the ReviewDataApp.more_components list.
-            If the fill value is a State, it will check that the State layout component id exists in the component
+        autofill_button_name: str
+            Name of the button for autofilling.
         fill_value: Union[State, str, float]
             The value to fill the corresponding annotation input specified in annot_col.
-            - State(id, attribute): It will fill with whatever value is currently in the layout component with the
-                corresponding id and its corresponding attribute ('children', 'value')
+            - State(id, attribute): It will fill with whatever value is currently in the layout and its
+                corresponding attribute ('children', 'value')
             - str, float: Just a default value to fill if the data in the current component is used to autofill.
                 Ex. Component A computes results with one method, while Component B computes results with another.
                 You want to annotate with method you used to produce the results that fill the annotation inputs.
@@ -299,11 +299,11 @@ class ReviewerTemplate(ABC):
             The name of an annotation in self.review_data.data.annot_col_config_dict
 
         """
-        if component_name not in self.autofill_dict.keys():
-            self.autofill_dict[component_name] = {annot_col: fill_value}
+        if autofill_button_name not in self.autofill_dict.keys():
+            self.autofill_dict[autofill_button_name] = {annot_col: fill_value}
         else:
-            self.autofill_dict[component_name][annot_col] = fill_value
-        
+            self.autofill_dict[autofill_button_name][annot_col] = fill_value
+
         # verify 
         self.app.gen_autofill_buttons_and_states(self.review_data, self.autofill_dict)
 

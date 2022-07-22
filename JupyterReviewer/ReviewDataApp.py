@@ -22,6 +22,7 @@ import enum
 from collections import OrderedDict
 from typing import Dict
 import copy
+import warnings
 
 from .ReviewData import ReviewData, DataAnnotation
 
@@ -44,7 +45,6 @@ class AppComponent:
                  callback_state_external: [State] = [],
                  new_data_callback=None,
                  internal_callback=None,
-                 callback_states_for_autofill: [State] = [],
                  use_name_as_title=True):
         
         """
@@ -107,11 +107,6 @@ class AppComponent:
             a function (defined separately or a lambda) that defines how the component will be updated
             when one of the defined callback_input Inputs are changed.
             Same requirements as new_data_callback
-                           
-        callback_states_for_autofill:
-            List of State() objects pointing to objects in the layout
-            (ex. [State('heading', 'children')]) users of the app are allowed to
-            autofill with ('autofill_dict' parameter in ReviewDataApp.run())
 
         use_name_as_title: bool
             use the `name` parameter as a title for the component.
@@ -138,12 +133,12 @@ class AppComponent:
                              f'new_data_callback signature:{inspect.signature(new_data_callback)}\n'
                              f'internal_callback signature:{inspect.signature(internal_callback)}')
         
-        callback_states_for_autofill_ids = get_callback_io_ids(callback_states_for_autofill, expected_io_type=State)
-        check_duplicate_objects(callback_states_for_autofill_ids, 'callback_states_for_autofill_objects')
-        check_callback_io_id_in_list(callback_states_for_autofill_ids,
-                                     all_ids,
-                                     ids_type='callback_states_for_autofill_ids',
-                                     all_ids_type='component_ids')
+        # callback_states_for_autofill_ids = get_callback_io_ids(callback_states_for_autofill, expected_io_type=State)
+        # check_duplicate_objects(callback_states_for_autofill_ids, 'callback_states_for_autofill_objects')
+        # check_callback_io_id_in_list(callback_states_for_autofill_ids,
+        #                              all_ids,
+        #                              ids_type='callback_states_for_autofill_ids',
+        #                              all_ids_type='component_ids')
             
         self.name = name
         if use_name_as_title:
@@ -160,7 +155,7 @@ class AppComponent:
         self.new_data_callback = new_data_callback
         self.internal_callback = internal_callback
         
-        self.callback_states_for_autofill = callback_states_for_autofill
+        # self.callback_states_for_autofill = callback_states_for_autofill
 
     
 class ReviewDataApp:
@@ -390,20 +385,16 @@ class ReviewDataApp:
             return r.name
        
     def gen_autofill_buttons_and_states(self, review_data, autofill_dict):
-        
-        component_names = [c.name for c_name, c in self.more_components.items()]
+
         review_data_annot_names = list(review_data.data.annot_col_config_dict.keys())
             
         autofill_buttons = []
         autofill_states = {}
         autofill_literals = {}
-        for component_name, component_autofill_dict in autofill_dict.items():
-
-            if component_name not in self.more_components.keys():
-                raise ValueError(f'Autofill component name {component_name} does not exist in the app.')
+        for autofill_button_name, button_autofill_dict in autofill_dict.items():
 
             # check keys in component_autofill_dict are in ReviewData annot columns
-            annot_keys = np.array(list(component_autofill_dict.keys()))
+            annot_keys = np.array(list(button_autofill_dict.keys()))
             missing_annot_refs = np.array([annot_k not in review_data_annot_names for annot_k in annot_keys])
             if missing_annot_refs.any():
                 raise ValueError(
@@ -411,50 +402,45 @@ class ReviewDataApp:
                     f' do not existin in the Review Data Object.'
                     f'Available annotation columns are {review_data_annot_names}')
 
-            # check values in component_autofill_dict are ids in component name.            
-            autofill_component_states_dict = {annot_type: state for annot_type, state in component_autofill_dict.items()
+            # check states exist in layout
+            button_autofill_states_dict = {annot_type: state for annot_type, state in button_autofill_dict.items()
                                               if isinstance(state, State)}
-            autofill_component_state_ids = np.array(
-                get_callback_io_ids(list(autofill_component_states_dict.values()), expected_io_type=State))
-            component_available_autofill_states = self.more_components[component_name].callback_states_for_autofill
-            missing_component_states = np.array(
-                [autofill_state not in component_available_autofill_states for autofill_state in
-                 autofill_component_states_dict.values()])
-            if missing_component_states.any():
-                raise ValueError(f'Reference to component states do not exist in component named "{component_name}":\n '
-                                 f'Invalid states: '
-                                 f'{autofill_component_state_ids[np.argwhere(missing_component_states).flatten()]}\n'
-                                 f'Available states for autofill for component '
-                                 f'"{component_name}": {component_available_autofill_states}')
+            button_autofill_state_ids = np.array(
+                get_callback_io_ids(list(button_autofill_states_dict.values()), expected_io_type=State))
+
+            all_ids = get_component_ids([c.layout for c_name, c in self.more_components.items()])
+            missing_autofill_state_ids = [i for i in button_autofill_state_ids if i not in all_ids]
+            if len(missing_autofill_state_ids) > 0:
+                raise ValueError(f'State ids do not exist anywhere in the layout: '
+                                 f'{missing_autofill_state_ids}\n')
 
             # check literal fill values are valid
-            autofill_component_non_states_dict = {annot_type: item for annot_type, item in
-                                                  component_autofill_dict.items() if not isinstance(item, State)}
+            button_autofill_non_states_dict = {annot_type: item for annot_type, item in
+                                               button_autofill_dict.items() if not isinstance(item, State)}
 
-            for annot_type, non_state_value in autofill_component_non_states_dict.items():
+            for annot_type, non_state_value in button_autofill_non_states_dict.items():
                 if isinstance(non_state_value, Input) or isinstance(non_state_value, Output):
                     raise ValueError(
-                        f'Invalid autofill object {non_state_value} from component '
-                        f'"{component_name}" for annotation column "{annot_type}". '
+                        f'Invalid autofill object {non_state_value} for annotation column "{annot_type}". '
                         'Either pass in a State() object or literal value')
 
                 try:
                     review_data.data.annot_col_config_dict[annot_type].validate(non_state_value)
                 except ValueError:
                     raise ValueError(
-                        f'Autofill value for component "{component_name}" for annotation column '
+                        f'Autofill value for annotation column '
                         f'"{annot_type}" failed validation. '
                         f'Check validation for annotation column "{annot_type}": \n'
                         f'{review_data.data.annot_col_config_dict[annot_type]}')
 
             # Make button    
-            autofill_button_component = html.Button(f'Use current {component_name} solution', 
-                                                    id=f'APP-autofill-{component_name}', 
+            autofill_button_component = html.Button(autofill_button_name,
+                                                    id=f'APP-autofill-{autofill_button_name}',
                                                     n_clicks=0,
                                                     style={"marginBottom": "15px"})
             autofill_buttons += [autofill_button_component]
-            autofill_states[autofill_button_component.id] = autofill_component_states_dict
-            autofill_literals[autofill_button_component.id] = autofill_component_non_states_dict
+            autofill_states[autofill_button_component.id] = button_autofill_dict
+            autofill_literals[autofill_button_component.id] = button_autofill_non_states_dict
             
         return autofill_buttons, autofill_states, autofill_literals
     
@@ -566,6 +552,9 @@ class ReviewDataApp:
         
     def add_table_from_path(self, data_table_source, table_title, component_id, table_fn_col, table_cols):
         """
+        Parameters
+        ----------
+        data_table_source: attribute name of the dataframe to use from the Data object
         table_title:     Title of the table
         component_id: component name for the table
         table_fn_col:   column in review_data data dataframe with file path with table to display
