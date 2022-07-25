@@ -231,7 +231,7 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
 
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     #maf_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/all_mut_ccfs_maf_annotated_w_cnv_single_participant.txt', sep='\t')
-    maf_df['id'] = maf_df.apply(lambda x: f'{x.Chromosome}:{x.Start_position}{x.Reference_Allele}>{x.Tumor_Seq_Allele}', axis=1)
+    maf_df['id'] = maf_df.apply(lambda x: f'{x.Chromosome}:{x.Start_position}{x.Reference_Allele}>{x.Tumor_Seq_Allele2}', axis=1)
     maf_df.set_index('id', inplace=True, drop=False)
 
     maf_cols_options = (list(maf_df))
@@ -252,17 +252,19 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
         if classification not in variant_classifications:
             variant_classifications.append(classification)
 
-    for n in maf_df.Cluster_Assignment.unique():
-        if n not in cluster_assignments:
-            cluster_assignments.append(n)
+    if 'Cluster_Assignment' in list(maf_df):
+        for n in maf_df.Cluster_Assignment.unique():
+            if n not in cluster_assignments:
+                cluster_assignments.append(n)
 
     filtered_maf_df = maf_df.copy()
     if hugo:
         filtered_maf_df = filtered_maf_df[filtered_maf_df.Hugo_Symbol.isin(hugo)]
     if variant:
         filtered_maf_df = filtered_maf_df[filtered_maf_df.Variant_Classification.isin(variant)]
-    if cluster:
-        filtered_maf_df = filtered_maf_df[filtered_maf_df.Cluster_Assignment.isin(cluster)]
+    if 'Cluster_Assignment' in list(maf_df):
+        if cluster:
+            filtered_maf_df = filtered_maf_df[filtered_maf_df.Cluster_Assignment.isin(cluster)]
 
     return [
         maf_df,

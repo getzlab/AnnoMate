@@ -22,7 +22,7 @@ from JupyterReviewer.ReviewerTemplate import ReviewerTemplate
 from JupyterReviewer.AppComponents.ReviewerLayout import gen_phylogic_components_layout, gen_cnv_plot_layout
 from JupyterReviewer.AppComponents.MutationTableComponent import gen_mutation_table_app_component
 from JupyterReviewer.AppComponents.PhylogicComponents import gen_phylogic_app_component
-from JupyterReviewer.AppComponents.CNVPlotComponent import gen_cnv_plot_app_component
+from JupyterReviewer.AppComponents.CNVPlotComponent import gen_cnv_plot_app_component, gen_preloaded_cnv_plot
 
 
 def validate_string_list(x):
