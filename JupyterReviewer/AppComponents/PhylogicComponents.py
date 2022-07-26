@@ -463,8 +463,6 @@ def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, 
 
     return [go.Figure(), [], 0, cyto.Cytoscape()]
 
-    else:
-        return[go.Figure(), [], 0, '']
 
 # -------------------------- Phylogic PMF Plot ----------------------------
 def gen_ccf_pmf_component():
