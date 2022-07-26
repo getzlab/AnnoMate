@@ -7,7 +7,7 @@ import dash
 import dash_bootstrap_components as dbc
 
 from JupyterReviewer.ReviewDataApp import AppComponent
-from JupyterReviewer.AppComponents.utils import cluster_color
+from JupyterReviewer.AppComponents.utils import cluster_color, get_unique_identifier
 
 
 def gen_mutation_table_app_component():
@@ -230,8 +230,9 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
     cluster_assignments = []
 
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
-    #maf_df = pd.read_csv('~/Broad/JupyterReviewer/example_notebooks/example_data/all_mut_ccfs_maf_annotated_w_cnv_single_participant.txt', sep='\t')
-    maf_df['id'] = maf_df.apply(lambda x: f'{x.Chromosome}:{x.Start_position}{x.Reference_Allele}>{x.Tumor_Seq_Allele2}', axis=1)
+    start_pos_id = maf_df.columns[maf_df.columns.isin(['Start_position', 'Start_Position'])][0]
+    alt_allele_id = maf_df.columns[maf_df.columns.isin(['Tumor_Seq_Allele2', 'Tumor_Seq_Allele'])][0]
+    maf_df['id'] = maf_df.apply(lambda x: get_unique_identifier(x, start_pos=start_pos_id, alt=alt_allele_id), axis=1)
     maf_df.set_index('id', inplace=True, drop=False)
 
     maf_cols_options = (list(maf_df))
@@ -262,8 +263,8 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
         filtered_maf_df = filtered_maf_df[filtered_maf_df.Hugo_Symbol.isin(hugo)]
     if variant:
         filtered_maf_df = filtered_maf_df[filtered_maf_df.Variant_Classification.isin(variant)]
-    if 'Cluster_Assignment' in list(maf_df):
-        if cluster:
+    if cluster:
+        if 'Cluster_Assignment' in list(maf_df):
             filtered_maf_df = filtered_maf_df[filtered_maf_df.Cluster_Assignment.isin(cluster)]
 
     return [
