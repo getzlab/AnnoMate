@@ -440,22 +440,28 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
 
 def gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, drivers_fn, samples_df):
     """Phylogic graphics callback function with parameters being the callback inputs and returns being callback outputs."""
-    ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
-    tree, possible_trees = gen_phylogic_tree(df, idx, 0, drivers_fn)
+    if ['build_tree_posterior_fn', 'cluster_ccfs_fn'] in list(df):
+        ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
+        tree, possible_trees = gen_phylogic_tree(df, idx, 0, drivers_fn)
 
-    return [ccf_plot, possible_trees, possible_trees[0], tree]
+        return [ccf_plot, possible_trees, possible_trees[0], tree]
+
+    return [go.Figure(), [], 0, cyto.Cytoscape()]
 
 def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, drivers_fn, samples_df):
     """Phylogic graphics internal callback function with parameters being the callback inputs and returns being callback outputs."""
-    tree_num = 0
-    for n in chosen_tree.split():
-        if n.isdigit():
-            tree_num = int(n)
+    if ['build_tree_posterior_fn', 'cluster_ccfs_fn'] in list(df):
+        tree_num = 0
+        for n in chosen_tree.split():
+            if n.isdigit():
+                tree_num = int(n)
 
-    ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
-    tree, possible_trees = gen_phylogic_tree(df, idx, tree_num-1, drivers_fn)
+        ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
+        tree, possible_trees = gen_phylogic_tree(df, idx, tree_num-1, drivers_fn)
 
-    return [ccf_plot, possible_trees, chosen_tree, tree]
+        return [ccf_plot, possible_trees, chosen_tree, tree]
+
+    return [go.Figure(), [], 0, cyto.Cytoscape()]
 
 
 # -------------------------- Phylogic PMF Plot ----------------------------

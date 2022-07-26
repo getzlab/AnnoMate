@@ -253,9 +253,10 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
         if classification not in variant_classifications:
             variant_classifications.append(classification)
 
-    for n in maf_df.Cluster_Assignment.unique():
-        if n not in cluster_assignments:
-            cluster_assignments.append(n)
+    if 'Cluster_Assignment' in list(maf_df):
+        for n in maf_df.Cluster_Assignment.unique():
+            if n not in cluster_assignments:
+                cluster_assignments.append(n)
 
     filtered_maf_df = maf_df.copy()
     if hugo:
@@ -263,7 +264,8 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
     if variant:
         filtered_maf_df = filtered_maf_df[filtered_maf_df.Variant_Classification.isin(variant)]
     if cluster:
-        filtered_maf_df = filtered_maf_df[filtered_maf_df.Cluster_Assignment.isin(cluster)]
+        if 'Cluster_Assignment' in list(maf_df):
+            filtered_maf_df = filtered_maf_df[filtered_maf_df.Cluster_Assignment.isin(cluster)]
 
     return [
         maf_df,
