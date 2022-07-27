@@ -439,9 +439,11 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
         possible_trees
     ]
 
-def gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, mutation, drivers_fn, samples_df):
+def gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, mutation, drivers_fn):
     """Phylogic graphics callback function with parameters being the callback inputs and returns being callback outputs."""
     df = data.participant_df
+    samples_df = data.sample_df
+    
     if ['build_tree_posterior_fn', 'cluster_ccfs_fn'] in list(df):
         ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
         tree, possible_trees = gen_phylogic_tree(df, idx, 0, drivers_fn)
@@ -450,9 +452,11 @@ def gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree
 
     return [go.Figure(), [], 0, 'cyto.Cytoscape()']
 
-def internal_gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, mutation, drivers_fn, samples_df):
+def internal_gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, mutation, drivers_fn):
     """Phylogic graphics internal callback function with parameters being the callback inputs and returns being callback outputs."""
     df = data.participant_df
+    samples_df = data.sample_df
+
     if ['build_tree_posterior_fn', 'cluster_ccfs_fn'] in list(df):
         tree_num = 0
         for n in chosen_tree.split():
