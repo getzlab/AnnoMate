@@ -183,6 +183,8 @@ po/*~
 
 # additional folders
 data/*
+example_notebooks/data/*
+Dev*
 
 # .idea files
 .idea/
