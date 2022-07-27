@@ -199,7 +199,7 @@ class PatientReviewer(ReviewerTemplate):
             index=index,
             description=description,
             participant_df=participant_df,
-            sample_df=sample_df.set_index('sample_id') if 'sample_id' in list(sample_df) else sample_df,
+            sample_df=sample_df,
         )
 
         return rd
