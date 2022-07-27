@@ -33,90 +33,89 @@ def validate_string_list(x):
     else:
         return False
 
+    def collect_data(workspace, treatments_fn, participants_fn, data_path):
+        wm = dalmatian.WorkspaceManager(workspace)
+
+        samples_df = wm.get_samples()
+        samples_df = samples_df[['participant', 'pdb_collection_date_dfd', 'unmatched_alleliccapseg_tsv', 'unmatched_mutation_validator_validated_maf']]
+
+        pairs_df = wm.get_pairs()
+        pairs_df = pairs_df[['case_sample', 'participant', 'alleliccapseg_tsv', 'mutation_validator_validated_maf']]
+        pairs_df.set_index('case_sample', inplace=True)
+
+        new_samples_df = samples_df.combine_first(pairs_df)
+        new_samples_df.fillna(value={'unmatched_alleliccapseg_tsv': new_samples_df.alleliccapseg_tsv, 'unmatched_mutation_validator_validated_maf': new_samples_df.mutation_validator_validated_maf}, inplace=True)
+        new_samples_df.reset_index(inplace=True)
+        new_samples_df.rename(columns={'index': 'sample_id','participant': 'participant_id', 'pdb_collection_date_dfd': 'collection_date_dfd', 'unmatched_alleliccapseg_tsv': 'cnv_seg_fn', 'unmatched_mutation_validator_validated_maf': 'maf_fn'}, inplace=True)
+        new_samples_df.dropna(subset=['cnv_seg_fn', 'maf_fn'], inplace=True)
+        new_samples_df.drop(columns=['alleliccapseg_tsv', 'mutation_validator_validated_maf'], inplace=True)
+
+        clinical_df = pd.read_csv(participants_fn, sep='\t')
+        # clinical_df file originally has multi index over all the columns
+        clinical_df.reset_index(inplace=True)
+        for col in list(clinical_df):
+            clinical_df.rename(columns={col: clinical_df.loc[0, col]}, inplace=True)
+        clinical_df.drop(0, inplace=True)
+        clinical_df.set_index('participant_id', inplace=True)
+
+        participants_df = wm.get_participants()
+        participants_df = participants_df.loc[new_samples_df.participant_id.unique()]
+        participants_df.reset_index(inplace=True)
+        participants_df = participants_df['participant_id'].to_frame()
+
+        clinical_df_cols = ['tumor_molecular_subtype', 'tumor_morphology', 'tumor_primary_site', 'cancer_stage', 'vital_status', 'death_date_dfd', 'follow_up_date', 'age_at_diagnosis', 'gender', 'notes']
+        clinical_df = clinical_df[[col for col in clinical_df_cols if col in list(clinical_df)]]
+        participants_df = participants_df.join(clinical_df, on='participant_id')
+        participants_df = participants_df.replace(['unknown', 'not reported'], np.nan)
+
+        treatments_df = pd.read_csv(treatments_fn, sep='\t')
+
+        if not os.path.exists(data_path):
+            os.makedirs(data_path)
+
+        treatment_files_path = f'{data_path}/preprocess_data/treatments'
+        participant_maf_files_path = f'{data_path}/preprocess_data/patient_mafs'
+
+        if not os.path.exists(treatment_files_path):
+            os.makedirs(treatment_files_path)
+        if not os.path.exists(participant_maf_files_path):
+            os.makedirs(participant_maf_files_path)
+
+        for i, participant in enumerate(participants_df.participant_id):
+
+            treatments_file_name = f'{treatment_files_path}/{participant}_treatment.txt'
+            if not os.path.exists(treatments_file_name):
+                this_p_treatments = treatments_df[treatments_df['participant_id'] == participant]
+                if this_p_treatments.shape[0] > 0:
+                    this_p_treatments.to_csv(treatments_file_name, sep='\t', index=False)
+
+            participants_df.loc[i, 'treatments_fn'] = os.path.normpath(treatments_file_name)
+
+            maf_file_name = f'{participant_maf_files_path}/{participant}_maf.txt'
+            if not os.path.exists(maf_file_name):
+                this_p_mafs = new_samples_df[new_samples_df['participant_id'] == participant]['maf_fn'].tolist()
+                if len(this_p_mafs) > 0:
+                    this_p_maf = pd.concat([pd.read_csv(maf, sep='\t', encoding = "ISO-8859-1") for maf in this_p_mafs])
+                    this_p_maf.to_csv(maf_file_name, sep='\t', index=False)
+
+            participants_df.loc[i, 'maf_fn'] = os.path.normpath(maf_file_name)
+
+        participants_df.dropna(subset=['treatments_fn', 'maf_fn'], inplace=True)
+
+        participant_file_name = f'{data_path}/participants.txt'
+        samples_file_name = f'{data_path}/samples.txt'
+
+        if not os.path.exists(participant_file_name):
+            participants_df.to_csv(participant_file_name, sep='\t', index=False)
+        if not os.path.exists(samples_file_name):
+            new_samples_df.to_csv(samples_file_name, sep='\t', index=False)
+
+        return [new_samples_df, participants_df]
 
 def gen_clinical_data_table(data: PatientSampleData, idx, cols):
     df=data.participant_df
     r=df.loc[idx]
     return [dbc.Table.from_dataframe(r[cols].to_frame().reset_index())]
-
-def collect_data(workspace, treatments_fn, participants_fn, data_path):
-    wm = dalmatian.WorkspaceManager(workspace)
-
-    samples_df = wm.get_samples()
-    samples_df = samples_df[['participant', 'pdb_collection_date_dfd', 'unmatched_alleliccapseg_tsv', 'unmatched_mutation_validator_validated_maf']]
-
-    pairs_df = wm.get_pairs()
-    pairs_df = pairs_df[['case_sample', 'participant', 'alleliccapseg_tsv', 'mutation_validator_validated_maf']]
-    pairs_df.set_index('case_sample', inplace=True)
-
-    new_samples_df = samples_df.combine_first(pairs_df)
-    new_samples_df.fillna(value={'unmatched_alleliccapseg_tsv': new_samples_df.alleliccapseg_tsv, 'unmatched_mutation_validator_validated_maf': new_samples_df.mutation_validator_validated_maf}, inplace=True)
-    new_samples_df.reset_index(inplace=True)
-    new_samples_df.rename(columns={'index': 'sample_id','participant': 'participant_id', 'pdb_collection_date_dfd': 'collection_date_dfd', 'unmatched_alleliccapseg_tsv': 'cnv_seg_fn', 'unmatched_mutation_validator_validated_maf': 'maf_fn'}, inplace=True)
-    new_samples_df.dropna(subset=['cnv_seg_fn', 'maf_fn'], inplace=True)
-    new_samples_df.drop(columns=['alleliccapseg_tsv', 'mutation_validator_validated_maf'], inplace=True)
-
-    clinical_df = pd.read_csv(participants_fn, sep='\t')
-    # clinical_df file originally has multi index over all the columns
-    clinical_df.reset_index(inplace=True)
-    for col in list(clinical_df):
-        clinical_df.rename(columns={col: clinical_df.loc[0, col]}, inplace=True)
-    clinical_df.drop(0, inplace=True)
-    clinical_df.set_index('participant_id', inplace=True)
-
-    participants_df = wm.get_participants()
-    participants_df = participants_df.loc[new_samples_df.participant_id.unique()]
-    participants_df.reset_index(inplace=True)
-    participants_df = participants_df['participant_id'].to_frame()
-
-    clinical_df_cols = ['tumor_molecular_subtype', 'tumor_morphology', 'tumor_primary_site', 'cancer_stage', 'vital_status', 'death_date_dfd', 'follow_up_date', 'age_at_diagnosis', 'gender', 'notes']
-    clinical_df = clinical_df[[col for col in clinical_df_cols if col in list(clinical_df)]]
-    participants_df = participants_df.join(clinical_df, on='participant_id')
-    participants_df = participants_df.replace(['unknown', 'not reported'], np.nan)
-
-    treatments_df = pd.read_csv(treatments_fn, sep='\t')
-
-    if not os.path.exists(data_path):
-        os.makedirs(data_path)
-
-    treatment_files_path = f'{data_path}/preprocess_data/treatments'
-    participant_maf_files_path = f'{data_path}/preprocess_data/patient_mafs'
-
-    if not os.path.exists(treatment_files_path):
-        os.makedirs(treatment_files_path)
-    if not os.path.exists(participant_maf_files_path):
-        os.makedirs(participant_maf_files_path)
-
-    for i, participant in enumerate(participants_df.participant_id):
-
-        treatments_file_name = f'{treatment_files_path}/{participant}_treatment.txt'
-        if not os.path.exists(treatments_file_name):
-            this_p_treatments = treatments_df[treatments_df['participant_id'] == participant]
-            if this_p_treatments.shape[0] > 0:
-                this_p_treatments.to_csv(treatments_file_name, sep='\t', index=False)
-
-        participants_df.loc[i, 'treatments_fn'] = os.path.normpath(treatments_file_name)
-
-        maf_file_name = f'{participant_maf_files_path}/{participant}_maf.txt'
-        if not os.path.exists(maf_file_name):
-            this_p_mafs = new_samples_df[new_samples_df['participant_id'] == participant]['maf_fn'].tolist()
-            if len(this_p_mafs) > 0:
-                this_p_maf = pd.concat([pd.read_csv(maf, sep='\t', encoding = "ISO-8859-1") for maf in this_p_mafs])
-                this_p_maf.to_csv(maf_file_name, sep='\t', index=False)
-
-        participants_df.loc[i, 'maf_fn'] = os.path.normpath(maf_file_name)
-
-    participants_df.dropna(subset=['treatments_fn', 'maf_fn'], inplace=True)
-
-    participant_file_name = f'{data_path}/participants.txt'
-    samples_file_name = f'{data_path}/samples.txt'
-
-    if not os.path.exists(participant_file_name):
-        participants_df.to_csv(participant_file_name, sep='\t', index=False)
-    if not os.path.exists(samples_file_name):
-        new_samples_df.to_csv(samples_file_name, sep='\t', index=False)
-
-    return [new_samples_df, participants_df]
 
 
 class PatientReviewer(ReviewerTemplate):
@@ -229,20 +228,41 @@ class PatientReviewer(ReviewerTemplate):
         self.add_review_data_annotations_app_display('Selected Tree (idx)', 'number')
         self.add_review_data_annotations_app_display('Other Notes', 'textarea')
 
-    def gen_review_app(self, preprocess_data_dir, custom_colors=[], drivers_fn=None) -> ReviewDataApp:
+    def gen_review_app(
+        self,
+        preprocess_data_dir,
+        custom_colors=[],
+        drivers_fn=None,
+        participant_cols=[
+            'tumor_molecular_subtype',
+            'tumor_morphology',
+            'tumor_primary_site',
+            'cancer_stage',
+            'vital_status',
+            'death_date_dfd',
+            'follow_up_date',
+            'age_at_diagnosis',
+            'gender',
+            'notes',
+            'treatment_fn',
+            'maf_fn'
+        ],
+        sample_cols=[
+            'participant_id',
+            'collection_date_dfd',
+            'cnv_seg_fn',
+            'maf_fn'
+        ]
+    ) -> ReviewDataApp:
         """Generate app layout.
 
         Parameters
         ----------
-        biospecimens_df
-            dataframe containing biospecimens data from the Cancer Drug Resistance Portal
         custom_colors : list of lists
             specify colummn colors in mutation table with format:
             [[column_id_1, filter_query_1, text_color_1, background_color_1]]
         drivers_fn
             file path to csv file of drivers
-        samples_fn
-            file path to csv file of sample information including cnv_seg_fn (alleliccapseg_tsv)
 
         Returns
         -------
@@ -264,7 +284,8 @@ class PatientReviewer(ReviewerTemplate):
 
         app.add_component(gen_mutation_table_app_component(), custom_colors=custom_colors)
 
-        app.add_component(gen_phylogic_app_component(), drivers_fn=drivers_fn)
+        if 'build_tree_posterior_fn' and 'cluster_ccfs_fn' in participant_cols:
+            app.add_component(gen_phylogic_app_component(), drivers_fn=drivers_fn)
 
         app.add_component(gen_cnv_plot_app_component(), preprocess_data_dir=preprocess_data_dir)
 
@@ -272,4 +293,5 @@ class PatientReviewer(ReviewerTemplate):
 
 
     def set_default_autofill(self):
-        self.add_autofill('Phylogic Graphics', State('tree-dropdown', 'value'), 'Selected Tree (idx)')
+        if 'Phylogic Graphics' in self.app.more_components.items():
+            self.add_autofill('Phylogic Graphics', State('tree-dropdown', 'value'), 'Selected Tree (idx)')
