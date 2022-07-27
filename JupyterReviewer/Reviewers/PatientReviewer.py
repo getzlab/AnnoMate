@@ -199,7 +199,7 @@ class PatientReviewer(ReviewerTemplate):
             index=index,
             description=description,
             participant_df=participant_df,
-            sample_df=sample_df,
+            sample_df=sample_df.set_index('sample_id') if 'sample_id' in list(sample_df) else sample_df,
         )
 
         return rd
@@ -229,7 +229,7 @@ class PatientReviewer(ReviewerTemplate):
         self.add_review_data_annotations_app_display('Selected Tree (idx)', 'number')
         self.add_review_data_annotations_app_display('Other Notes', 'textarea')
 
-    def gen_review_app(self, samples_fn, preprocess_data_dir, custom_colors=[], drivers_fn=None) -> ReviewDataApp:
+    def gen_review_app(self, preprocess_data_dir, custom_colors=[], drivers_fn=None) -> ReviewDataApp:
         """Generate app layout.
 
         Parameters
@@ -264,9 +264,9 @@ class PatientReviewer(ReviewerTemplate):
 
         app.add_component(gen_mutation_table_app_component(), custom_colors=custom_colors)
 
-        app.add_component(gen_phylogic_app_component(), drivers_fn=drivers_fn, samples_df=pd.read_csv(samples_fn, sep='\t').set_index('sample_id'))
+        app.add_component(gen_phylogic_app_component(), drivers_fn=drivers_fn)
 
-        app.add_component(gen_cnv_plot_app_component(), samples_df=pd.read_csv(samples_fn, sep='\t').set_index('sample_id'), preprocess_data_dir=preprocess_data_dir)
+        app.add_component(gen_cnv_plot_app_component(), preprocess_data_dir=preprocess_data_dir)
 
         return app
 
