@@ -15,15 +15,16 @@ from dash import html
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 import dalmatian
+from typing import Dict, List
 
-from JupyterReviewer.ReviewData import ReviewData, ReviewDataAnnotation
+from JupyterReviewer.ReviewData import ReviewData
+from JupyterReviewer.Data import DataAnnotation
 from JupyterReviewer.ReviewDataApp import ReviewDataApp, AppComponent
 from JupyterReviewer.ReviewerTemplate import ReviewerTemplate
-from JupyterReviewer.AppComponents.ReviewerLayout import gen_phylogic_components_layout, gen_cnv_plot_layout
 from JupyterReviewer.AppComponents.MutationTableComponent import gen_mutation_table_app_component
 from JupyterReviewer.AppComponents.PhylogicComponents import gen_phylogic_app_component
 from JupyterReviewer.AppComponents.CNVPlotComponent import gen_cnv_plot_app_component, gen_preloaded_cnv_plot
-
+from JupyterReviewer.DataTypes.PatientSampleData import PatientSampleData
 
 def validate_string_list(x):
     if type(x) == str:
@@ -33,7 +34,8 @@ def validate_string_list(x):
         return False
 
 
-def gen_clinical_data_table(df, idx, cols):
+def gen_clinical_data_table(data: PatientSampleData, idx, cols):
+    df=data.participant_df
     r=df.loc[idx]
     return [dbc.Table.from_dataframe(r[cols].to_frame().reset_index())]
 
@@ -130,40 +132,50 @@ class PatientReviewer(ReviewerTemplate):
 
     """
 
-    def gen_review_data(
+    def gen_data(
         self,
-        review_data_fn: str,
-        description: str='',
-        df: pd.DataFrame = pd.DataFrame(),
-        review_data_annotation_dict: {str: ReviewDataAnnotation} = {},
-        reuse_existing_review_data_fn: str = None,
+        description: str,
+        participant_df: pd.DataFrame,
+        sample_df: pd.DataFrame,
+        annot_df: pd.DataFrame = None,
+        annot_col_config_dict: Dict = None,
+        history_df: pd.DataFrame = None,
+        review_data_annotation_dict: {str: DataAnnotation} = {},
         preprocess_data_dir='.',
         reload_cnv_figs=False,
-        samples_fn=''
-    ):
+        index: List = None
+    ) -> PatientSampleData:
 
         """
 
         Parameters
         ----------
-        review_data_fn
-            name of a pkl file path where review data is stored
-        description
-            description of the data source and purpose
-        df
-            dataframe containing the data to be reviewed
-            contains build_tree_posterior_fn, cluster_ccfs_fn, maf_fn, treatments_fn
+        description: str
+            Describe the review session. This is useful if you copy the history of this object to a new review data
+            object
+        participnat_df
+            dataframe containing participant data. this will be the primary dataframe
+        sample_df
+            dataframe containing sample data
+        annot_df: pd.DataFrame
+            Dataframe of with previous/prefilled annotations
+        annot_col_config_dict: Dict
+            Dictionary specifying active annotation columns and validation configurations
+        history_df: pd.DataFrame
+            Dataframe of with previous/prefilled history
         review_data_annotation_dict
             dictionary containing annotation fields
-        reuse_existing_review_data_fn
         preprocess_data_dir
             directory for preproccessing data to be stored
+        index: List
+            List of values to annotate. participant_df's index
 
         Returns
         -------
         ReviewData object
 
         """
+        index = participant_df.index
 
         cnv_figs_dir = f'{preprocess_data_dir}/cnv_fig'
         if not os.path.exists(cnv_figs_dir):
@@ -183,29 +195,30 @@ class PatientReviewer(ReviewerTemplate):
                 pickle.dump(fig, open(output_fn, 'wb'))
                 #samples_df.loc[sample, 'cnv_plots_pkl'] = output_fn
 
-        rd = ReviewData(
-            review_data_fn=review_data_fn,
+        rd = PatientSampleData(
+            index=index,
             description=description,
-            df=df,
+            participant_df=participant_df,
+            sample_df=sample_df,
         )
 
         return rd
 
     def set_default_review_data_annotations(self):
-        self.add_review_data_annotation('Resistance Explained', ReviewDataAnnotation('string',
+        self.add_review_data_annotation('Resistance Explained', DataAnnotation('string',
                                                                                      options=['Mutation', 'CNV',
                                                                                               'Partial/Hypothesized',
                                                                                               'Unknown']))
-        self.add_review_data_annotation('Resistance Notes', ReviewDataAnnotation('string'))
+        self.add_review_data_annotation('Resistance Notes', DataAnnotation('string'))
         self.add_review_data_annotation('Growing Clones',
-                                        ReviewDataAnnotation('string', validate_input=validate_string_list))
+                                        DataAnnotation('string', validate_input=validate_string_list))
         self.add_review_data_annotation('Shrinking Clones',
-                                        ReviewDataAnnotation('string', validate_input=validate_string_list))
-        self.add_review_data_annotation('Annotations', ReviewDataAnnotation('string', options=['Hypermutated',
+                                        DataAnnotation('string', validate_input=validate_string_list))
+        self.add_review_data_annotation('Annotations', DataAnnotation('string', options=['Hypermutated',
                                                                                                'Convergent Evolution',
                                                                                                'Strong clonal changes']))
-        self.add_review_data_annotation('Selected Tree (idx)', ReviewDataAnnotation('int', default=1))
-        self.add_review_data_annotation('Other Notes', ReviewDataAnnotation('string'))
+        self.add_review_data_annotation('Selected Tree (idx)', DataAnnotation('int', default=1))
+        self.add_review_data_annotation('Other Notes', DataAnnotation('string'))
 
     def set_default_review_data_annotations_app_display(self):
         self.add_review_data_annotations_app_display('Resistance Explained', 'radioitem')
@@ -216,7 +229,7 @@ class PatientReviewer(ReviewerTemplate):
         self.add_review_data_annotations_app_display('Selected Tree (idx)', 'number')
         self.add_review_data_annotations_app_display('Other Notes', 'textarea')
 
-    def gen_review_app(self, biospecimens_fn, samples_fn, preprocess_data_dir, custom_colors=[], drivers_fn=None) -> ReviewDataApp:
+    def gen_review_app(self, samples_fn, preprocess_data_dir, custom_colors=[], drivers_fn=None) -> ReviewDataApp:
         """Generate app layout.
 
         Parameters
