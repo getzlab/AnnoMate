@@ -15,6 +15,7 @@ from JupyterReviewer.AppComponents.utils import cluster_color, get_unique_identi
 import cnv_suite
 from cnv_suite.visualize import plot_acr_interactive, update_cnv_scatter_cn, update_cnv_scatter_color, update_cnv_scatter_sigma_toggle
 from cnv_suite.utils import calc_avg_cn, calc_absolute_cn, calc_cn_levels, return_seg_data_at_loci, apply_segment_data_to_df, get_segment_interval_trees, switch_contigs
+from JupyterReviewer.DataTypes.PatientSampleData import PatientSampleData
 
 
 def gen_cnv_plot_app_component():
@@ -302,8 +303,9 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
         sample_selection_corrected
     ]
 
-def gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir):
+def gen_absolute_components(data: PatientSampleData, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir):
     """Absolute components callback function with parameters being the callback inputs/states and returns being callback outputs."""
+    df = data.participant_df
     cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, [], sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir)
     button_clicks = None
 
@@ -314,8 +316,9 @@ def gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, 
         button_clicks
     ]
 
-def internal_gen_absolute_components(df, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir):
+def internal_gen_absolute_components(data: PatientSampleData, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir):
     """Absolute components internal callback function with parameters being the callback inputs/states and returns being callback outputs."""
+    df = data.participant_df
     if button_clicks != None:
         cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir)
         button_clicks = None
