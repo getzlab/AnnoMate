@@ -302,9 +302,11 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
         sample_selection_corrected
     ]
 
-def gen_absolute_components(data: PatientSampleData, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir):
+def gen_absolute_components(data: PatientSampleData, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, selected_mutation_rows, filtered_mutation_rows, preprocess_data_dir):
     """Absolute components callback function with parameters being the callback inputs/states and returns being callback outputs."""
     df = data.participant_df
+    samples_df = data.sample_df
+
     cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, [], sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir)
     button_clicks = None
 
@@ -315,9 +317,11 @@ def gen_absolute_components(data: PatientSampleData, idx, sample_selection, sigm
         button_clicks
     ]
 
-def internal_gen_absolute_components(data: PatientSampleData, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir):
+def internal_gen_absolute_components(data: PatientSampleData, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, selected_mutation_rows, filtered_mutation_rows, preprocess_data_dir):
     """Absolute components internal callback function with parameters being the callback inputs/states and returns being callback outputs."""
     df = data.participant_df
+    samples_df = data.sample_df
+    
     if button_clicks != None:
         cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir)
         button_clicks = None
