@@ -73,18 +73,22 @@ def collect_data(config_path):
     unmatched_maf = config_dict['maf_files']['unmatched_column_name']
     participant_file = config_dict['saved_files']['participant_file']
     sample_file = config_dict['saved_files']['sample_file']
-
+    maf_table_origin = config_dict['maf_files']['table_origin']
+    cluster_ccfs = config_dict['phylogic_files']['clusters_file']
+    trees = config_dict['phylogic_files']['trees_file']
 
     sample_cols_values = list(config_dict['sample_columns'].values())
     sample_cols = [col for col in sample_cols_values if col]
-    if unmatched_alleliccapseg != '':
+    if unmatched_alleliccapseg:
         sample_cols.append(unmatched_alleliccapseg)
-    if unmatched_maf != '':
+    if unmatched_maf:
         sample_cols.append(unmatched_maf)
 
     pairs_cols_values = list(config_dict['pairs_columns'].values())
     pairs_cols = [col for col in pairs_cols_values if col]
-    pairs_cols.extend([alleliccapseg, maf])
+    pairs_cols.append(alleliccapseg)
+    if maf_table_origin == 'sample':
+        pairs_cols.append(maf)
 
     wm = dalmatian.WorkspaceManager(workspace)
 
@@ -97,10 +101,11 @@ def collect_data(config_path):
     pairs_df.set_index(config_dict['pairs_columns']['sample_id'], inplace=True)
 
     new_samples_df = samples_df.combine_first(pairs_df)
-    if unmatched_alleliccapseg != '':
+    if unmatched_alleliccapseg:
         new_samples_df.fillna(value={alleliccapseg: new_samples_df[unmatched_alleliccapseg]}, inplace=True)
-    if unmatched_maf != '':
+    if unmatched_maf:
         new_samples_df.fillna(value={maf: new_samples_df[unmatched_maf]}, inplace=True)
+    #new_samples_df.fillna(value={pairs_purity: new_samples_df[sample_purity], pairs_ploidy: new_samples_df[sample_ploidy]})
     new_samples_df.reset_index(inplace=True)
     new_samples_df.rename(columns={
         'index': 'sample_id',
@@ -109,7 +114,9 @@ def collect_data(config_path):
         alleliccapseg: 'cnv_seg_fn',
         maf: 'maf_fn'
     }, inplace=True)
-    new_samples_df.dropna(subset=['cnv_seg_fn', 'maf_fn'], inplace=True)
+    new_samples_df.dropna(subset=['cnv_seg_fn'], inplace=True)
+    if maf_table_origin == 'sample':
+        new_samples_df.dropna(subset=['maf_fn'], inplace=True)
     new_samples_df.drop(columns=[unmatched_alleliccapseg, unmatched_maf], errors='ignore', inplace=True)
 
     clinical_df = pd.read_csv(participants_fn, sep='\t')
@@ -124,7 +131,15 @@ def collect_data(config_path):
     participants_df = wm.get_participants()
     participants_df = participants_df.loc[new_samples_df.participant_id.unique()]
     participants_df.reset_index(inplace=True)
-    participants_df = participants_df['participant_id'].to_frame()
+    if cluster_ccfs:
+        participants_df = participants_df[['participant_id', maf, cluster_ccfs, trees]]
+        participants_df.rename(columns={
+            maf: 'maf_fn',
+            cluster_ccfs: 'cluster_ccfs_fn',
+            trees: 'build_tree_posterior_fn'
+        }, inplace=True)
+    else:
+        participants_df = participants_df['participant_id'].to_frame()
 
     clinical_df_cols = [
         'tumor_molecular_subtype',
@@ -165,16 +180,20 @@ def collect_data(config_path):
 
         participants_df.loc[i, 'treatments_fn'] = os.path.normpath(treatments_file_name)
 
-        maf_file_name = f'{participant_maf_files_path}/{participant}_maf.txt'
-        if not os.path.exists(maf_file_name):
-            this_p_mafs = new_samples_df[new_samples_df['participant_id'] == participant]['maf_fn'].tolist()
-            if len(this_p_mafs) > 0:
-                this_p_maf = pd.concat([pd.read_csv(maf, sep='\t', encoding = "ISO-8859-1") for maf in this_p_mafs])
-                this_p_maf.to_csv(maf_file_name, sep='\t', index=False)
+        if maf_table_origin == 'sample':
+            maf_file_name = f'{participant_maf_files_path}/{participant}_maf.txt'
+            if not os.path.exists(maf_file_name):
+                this_p_mafs = new_samples_df[new_samples_df['participant_id'] == participant]['maf_fn'].tolist()
+                if len(this_p_mafs) > 0:
+                    this_p_maf = pd.concat([pd.read_csv(maf, sep='\t', encoding = "ISO-8859-1") for maf in this_p_mafs])
+                    this_p_maf.to_csv(maf_file_name, sep='\t', index=False)
 
-        participants_df.loc[i, 'maf_fn'] = os.path.normpath(maf_file_name)
+            participants_df.loc[i, 'maf_fn'] = os.path.normpath(maf_file_name)
 
-    participants_df.dropna(subset=['treatments_fn', 'maf_fn'], inplace=True)
+    participants_df.dropna(subset=['treatments_fn'], inplace=True)
+    if maf_table_origin == 'sample':
+        participants_df.dropna(subset=['maf_fn'], inplace=True)
+
 
     participant_file_name = f'{data_path}/{participant_file}'
     samples_file_name = f'{data_path}/{sample_file}'

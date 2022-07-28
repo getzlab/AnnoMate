@@ -1,0 +1,55 @@
+#workspace *
+workspace: broad-getzlab-ibm-parsons-t/Getz_Parsons_IBM_BreastCancer_Paired_Analysis_Clean
+
+# data path *
+data_path: ../../example_notebooks/example_data/paired_analysis_clean/
+
+# sample and participant file names (default is samples.txt and participants.txt)
+saved_files:
+  sample_file: paired_analysis_clean_samples.txt
+  participant_file: paired_analysis_clean_participants.txt
+
+# clinical data file * and specified column names + column names you want displayed
+clinical_file:
+  file_name: ../../example_notebooks/example_data/clinical_data.txt
+  columns: # list or dictionary
+
+# maf file name and types *
+maf_files:
+  table_origin: participant # one of sample or participant
+  column_name: phylogic_all_pairs_mut_ccfs
+  unmatched_column_name: # optional
+
+# cnv file names *
+cnv_files:
+  column_name: WES_OUTPUT_alleliccapseg_tsv
+  unmatched_column_name: unmatched_alleliccapseg_tsv
+
+# treatment file path
+treatment_file: ../../example_notebooks/example_data/treatments.tsv
+
+# additional sample column names (purity, ploidy, collection_date, preservation method, bait set, sample types)
+sample_columns:
+  participant_id: participant
+  collection_date: pdb_collection_date_dfd
+  # purity: wxs_purity
+  # ploidy: wxs_ploidy
+  preservation_method:
+  bait_set:
+  sample_type:
+
+pairs_columns:
+  sample_id: case_sample #*
+  participant_id: participant
+  purity: wxs_purity
+  ploidy: wxs_ploidy
+
+
+# phylogic file names (tres and clusters)
+phylogic_files:
+  clusters_file: phylogic_all_pairs_cluster_ccfs
+  trees_file: phylogic_all_pairs_tree_tsv
+
+# cnv clustering file column
+
+# additional user specified columns
