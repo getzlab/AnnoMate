@@ -8,6 +8,7 @@ import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from scipy.stats import beta
+import pickle
 
 from JupyterReviewer.ReviewDataApp import AppComponent
 from JupyterReviewer.AppComponents.utils import cluster_color, get_unique_identifier
@@ -157,13 +158,13 @@ def gen_mut_scatter(maf_df, mut_sigma, sample):
 
     return mut_scatter
 
-def gen_preloaded_cnv_plot(df, samples_df, sample):
+def gen_preloaded_cnv_plot(samples_df, sample):
     cnv_seg_df = pd.read_csv(samples_df.loc[sample, 'cnv_seg_fn'], sep='\t')
 
-    cnv_plot = make_subplots()
-    plot_acr_interactive(cnv_seg_df, cnv_plot, csize, segment_colors='difference', sigmas=True)
+    cnv_plot = make_subplots(rows=2, cols=1)
+    start_trace, end_trace = plot_acr_interactive(cnv_seg_df, cnv_plot, csize, segment_colors='difference', sigmas=True)
 
-    return cnv_plot
+    return [cnv_plot, start_trace, end_trace]
 
 
 def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir):
@@ -250,10 +251,11 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     maf_df['x_loc'] = maf_df.apply(lambda x: c_size_cumsum[x['Chromosome'] - 1] + x['Start_position'], axis=1)
     maf_df['VAF'] = maf_df['t_alt_count'] / (maf_df['t_alt_count'] + maf_df['t_ref_count'])
 
-    cnv_plot = make_subplots(len(sample_selection_corrected), 1)
+    #cnv_plot = make_subplots(len(sample_selection_corrected), 1)
     for i, sample_id in enumerate(sample_selection_corrected):
-        start_trace, end_trace = plot_acr_interactive(seg_df[sample_list.index(sample_id)], cnv_plot, csize, segment_colors=segment_colors, sigmas=sigmas_val, row=i)
-        #current_cnv_plot = pickle.load(open(f'{preprocess_data_dir}/cnv_fig/{sample_id}.cnv_fig.pkl', "rb"))
+        #start_trace, end_trace = plot_acr_interactive(seg_df[sample_list.index(sample_id)], cnv_plot, csize, segment_colors=segment_colors, sigmas=sigmas_val, row=i)
+        cnv_plot = pickle.load(open(f'{preprocess_data_dir}/cnv_figs/{sample_id}.cnv_fig.pkl', "rb"))
+
         #cnv_plot.add_trace(current_cnv_plot, row=i, col=1)
 
         if 'wxs_purity' in list(samples_df):
@@ -322,7 +324,7 @@ def internal_gen_absolute_components(data: PatientSampleData, idx, sample_select
     """Absolute components internal callback function with parameters being the callback inputs/states and returns being callback outputs."""
     df = data.participant_df
     samples_df = data.sample_df
-    
+
     if button_clicks != None:
         cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir)
         button_clicks = None
