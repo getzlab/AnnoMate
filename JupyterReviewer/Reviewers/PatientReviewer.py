@@ -16,6 +16,7 @@ from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 import dalmatian
 from typing import Dict, List
+import yaml
 
 from JupyterReviewer.ReviewData import ReviewData
 from JupyterReviewer.Data import DataAnnotation
@@ -33,25 +34,87 @@ def validate_string_list(x):
     else:
         return False
 
-def collect_data(workspace, treatments_fn, participants_fn, data_path):
+def check_required_inputs(required_inputs):
+    for input in required_inputs:
+        if required_inputs[input] == None:
+            raise ValueError(f'Required input was not given: {input}')
+
+def parse_patient_reviewer_input(config_path):
+    # load yaml file
+    with open(config_path, 'r') as file:
+        try:
+            config_dict = yaml.safe_load(file)
+        except yaml.YAMLError as exc:
+            print(exc)
+
+    # check for required inputs
+    required_inputs = {
+        'workspace': config_dict['workspace'],
+        'data_path': config_dict['data_path'],
+        'clinical_file file_name': config_dict['clinical_file']['file_name'],
+        'maf_files table_origin': config_dict['maf_files']['table_origin'],
+        'maf_files column_name': config_dict['maf_files']['column_name'],
+        'cnv_files column_name': config_dict['cnv_files']['column_name']
+    }
+    check_required_inputs(required_inputs)
+
+    return config_dict
+
+def collect_data(config_path):
+    config_dict = parse_patient_reviewer_input(config_path)
+
+    workspace = config_dict['workspace']
+    treatments_fn = config_dict['treatment_file']
+    participants_fn = config_dict['clinical_file']['file_name']
+    data_path = config_dict['data_path']
+    alleliccapseg = config_dict['cnv_files']['column_name']
+    unmatched_alleliccapseg = config_dict['cnv_files']['unmatched_column_name']
+    maf = config_dict['maf_files']['column_name']
+    unmatched_maf = config_dict['maf_files']['unmatched_column_name']
+    participant_file = config_dict['saved_files']['participant_file']
+    sample_file = config_dict['saved_files']['sample_file']
+
+
+    sample_cols_values = list(config_dict['sample_columns'].values())
+    sample_cols = [col for col in sample_cols_values if col]
+    if unmatched_alleliccapseg != '':
+        sample_cols.append(unmatched_alleliccapseg)
+    if unmatched_maf != '':
+        sample_cols.append(unmatched_maf)
+
+    pairs_cols_values = list(config_dict['pairs_columns'].values())
+    pairs_cols = [col for col in pairs_cols_values if col]
+    pairs_cols.extend([alleliccapseg, maf])
+
     wm = dalmatian.WorkspaceManager(workspace)
 
     samples_df = wm.get_samples()
-    samples_df = samples_df[['participant', 'pdb_collection_date_dfd', 'unmatched_alleliccapseg_tsv', 'unmatched_mutation_validator_validated_maf']]
+    #samples_df = samples_df[['participant', 'pdb_collection_date_dfd', 'unmatched_alleliccapseg_tsv', 'unmatched_mutation_validator_validated_maf']]
+    samples_df = samples_df[sample_cols]
 
     pairs_df = wm.get_pairs()
-    pairs_df = pairs_df[['case_sample', 'participant', 'alleliccapseg_tsv', 'mutation_validator_validated_maf']]
-    pairs_df.set_index('case_sample', inplace=True)
+    pairs_df = pairs_df[pairs_cols]
+    pairs_df.set_index(config_dict['pairs_columns']['sample_id'], inplace=True)
 
     new_samples_df = samples_df.combine_first(pairs_df)
-    new_samples_df.fillna(value={'unmatched_alleliccapseg_tsv': new_samples_df.alleliccapseg_tsv, 'unmatched_mutation_validator_validated_maf': new_samples_df.mutation_validator_validated_maf}, inplace=True)
+    if unmatched_alleliccapseg != '':
+        new_samples_df.fillna(value={alleliccapseg: new_samples_df[unmatched_alleliccapseg]}, inplace=True)
+    if unmatched_maf != '':
+        new_samples_df.fillna(value={maf: new_samples_df[unmatched_maf]}, inplace=True)
     new_samples_df.reset_index(inplace=True)
-    new_samples_df.rename(columns={'index': 'sample_id','participant': 'participant_id', 'pdb_collection_date_dfd': 'collection_date_dfd', 'unmatched_alleliccapseg_tsv': 'cnv_seg_fn', 'unmatched_mutation_validator_validated_maf': 'maf_fn'}, inplace=True)
+    new_samples_df.rename(columns={
+        'index': 'sample_id',
+        config_dict['sample_columns']['participant_id']: 'participant_id',
+        config_dict['sample_columns']['collection_date']: 'collection_date_dfd',
+        alleliccapseg: 'cnv_seg_fn',
+        maf: 'maf_fn'
+    }, inplace=True)
     new_samples_df.dropna(subset=['cnv_seg_fn', 'maf_fn'], inplace=True)
-    new_samples_df.drop(columns=['alleliccapseg_tsv', 'mutation_validator_validated_maf'], inplace=True)
+    new_samples_df.drop(columns=[unmatched_alleliccapseg, unmatched_maf], errors='ignore', inplace=True)
 
     clinical_df = pd.read_csv(participants_fn, sep='\t')
     # clinical_df file originally has multi index over all the columns
+    # make this more robust
     clinical_df.reset_index(inplace=True)
     for col in list(clinical_df):
         clinical_df.rename(columns={col: clinical_df.loc[0, col]}, inplace=True)
@@ -63,7 +126,18 @@ def collect_data(workspace, treatments_fn, participants_fn, data_path):
     participants_df.reset_index(inplace=True)
     participants_df = participants_df['participant_id'].to_frame()
 
-    clinical_df_cols = ['tumor_molecular_subtype', 'tumor_morphology', 'tumor_primary_site', 'cancer_stage', 'vital_status', 'death_date_dfd', 'follow_up_date', 'age_at_diagnosis', 'gender', 'notes']
+    clinical_df_cols = [
+        'tumor_molecular_subtype',
+        'tumor_morphology',
+        'tumor_primary_site',
+        'cancer_stage',
+        'vital_status',
+        'death_date_dfd',
+        'follow_up_date',
+        'age_at_diagnosis',
+        'gender',
+        'notes'
+    ] or config_dict['clinical_file']['columns']
     clinical_df = clinical_df[[col for col in clinical_df_cols if col in list(clinical_df)]]
     participants_df = participants_df.join(clinical_df, on='participant_id')
     participants_df = participants_df.replace(['unknown', 'not reported'], np.nan)
@@ -102,8 +176,8 @@ def collect_data(workspace, treatments_fn, participants_fn, data_path):
 
     participants_df.dropna(subset=['treatments_fn', 'maf_fn'], inplace=True)
 
-    participant_file_name = f'{data_path}/participants.txt'
-    samples_file_name = f'{data_path}/samples.txt'
+    participant_file_name = f'{data_path}/{participant_file}'
+    samples_file_name = f'{data_path}/{sample_file}'
 
     if not os.path.exists(participant_file_name):
         participants_df.to_csv(participant_file_name, sep='\t', index=False)
