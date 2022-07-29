@@ -126,7 +126,7 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
         scatter_x = 'order'
         rect_x = 6
 
-    treatments_df = pd.read_csv(df.loc[idx, 'treatment_fn'], sep='\t', comment='#')
+    treatments_df = pd.read_csv(df.loc[idx, 'treatments_fn'], sep='\t', comment='#')
     treatments_in_frame_df = treatments_df[(treatments_df['stop_date_dfd'] >= timing_data[samples_in_order[0]]) &
                                            (treatments_df['start_date_dfd'] <= timing_data[samples_in_order[-1]])]
 
@@ -443,21 +443,21 @@ def gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree
     """Phylogic graphics callback function with parameters being the callback inputs and returns being callback outputs."""
     df = data.participant_df
     samples_df = data.sample_df
-    
-    if ['build_tree_posterior_fn', 'cluster_ccfs_fn'] in list(df):
+
+    if df.loc[idx, 'cluster_ccfs_fn']:
         ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
         tree, possible_trees = gen_phylogic_tree(df, idx, 0, drivers_fn)
 
         return [ccf_plot, possible_trees, possible_trees[0], tree]
-
-    return [go.Figure(), [], 0, 'cyto.Cytoscape()']
+    else:
+        return [go.Figure, [], 0, '']
 
 def internal_gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, mutation, drivers_fn):
     """Phylogic graphics internal callback function with parameters being the callback inputs and returns being callback outputs."""
     df = data.participant_df
     samples_df = data.sample_df
 
-    if ['build_tree_posterior_fn', 'cluster_ccfs_fn'] in list(df):
+    if df.loc[idx, 'cluster_ccfs_fn']:
         tree_num = 0
         for n in chosen_tree.split():
             if n.isdigit():
@@ -467,8 +467,8 @@ def internal_gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, ch
         tree, possible_trees = gen_phylogic_tree(df, idx, tree_num-1, drivers_fn)
 
         return [ccf_plot, possible_trees, chosen_tree, tree]
-
-    return [go.Figure(), [], 0, cyto.Cytoscape()]
+    else:
+        return [go.Figure, [], 0, '']
 
 
 # -------------------------- Phylogic PMF Plot ----------------------------

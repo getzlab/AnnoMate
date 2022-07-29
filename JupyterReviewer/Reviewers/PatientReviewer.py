@@ -93,7 +93,6 @@ def collect_data(config_path):
     wm = dalmatian.WorkspaceManager(workspace)
 
     samples_df = wm.get_samples()
-    #samples_df = samples_df[['participant', 'pdb_collection_date_dfd', 'unmatched_alleliccapseg_tsv', 'unmatched_mutation_validator_validated_maf']]
     samples_df = samples_df[sample_cols]
 
     pairs_df = wm.get_pairs()
@@ -105,7 +104,6 @@ def collect_data(config_path):
         new_samples_df.fillna(value={alleliccapseg: new_samples_df[unmatched_alleliccapseg]}, inplace=True)
     if unmatched_maf:
         new_samples_df.fillna(value={maf: new_samples_df[unmatched_maf]}, inplace=True)
-    #new_samples_df.fillna(value={pairs_purity: new_samples_df[sample_purity], pairs_ploidy: new_samples_df[sample_ploidy]})
     new_samples_df.reset_index(inplace=True)
     new_samples_df.rename(columns={
         'index': 'sample_id',
@@ -129,12 +127,22 @@ def collect_data(config_path):
     clinical_df.set_index('participant_id', inplace=True)
 
     participants_df = wm.get_participants()
+    # limit participants_df to only participants that have samples
     participants_df = participants_df.loc[new_samples_df.participant_id.unique()]
     participants_df.reset_index(inplace=True)
-    if cluster_ccfs:
+    if maf_table_origin == 'participant' and cluster_ccfs:
         participants_df = participants_df[['participant_id', maf, cluster_ccfs, trees]]
         participants_df.rename(columns={
             maf: 'maf_fn',
+            cluster_ccfs: 'cluster_ccfs_fn',
+            trees: 'build_tree_posterior_fn'
+        }, inplace=True)
+    elif maf_table_origin == 'participant':
+        participants_df = participants_df[['participant_id', maf]]
+        participants_df.rename(columns={maf: 'maf_fn'}, inplace=True)
+    elif cluster_ccfs:
+        participants_df = participants_df[['participant_id', cluster_ccfs, trees]]
+        participants_df.rename(columns={
             cluster_ccfs: 'cluster_ccfs_fn',
             trees: 'build_tree_posterior_fn'
         }, inplace=True)
@@ -190,10 +198,7 @@ def collect_data(config_path):
 
             participants_df.loc[i, 'maf_fn'] = os.path.normpath(maf_file_name)
 
-    participants_df.dropna(subset=['treatments_fn'], inplace=True)
-    if maf_table_origin == 'sample':
-        participants_df.dropna(subset=['maf_fn'], inplace=True)
-
+    participants_df.dropna(subset=['treatments_fn', 'maf_fn'], inplace=True)
 
     participant_file_name = f'{data_path}/{participant_file}'
     samples_file_name = f'{data_path}/{sample_file}'
@@ -280,10 +285,7 @@ class PatientReviewer(ReviewerTemplate):
             for sample in sample_list:
                 output_fn = f'{cnv_figs_dir}/{sample}.cnv_fig.pkl'
                 fig, start_trace, end_trace = gen_preloaded_cnv_plot(sample_df, sample)
-                pickle.dump(fig, open(output_fn, 'wb'))
-                sample_df.loc[sample, 'cnv_plots_pkl'] = output_fn
-                sample_df.loc[sample, 'cnv_start_trace'] = start_trace
-                sample_df.loc[sample, 'cnv_end_trace'] = end_trace
+                pickle.dump([fig, start_trace, end_trace], open(output_fn, 'wb'))
 
         rd = PatientSampleData(
             index=participant_df.index,
