@@ -161,7 +161,7 @@ def gen_mut_scatter(maf_df, mut_sigma, sample):
 def gen_preloaded_cnv_plot(samples_df, sample):
     cnv_seg_df = pd.read_csv(samples_df.loc[sample, 'cnv_seg_fn'], sep='\t')
 
-    cnv_plot = make_subplots(rows=2, cols=1)
+    cnv_plot = make_subplots()
     start_trace, end_trace = plot_acr_interactive(cnv_seg_df, cnv_plot, csize, segment_colors='difference', sigmas=True)
 
     return [cnv_plot, start_trace, end_trace]
@@ -254,7 +254,7 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     #cnv_plot = make_subplots(len(sample_selection_corrected), 1)
     for i, sample_id in enumerate(sample_selection_corrected):
         #start_trace, end_trace = plot_acr_interactive(seg_df[sample_list.index(sample_id)], cnv_plot, csize, segment_colors=segment_colors, sigmas=sigmas_val, row=i)
-        cnv_plot = pickle.load(open(f'{preprocess_data_dir}/cnv_figs/{sample_id}.cnv_fig.pkl', "rb"))
+        cnv_plot, start_trace, end_trace = pickle.load(open(f'{preprocess_data_dir}/cnv_figs/{sample_id}.cnv_fig.pkl', "rb"))
 
         #cnv_plot.add_trace(current_cnv_plot, row=i, col=1)
 
@@ -282,6 +282,8 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
                     sigma_major_adj,
                     start_trace,
                     end_trace
+                    # samples_df.loc[sample_id, 'cnv_start_trace'],
+                    # samples_df.loc[sample_id, 'cnv_end_trace']
                 )
             else:
                 this_maf_df['mu_major_adj'] = this_maf_df['mu_major']
