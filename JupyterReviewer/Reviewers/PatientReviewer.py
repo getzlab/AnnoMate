@@ -65,98 +65,11 @@ def parse_patient_reviewer_input(config_path):
 def collect_data(config_path):
     config_dict = parse_patient_reviewer_input(config_path)
 
-    workspace = config_dict['workspace']
-    treatments_fn = config_dict['treatment_file']
-    participants_fn = config_dict['clinical_file']['file_name']
-    data_path = config_dict['data_path']
-    alleliccapseg = config_dict['cnv_files']['column_name']
-    unmatched_alleliccapseg = config_dict['cnv_files']['unmatched_column_name']
-    maf = config_dict['maf_files']['column_name']
-    unmatched_maf = config_dict['maf_files']['unmatched_column_name']
-    participant_file = config_dict['saved_files']['participant_file']
-    sample_file = config_dict['saved_files']['sample_file']
-    maf_table_origin = config_dict['maf_files']['table_origin']
-    cluster_ccfs = config_dict['phylogic_files']['clusters_file']
-    trees = config_dict['phylogic_files']['trees_file']
-    clinical_cols = config_dict['clinical_file']['columns']
+    # define config inputs with defaults
+    sample_file = config_dict['saved_files']['sample_file'] if config_dict['saved_files']['sample_file'] else 'samples.txt'
+    participant_file = config_dict['saved_files']['participant_file'] if config_dict['saved_files']['participant_file'] else 'participants.txt'
 
-    sample_cols_values = list(config_dict['sample_columns'].values())
-    sample_cols = [col for col in sample_cols_values if col]
-    if unmatched_alleliccapseg:
-        sample_cols.append(unmatched_alleliccapseg)
-    if unmatched_maf:
-        sample_cols.append(unmatched_maf)
-
-    pairs_cols_values = list(config_dict['pairs_columns'].values())
-    pairs_cols = [col for col in pairs_cols_values if col]
-    pairs_cols.append(alleliccapseg)
-    if maf_table_origin == 'sample':
-        pairs_cols.append(maf)
-
-    wm = dalmatian.WorkspaceManager(workspace)
-
-    samples_df = wm.get_samples()
-    samples_df = samples_df[sample_cols]
-
-    pairs_df = wm.get_pairs()
-    pairs_df = pairs_df[pairs_cols]
-    pairs_df.set_index(config_dict['pairs_columns']['sample_id'], inplace=True)
-
-    sample_sets_df = wm.get_sample_sets()
-    pair_sets_df = wm.get_pair_sets()
-
-    new_samples_df = samples_df.combine_first(pairs_df)
-    if unmatched_alleliccapseg:
-        new_samples_df.fillna(value={alleliccapseg: new_samples_df[unmatched_alleliccapseg]}, inplace=True)
-    if unmatched_maf:
-        new_samples_df.fillna(value={maf: new_samples_df[unmatched_maf]}, inplace=True)
-    new_samples_df.reset_index(inplace=True)
-    new_samples_df.rename(columns={
-        'index': 'sample_id',
-        config_dict['sample_columns']['participant_id']: 'participant_id',
-        config_dict['sample_columns']['collection_date']: 'collection_date_dfd',
-        config_dict['sample_columns']['preservation_method']: 'preservation_method',
-        alleliccapseg: 'cnv_seg_fn',
-        maf: 'maf_fn'
-    }, inplace=True)
-    new_samples_df.dropna(subset=['cnv_seg_fn'], inplace=True)
-    if maf_table_origin == 'sample':
-        new_samples_df.dropna(subset=['maf_fn'], inplace=True)
-    new_samples_df.drop(columns=[unmatched_alleliccapseg, unmatched_maf], errors='ignore', inplace=True)
-
-    clinical_df = pd.read_csv(participants_fn, sep='\t')
-    # clinical_df file originally has multi index over all the columns
-    # make this more robust
-    clinical_df.reset_index(inplace=True)
-    for col in list(clinical_df):
-        clinical_df.rename(columns={col: clinical_df.loc[0, col]}, inplace=True)
-    clinical_df.drop(0, inplace=True)
-    clinical_df.set_index('participant_id', inplace=True)
-
-    participants_df = wm.get_participants()
-    # limit participants_df to only participants that have samples
-    participants_df = participants_df.loc[new_samples_df.participant_id.unique()]
-    participants_df.reset_index(inplace=True)
-    if maf_table_origin == 'participant' and cluster_ccfs:
-        participants_df = participants_df[['participant_id', maf, cluster_ccfs, trees]]
-        participants_df.rename(columns={
-            maf: 'maf_fn',
-            cluster_ccfs: 'cluster_ccfs_fn',
-            trees: 'build_tree_posterior_fn'
-        }, inplace=True)
-    elif maf_table_origin == 'participant':
-        participants_df = participants_df[['participant_id', maf]]
-        participants_df.rename(columns={maf: 'maf_fn'}, inplace=True)
-    elif cluster_ccfs:
-        participants_df = participants_df[['participant_id', cluster_ccfs, trees]]
-        participants_df.rename(columns={
-            cluster_ccfs: 'cluster_ccfs_fn',
-            trees: 'build_tree_posterior_fn'
-        }, inplace=True)
-    else:
-        participants_df = participants_df['participant_id'].to_frame()
-
-    clinical_df_cols = [
+    default_clinical_cols = [
         'tumor_molecular_subtype',
         'tumor_morphology',
         'tumor_primary_site',
@@ -167,8 +80,177 @@ def collect_data(config_path):
         'age_at_diagnosis',
         'gender',
         'notes'
-    ] or clinical_cols
-    clinical_df = clinical_df[[col for col in clinical_df_cols if col in list(clinical_df)]]
+    ]
+    input_clinical_cols = [col for col in list(config_dict['clinical_file']['columns'].values()) if col]
+    if input_clinical_cols:
+        clinical_cols = input_clinical_cols
+    else:
+        clinical_cols = default_clinical_cols
+    if config_dict['clinical_file']['additional_columns']:
+        clinical_cols.extend(config_dict['clinical_file']['additional_columns'])
+
+    default_sample_cols = {
+        'collection_date': 'pdb_collection_date_dfd',
+        'cram_bam_columns': [
+            'gpdw_DNA_WES_agilent_cram_or_bam_path',
+            'gpdw_DNA_WES_icev1_cram_or_bam_path',
+            'gpdw_DNA_WES_twistv1_cram_or_bam_path',
+            'gpdw_DNA_WGS_cram_or_bam_path'
+        ],
+        'participant_id': 'participant',
+        'preservation_method': 'pdb_preservation_method',
+    }
+    input_sample_cols = config_dict['sample_columns']['columns']
+    sample_cols=[]
+    for col in input_sample_cols:
+        if input_sample_cols[col]:
+            sample_cols.extend(input_sample_cols[col]) if isinstance(input_sample_cols[col], list) else sample_cols.append(input_sample_cols[col])
+        else:
+            sample_cols.extend(default_sample_cols[col]) if isinstance(default_sample_cols[col], list) else sample_cols.append(default_sample_cols[col])
+    if config_dict['sample_columns']['additional_columns']:
+        sample_cols.extend(config_dict['sample_columns']['additional_columns'])
+
+    default_pairs_cols = {
+        'sample_id': 'case_sample',
+        'participant_id': 'participant',
+        'purity': 'wxs_purity',
+        'ploidy': 'wxs_ploidy'
+    }
+    input_pairs_cols = config_dict['pairs_columns']
+    pairs_cols = []
+    for col in input_pairs_cols:
+        if input_pairs_cols[col]:
+            pairs_cols.append(input_pairs_cols[col])
+        else:
+            pairs_cols.append(default_pairs_cols[col])
+
+    # define required config inputs
+    workspace = config_dict['workspace']
+    data_path = config_dict['data_path']
+    clinical_fn = config_dict['clinical_file']['file_name']
+
+    participant_cols = []
+    maf = config_dict['maf_files']['column_name']
+    maf_table_origin = config_dict['maf_files']['table_origin']
+    if maf_table_origin == 'sample':
+        pairs_cols.append(maf)
+    elif maf_table_origin == 'participant':
+        participant_cols.append(maf)
+    else:
+        raise ValueError(f'maf_table_origin must be sample or participant, not {maf_table_origin}')
+
+    alleliccapseg = config_dict['cnv_files']['column_name']
+    pairs_cols.append(alleliccapseg)
+
+    # define config inputs that are empty if not specified
+    treatments_fn = config_dict['treatment_file']
+
+    unmatched_alleliccapseg = config_dict['cnv_files']['unmatched_column_name']
+    if unmatched_alleliccapseg:
+        sample_cols.append(unmatched_alleliccapseg)
+
+    unmatched_maf = config_dict['maf_files']['unmatched_column_name']
+    if unmatched_maf:
+        sample_cols.append(unmatched_maf)
+
+    cluster_ccfs = config_dict['phylogic_files']['clusters_file']
+    if cluster_ccfs:
+        participant_cols.append(cluster_ccfs)
+    trees = config_dict['phylogic_files']['trees_file']
+    if trees:
+        participant_cols.append(trees)
+
+    # sample_cols_values = list(config_dict['sample_columns'].values())
+    # sample_cols = [col for col in sample_cols_values if col]
+    # if unmatched_alleliccapseg:
+    #     sample_cols.append(unmatched_alleliccapseg)
+    # if unmatched_maf:
+    #     sample_cols.append(unmatched_maf)
+    #
+    # pairs_cols_values = list(config_dict['pairs_columns'].values())
+    # pairs_cols = [col for col in pairs_cols_values if col]
+    # pairs_cols.append(alleliccapseg)
+    # if maf_table_origin == 'sample':
+    #     pairs_cols.append(maf)
+
+    # begin pulling data from terra based off of above specifications
+    wm = dalmatian.WorkspaceManager(workspace)
+
+    samples_df = wm.get_samples()
+    samples_df = samples_df[sample_cols]
+
+    pairs_df = wm.get_pairs()
+    pairs_df = pairs_df[pairs_cols]
+    pairs_df.set_index(config_dict['pairs_columns']['sample_id'], inplace=True)
+
+    # combine samples and pairs on sample_id, still appending samples not in pairs
+    # index is sample_id
+    combined_samples_df = samples_df.combine_first(pairs_df)
+    # merge all alleliccapseg and maf files between samples and pairs into one column
+    if unmatched_alleliccapseg:
+        combined_samples_df.fillna(value={alleliccapseg: combined_samples_df[unmatched_alleliccapseg]}, inplace=True)
+    if unmatched_maf:
+        combined_samples_df.fillna(value={maf: combined_samples_df[unmatched_maf]}, inplace=True)
+    combined_samples_df.reset_index(inplace=True)
+    # rename all input columns to eliminate ambiguity throughout the code
+    combined_samples_df.rename(columns={
+        'index': 'sample_id',
+        config_dict['sample_columns']['columns']['participant_id']: 'participant_id',
+        config_dict['sample_columns']['columns']['collection_date']: 'collection_date_dfd',
+        config_dict['sample_columns']['columns']['preservation_method']: 'preservation_method',
+        config_dict['pairs_columns']['purity']: 'wxs_purity',
+        config_dict['pairs_columns']['ploidy']: 'wxs_ploidy',
+        alleliccapseg: 'cnv_seg_fn',
+        maf: 'maf_fn'
+    }, inplace=True)
+    combined_samples_df.dropna(subset=['cnv_seg_fn'], inplace=True)
+    if 'maf_fn' in list(combined_samples_df):
+        combined_samples_df.dropna(subset=['maf_fn'], inplace=True)
+    # now that all alleliccapseg and maf data is merged into one column, these two can be dropped
+    # errors=ignore ignored error if unmatched alleliccapseg and maf are not present
+    combined_samples_df.drop(columns=[unmatched_alleliccapseg, unmatched_maf], errors='ignore', inplace=True)
+
+    clinical_df = pd.read_csv(clinical_fn, sep='\t')
+    # clinical_df file originally has multi index over all the columns
+    # make this more robust
+    clinical_df.reset_index(inplace=True)
+    for col in list(clinical_df):
+        clinical_df.rename(columns={col: clinical_df.loc[0, col]}, inplace=True)
+    clinical_df.drop(0, inplace=True)
+    clinical_df.set_index('participant_id', inplace=True)
+
+    participants_df = wm.get_participants()
+    # limit participants_df to only participants that have samples
+    participants_df = participants_df.loc[combined_samples_df.participant_id.unique()]
+    participants_df.reset_index(inplace=True)
+    # if maf_table_origin == 'participant' and cluster_ccfs:
+    #     participants_df = participants_df[['participant_id', maf, cluster_ccfs, trees]]
+    #     participants_df.rename(columns={
+    #         maf: 'maf_fn',
+    #         cluster_ccfs: 'cluster_ccfs_fn',
+    #         trees: 'build_tree_posterior_fn'
+    #     }, inplace=True)
+    # elif maf_table_origin == 'participant':
+    #     participants_df = participants_df[['participant_id', maf]]
+    #     participants_df.rename(columns={maf: 'maf_fn'}, inplace=True)
+    # elif cluster_ccfs:
+    #     participants_df = participants_df[['participant_id', cluster_ccfs, trees]]
+    #     participants_df.rename(columns={
+    #         cluster_ccfs: 'cluster_ccfs_fn',
+    #         trees: 'build_tree_posterior_fn'
+    #     }, inplace=True)
+    if participant_cols:
+        participant_cols.append('participant_id')
+        participants_df = participants_df[participant_cols]
+        participants_df.rename(columns={
+            maf: 'maf_fn',
+            cluster_ccfs: 'cluster_ccfs_fn',
+            trees: 'build_tree_posterior_fn'
+        }, inplace=True)
+    else:
+        participants_df = participants_df['participant_id'].to_frame()
+
+    clinical_df = clinical_df[clinical_cols]
     participants_df = participants_df.join(clinical_df, on='participant_id')
 
     treatments_df = pd.read_csv(treatments_fn, sep='\t')
@@ -197,7 +279,7 @@ def collect_data(config_path):
         if maf_table_origin == 'sample':
             maf_file_name = f'{participant_maf_files_path}/{participant}_maf.txt'
             if not os.path.exists(maf_file_name):
-                this_p_mafs = new_samples_df[new_samples_df['participant_id'] == participant]['maf_fn'].tolist()
+                this_p_mafs = combined_samples_df[combined_samples_df['participant_id'] == participant]['maf_fn'].tolist()
                 if len(this_p_mafs) > 0:
                     this_p_maf = pd.concat([pd.read_csv(maf, sep='\t', encoding = "ISO-8859-1") for maf in this_p_mafs])
                     this_p_maf.to_csv(maf_file_name, sep='\t', index=False)
@@ -212,9 +294,9 @@ def collect_data(config_path):
     if not os.path.exists(participant_file_name):
         participants_df.to_csv(participant_file_name, sep='\t', index=False)
     if not os.path.exists(samples_file_name):
-        new_samples_df.to_csv(samples_file_name, sep='\t', index=False)
+        combined_samples_df.to_csv(samples_file_name, sep='\t', index=False)
 
-    return [new_samples_df, participants_df]
+    return [combined_samples_df, participants_df]
 
 def gen_clinical_data_table(df, idx):
     default_cols = {
