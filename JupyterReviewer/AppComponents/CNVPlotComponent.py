@@ -54,7 +54,8 @@ def gen_cnv_plot_layout():
                     id='cnv_plot',
                     figure=go.Figure()
                 ),
-            ], width=10),
+            ],
+            width=10),
             dbc.Col([
                 html.H3('Customize Plot'),
                 html.H5('Samples:'),
@@ -256,11 +257,9 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
         #start_trace, end_trace = plot_acr_interactive(seg_df[sample_list.index(sample_id)], cnv_plot, csize, segment_colors=segment_colors, sigmas=sigmas_val, row=i)
         cnv_plot, start_trace, end_trace = pickle.load(open(f'{preprocess_data_dir}/cnv_figs/{sample_id}.cnv_fig.pkl', "rb"))
 
-        #cnv_plot.add_trace(current_cnv_plot, row=i, col=1)
-
         if 'wxs_purity' in list(samples_df):
-            purity = samples_df.loc[sample_id, 'wxs_purity']
-            ploidy = samples_df.loc[sample_id, 'wxs_ploidy']
+            purity = float(samples_df.loc[sample_id, 'wxs_purity'])
+            ploidy = float(samples_df.loc[sample_id, 'wxs_ploidy'])
             c_0, c_delta = calc_cn_levels(purity, ploidy)
 
             this_maf_df = maf_df[maf_df[sample_id_col] == sample_id]

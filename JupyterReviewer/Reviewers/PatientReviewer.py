@@ -12,11 +12,13 @@ import numpy as np
 import pickle
 import os
 from dash import html
+from dash import Dash, dash_table
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 import dalmatian
 from typing import Dict, List
 import yaml
+import re
 
 from JupyterReviewer.ReviewData import ReviewData
 from JupyterReviewer.Data import DataAnnotation
@@ -76,6 +78,7 @@ def collect_data(config_path):
     maf_table_origin = config_dict['maf_files']['table_origin']
     cluster_ccfs = config_dict['phylogic_files']['clusters_file']
     trees = config_dict['phylogic_files']['trees_file']
+    clinical_cols = config_dict['clinical_file']['columns']
 
     sample_cols_values = list(config_dict['sample_columns'].values())
     sample_cols = [col for col in sample_cols_values if col]
@@ -99,6 +102,9 @@ def collect_data(config_path):
     pairs_df = pairs_df[pairs_cols]
     pairs_df.set_index(config_dict['pairs_columns']['sample_id'], inplace=True)
 
+    sample_sets_df = wm.get_sample_sets()
+    pair_sets_df = wm.get_pair_sets()
+
     new_samples_df = samples_df.combine_first(pairs_df)
     if unmatched_alleliccapseg:
         new_samples_df.fillna(value={alleliccapseg: new_samples_df[unmatched_alleliccapseg]}, inplace=True)
@@ -109,6 +115,7 @@ def collect_data(config_path):
         'index': 'sample_id',
         config_dict['sample_columns']['participant_id']: 'participant_id',
         config_dict['sample_columns']['collection_date']: 'collection_date_dfd',
+        config_dict['sample_columns']['preservation_method']: 'preservation_method',
         alleliccapseg: 'cnv_seg_fn',
         maf: 'maf_fn'
     }, inplace=True)
@@ -160,10 +167,9 @@ def collect_data(config_path):
         'age_at_diagnosis',
         'gender',
         'notes'
-    ] or config_dict['clinical_file']['columns']
+    ] or clinical_cols
     clinical_df = clinical_df[[col for col in clinical_df_cols if col in list(clinical_df)]]
     participants_df = participants_df.join(clinical_df, on='participant_id')
-    participants_df = participants_df.replace(['unknown', 'not reported'], np.nan)
 
     treatments_df = pd.read_csv(treatments_fn, sep='\t')
 
@@ -210,10 +216,72 @@ def collect_data(config_path):
 
     return [new_samples_df, participants_df]
 
-def gen_clinical_data_table(data: PatientSampleData, idx, cols):
-    df=data.participant_df
-    r=df.loc[idx]
-    return [dbc.Table.from_dataframe(r[cols].to_frame().reset_index())]
+def gen_clinical_data_table(df, idx):
+    default_cols = {
+        'tumor_molecular_subtype': 'Molecular Subtype',
+        'tumor_morphology': 'Morphology',
+        'tumor_primary_site': 'Primary Site',
+        'cancer_stage': 'Stage',
+        'vital_status': 'Vital Status',
+        'death_date_dfd': 'Death Date (dfd)',
+        'follow_up_date': 'Last Follow Up Date (dfd)',
+        'age_at_diagnosis': 'Age (at diagnosis)',
+        'gender': 'Gender',
+        'notes': 'Notes'
+    }
+
+    participant_cols = list(df)
+    clinical_cols = [col for col in participant_cols if not re.search('fn$', col) and not re.search('id$', col)]
+
+    this_participant_df = df.loc[idx, clinical_cols].to_frame()
+    this_participant_df.reset_index(inplace=True)
+    this_participant_df['index'] = this_participant_df['index'].apply(lambda x: default_cols[x])
+    this_participant_df.set_index('index')
+    this_participant_df.dropna(inplace=True)
+
+    return [dash_table.DataTable(
+        data=this_participant_df.to_dict('records'),
+        #style_header = {'display': 'none'}
+        columns=[
+            {'name': 'Clinical Data', 'id': 'index'},
+            {'name': idx, 'id': idx}]
+    )]
+
+def gen_sample_data_table(df, idx):
+    default_cols = {
+        'sample_id': 'Sample ID',
+        'sample_type': 'Sample Type',
+        'preservation_method': 'Preservation Method',
+        'bait_set': 'Bait Set',
+        'wxs_purity': 'Purity',
+        'wxs_ploidy': 'Ploidy'
+    }
+
+    df.reset_index(inplace=True)
+    df.set_index('participant_id', inplace=True)
+    sample_cols = [col for col in default_cols if col in list(df)]
+    this_sample_df = df.loc[idx, sample_cols]
+    this_sample_df.reset_index(drop=True, inplace=True)
+
+    formatted_cols = [{'name': default_cols[col], 'id': col} for col in sample_cols]
+
+    df.reset_index(inplace=True)
+    df.set_index('sample_id', inplace=True)
+
+    return [dash_table.DataTable(
+        data=this_sample_df.to_dict('records'),
+        columns=formatted_cols
+    )]
+
+
+def gen_clinical_sample_data_table(data: PatientSampleData, idx):
+    df = data.participant_df
+    samples_df = data.sample_df
+
+    return [
+        gen_clinical_data_table(df, idx),
+        gen_sample_data_table(samples_df, idx)
+    ]
 
 
 class PatientReviewer(ReviewerTemplate):
@@ -346,14 +414,29 @@ class PatientReviewer(ReviewerTemplate):
         app = ReviewDataApp()
 
         app.add_component(AppComponent(
-            'Clinical Data',
-            html.Div(
-                id='clinical-data-component',
-                children=dbc.Table.from_dataframe(df=pd.DataFrame())
-            ),
-            callback_output=[Output('clinical-data-component', 'children')],
-            new_data_callback=gen_clinical_data_table
-        ), cols=['gender', 'age_at_diagnosis', 'vital_status', 'death_date_dfd'])
+            'Clinical + Sample Data',
+            html.Div([
+                dbc.Row([
+                    dbc.Col([
+                        html.Div(
+                            id='clinical-data-component',
+                            children=[dash_table.DataTable(columns=[])]
+                        )
+                    ], width=6),
+                    dbc.Col([
+                        html.Div(
+                            id='sample-data-component',
+                            children=[dash_table.DataTable(columns=[])]
+                        )
+                    ], width=6)
+                ])
+            ]),
+            callback_output=[
+                Output('clinical-data-component', 'children'),
+                Output('sample-data-component', 'children')
+            ],
+            new_data_callback=gen_clinical_sample_data_table
+        ))
 
         app.add_component(gen_mutation_table_app_component(), custom_colors=custom_colors)
 

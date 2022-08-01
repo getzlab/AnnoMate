@@ -34,7 +34,7 @@ sample_columns:
   collection_date: pdb_collection_date_dfd
   # purity: wxs_purity
   # ploidy: wxs_ploidy
-  preservation_method:
+  preservation_method: pdb_preservation_method
   bait_set:
   sample_type:
 
