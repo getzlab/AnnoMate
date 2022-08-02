@@ -98,7 +98,9 @@ def collect_data(config_path):
             'gpdw_DNA_WGS_cram_or_bam_path'
         ],
         'participant_id': 'participant',
+        'ploidy': 'wxs_ploidy',
         'preservation_method': 'pdb_preservation_method',
+        'purity': 'wxs_purity'
     }
     input_sample_cols = config_dict['sample_columns']['columns']
     sample_cols=[]
@@ -165,6 +167,7 @@ def collect_data(config_path):
 
     samples_df = wm.get_samples()
     samples_df = samples_df[sample_cols]
+    samples_df.replace('', np.NaN, inplace=True)
 
     pairs_df = wm.get_pairs()
     pairs_df = pairs_df[pairs_cols]
@@ -296,7 +299,7 @@ def gen_clinical_data_table(df, idx):
     return [dash_table.DataTable(
         data=this_participant_df.to_dict('records'),
         columns=[
-            {'name': 'Clinical Data', 'id': 'index'},
+            {'name': '', 'id': 'index'},
             {'name': idx, 'id': idx}]
     )]
 
@@ -314,9 +317,11 @@ def gen_sample_data_table(df, idx):
     cram_bam_columns = [col for col in list(df) if re.search('cram_or_bam', col)]
     for sample in df.index:
         for col in cram_bam_columns:
+            #pandas.isnull
             if re.search('gs://', str(df.loc[sample, col])):
+                # allow for multiple
                 df.loc[sample, 'sample_type'] = 'WES' if re.search('WES', col) else 'WGS'
-                df.loc[sample, 'bait_set'] = 'TWIST' if re.search('twist', col) else 'ICE' if re.search('ice', col) else 'Agilant' if re.search('agilant', col) else np.nan
+                df.loc[sample, 'bait_set'] = 'TWIST' if re.search('twist', col) else 'ICE' if re.search('ice', col) else 'Agilent' if re.search('agilent', col) else np.nan
 
     df.reset_index(inplace=True)
     df.set_index('participant_id', inplace=True)

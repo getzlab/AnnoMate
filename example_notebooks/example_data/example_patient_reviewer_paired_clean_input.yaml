@@ -49,8 +49,8 @@ sample_columns:
     # names. if some specified, defaults will be set for those unspecified
     participant_id: participant
     collection_date: pdb_collection_date_dfd
-    # purity: wxs_purity
-    # ploidy: wxs_ploidy
+    purity: wxs_purity
+    ploidy: wxs_ploidy
     preservation_method: pdb_preservation_method
     cram_bam_columns: ['gpdw_DNA_WES_twistv1_cram_or_bam_path']
   additional_columns:
