@@ -233,11 +233,12 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
         seg_df.append(this_seg_df)
 
     maf_df = maf_df[maf_df.Sample_ID.isin(sample_list)]
+    maf_df = switch_contigs(maf_df)
+    maf_df['Chromosome'] = maf_df['Chromosome'].astype(int)
 
     seg_trees = get_segment_interval_trees(pd.concat(seg_df))
     maf_df = apply_segment_data_to_df(maf_df, seg_trees)
 
-    maf_df['Chromosome'] = maf_df['Chromosome'].astype(int)
     maf_df['Cluster_Assignment'] = maf_df['Cluster_Assignment'].astype(int)
 
     c_size_cumsum = np.cumsum([0] + list(csize.values()))
