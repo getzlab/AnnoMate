@@ -424,7 +424,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
 
     elements = nodes + edges
 
-    stylesheet = gen_stylesheet(cluster_list, color_list)  # todo debug color assignment bug
+    stylesheet = gen_stylesheet(cluster_list, color_list)
 
     return [
         cyto.Cytoscape(

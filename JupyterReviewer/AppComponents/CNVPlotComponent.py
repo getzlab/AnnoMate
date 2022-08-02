@@ -40,7 +40,7 @@ def gen_cnv_plot_app_component():
         ],
         callback_state_external=[
             State('mutation-table', 'selected_row_ids'),  # selected rows regardless of filtering
-            State('mutation-table', 'derived_virtual_selected_row_ids')  # all rows in table after filtering (and sorting)
+            State('mutation-table', 'derived_virtual_row_ids')  # all rows in table after filtering (and sorting)
         ],
         new_data_callback=gen_absolute_components,
         internal_callback=internal_gen_absolute_components
@@ -202,7 +202,7 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     start_pos = maf_df.columns[maf_df.columns.isin(['Start_position', 'Start_Position'])][0]
     alt = maf_df.columns[maf_df.columns.isin(['Tumor_Seq_Allele2', 'Tumor_Seq_Allele'])][0]
-    sample_id_col = maf_df.columns[maf_df.columns.isin(['Tumor_Sample_Barcode', 'Sample_ID', 'sample_id', 'Sample_id')][0]
+    sample_id_col = maf_df.columns[maf_df.columns.isin(['Tumor_Sample_Barcode', 'Sample_ID', 'sample_id', 'Sample_id'])][0]
     maf_df['id'] = maf_df.apply(lambda x: get_unique_identifier(x, start_pos=start_pos, alt=alt), axis=1)
     maf_df.set_index('id', inplace=True, drop=False)
 
@@ -217,14 +217,6 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     sample_selection_corrected = [sample_list[0]] if sample_selection == [] else sample_selection[:2]
 
     sigmas_val = 'Show CNV Sigmas' in sigmas
-
-    # if color == 'Differential':
-    #     segment_colors = 'difference'
-    # elif color == 'Cluster':
-    #     segment_colors = 'cluster'
-    # # unsure about clonal/subclonal
-    # else:
-    #     segment_colors = color
 
     seg_df = []
     for sample_id in sample_list:
@@ -291,8 +283,6 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
                     sigma_major_adj,
                     start_trace,
                     end_trace
-                    # samples_df.loc[sample_id, 'cnv_start_trace'],
-                    # samples_df.loc[sample_id, 'cnv_end_trace']
                 )
             else:
                 this_maf_df['mu_major_adj'] = this_maf_df['mu_major']
