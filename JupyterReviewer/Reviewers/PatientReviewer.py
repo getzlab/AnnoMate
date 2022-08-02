@@ -200,13 +200,7 @@ def collect_data(config_path):
     # errors=ignore ignored error if unmatched alleliccapseg and maf are not present
     combined_samples_df.drop(columns=[unmatched_alleliccapseg, unmatched_maf], errors='ignore', inplace=True)
 
-    clinical_df = pd.read_csv(clinical_fn, sep='\t')
-    # clinical_df file originally has multi index over all the columns
-    # make this more robust
-    clinical_df.reset_index(inplace=True)
-    for col in list(clinical_df):
-        clinical_df.rename(columns={col: clinical_df.loc[0, col]}, inplace=True)
-    clinical_df.drop(0, inplace=True)
+    clinical_df = pd.read_csv(clinical_fn, sep='\t', comment='#')
     clinical_df.set_index('participant_id', inplace=True)
 
     participants_df = wm.get_participants()
@@ -315,13 +309,20 @@ def gen_sample_data_table(df, idx):
     }
 
     cram_bam_columns = [col for col in list(df) if re.search('cram_or_bam', col)]
+    df['sample_type'] = np.NaN
+    df['bait_set'] = np.NaN
     for sample in df.index:
         for col in cram_bam_columns:
-            #pandas.isnull
-            if re.search('gs://', str(df.loc[sample, col])):
-                # allow for multiple
-                df.loc[sample, 'sample_type'] = 'WES' if re.search('WES', col) else 'WGS'
-                df.loc[sample, 'bait_set'] = 'TWIST' if re.search('twist', col) else 'ICE' if re.search('ice', col) else 'Agilent' if re.search('agilent', col) else np.nan
+            if not pd.isnull(df.loc[sample, col]):
+                if not pd.isnull(df.loc[sample, 'sample_type']) and not re.search(df.loc[sample, 'sample_type'], col):
+                    df.loc[sample, 'sample_type'] = 'WES, WGS'
+                else:
+                    df.loc[sample, 'sample_type'] = 'WES' if re.search('WES', col) else 'WGS'
+
+                if not pd.isnull(df.loc[sample, 'bait_set']) and not re.search('WGS', col):
+                    df.loc[sample, 'bait_set'] += ', TWIST' if re.search('twist', col) else ', ICE' if re.search('ice', col) else ', Agilent'
+                elif pd.isnull(df.loc[sample, 'bait_set']):
+                    df.loc[sample, 'bait_set'] = 'TWIST' if re.search('twist', col) else 'ICE' if re.search('ice', col) else 'Agilent' if re.search('agilent', col) else np.nan
 
     df.reset_index(inplace=True)
     df.set_index('participant_id', inplace=True)
