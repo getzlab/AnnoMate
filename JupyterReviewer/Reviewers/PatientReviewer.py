@@ -160,19 +160,6 @@ def collect_data(config_path):
     if trees:
         participant_cols.append(trees)
 
-    # sample_cols_values = list(config_dict['sample_columns'].values())
-    # sample_cols = [col for col in sample_cols_values if col]
-    # if unmatched_alleliccapseg:
-    #     sample_cols.append(unmatched_alleliccapseg)
-    # if unmatched_maf:
-    #     sample_cols.append(unmatched_maf)
-    #
-    # pairs_cols_values = list(config_dict['pairs_columns'].values())
-    # pairs_cols = [col for col in pairs_cols_values if col]
-    # pairs_cols.append(alleliccapseg)
-    # if maf_table_origin == 'sample':
-    #     pairs_cols.append(maf)
-
     # begin pulling data from terra based off of above specifications
     wm = dalmatian.WorkspaceManager(workspace)
 
@@ -223,22 +210,7 @@ def collect_data(config_path):
     # limit participants_df to only participants that have samples
     participants_df = participants_df.loc[combined_samples_df.participant_id.unique()]
     participants_df.reset_index(inplace=True)
-    # if maf_table_origin == 'participant' and cluster_ccfs:
-    #     participants_df = participants_df[['participant_id', maf, cluster_ccfs, trees]]
-    #     participants_df.rename(columns={
-    #         maf: 'maf_fn',
-    #         cluster_ccfs: 'cluster_ccfs_fn',
-    #         trees: 'build_tree_posterior_fn'
-    #     }, inplace=True)
-    # elif maf_table_origin == 'participant':
-    #     participants_df = participants_df[['participant_id', maf]]
-    #     participants_df.rename(columns={maf: 'maf_fn'}, inplace=True)
-    # elif cluster_ccfs:
-    #     participants_df = participants_df[['participant_id', cluster_ccfs, trees]]
-    #     participants_df.rename(columns={
-    #         cluster_ccfs: 'cluster_ccfs_fn',
-    #         trees: 'build_tree_posterior_fn'
-    #     }, inplace=True)
+
     if participant_cols:
         participant_cols.append('participant_id')
         participants_df = participants_df[participant_cols]
@@ -338,6 +310,13 @@ def gen_sample_data_table(df, idx):
         'wxs_purity': 'Purity',
         'wxs_ploidy': 'Ploidy'
     }
+
+    cram_bam_columns = [col for col in list(df) if re.search('cram_or_bam', col)]
+    for sample in df.index:
+        for col in cram_bam_columns:
+            if re.search('gs://', str(df.loc[sample, col])):
+                df.loc[sample, 'sample_type'] = 'WES' if re.search('WES', col) else 'WGS'
+                df.loc[sample, 'bait_set'] = 'TWIST' if re.search('twist', col) else 'ICE' if re.search('ice', col) else 'Agilant' if re.search('agilant', col) else np.nan
 
     df.reset_index(inplace=True)
     df.set_index('participant_id', inplace=True)
