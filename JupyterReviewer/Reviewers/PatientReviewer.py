@@ -289,13 +289,12 @@ def gen_clinical_data_table(df, idx):
 
     this_participant_df = df.loc[idx, clinical_cols].to_frame()
     this_participant_df.reset_index(inplace=True)
-    this_participant_df['index'] = this_participant_df['index'].apply(lambda x: default_cols[x])
+    this_participant_df['index'] = this_participant_df['index'].apply(lambda x: default_cols[x] if x in default_cols else x.replace('_', ' '))
     this_participant_df.set_index('index')
     this_participant_df.dropna(inplace=True)
 
     return [dash_table.DataTable(
         data=this_participant_df.to_dict('records'),
-        #style_header = {'display': 'none'}
         columns=[
             {'name': 'Clinical Data', 'id': 'index'},
             {'name': idx, 'id': idx}]
@@ -304,6 +303,7 @@ def gen_clinical_data_table(df, idx):
 def gen_sample_data_table(df, idx):
     default_cols = {
         'sample_id': 'Sample ID',
+        'collection_date_dfd': 'Collection Date (dfd)',
         'sample_type': 'Sample Type',
         'preservation_method': 'Preservation Method',
         'bait_set': 'Bait Set',
@@ -320,11 +320,11 @@ def gen_sample_data_table(df, idx):
 
     df.reset_index(inplace=True)
     df.set_index('participant_id', inplace=True)
-    sample_cols = [col for col in default_cols if col in list(df)]
+    sample_cols = [col for col in list(df) if not (re.search('fn$', col) or re.search('cram_or_bam', col))]
     this_sample_df = df.loc[idx, sample_cols]
     this_sample_df.reset_index(drop=True, inplace=True)
 
-    formatted_cols = [{'name': default_cols[col], 'id': col} for col in sample_cols]
+    formatted_cols = [{'name': default_cols[col], 'id': col} if col in default_cols else {'name': col.replace('_', ' '), 'id': col} for col in sample_cols ]
 
     df.reset_index(inplace=True)
     df.set_index('sample_id', inplace=True)
