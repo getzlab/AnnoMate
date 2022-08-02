@@ -202,7 +202,7 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     start_pos = maf_df.columns[maf_df.columns.isin(['Start_position', 'Start_Position'])][0]
     alt = maf_df.columns[maf_df.columns.isin(['Tumor_Seq_Allele2', 'Tumor_Seq_Allele'])][0]
-    sample_id_col = maf_df.columns[maf_df.columns.isin(['Tumor_Sample_Barcode', 'Sample_ID', 'sample_id'])][0]
+    sample_id_col = maf_df.columns[maf_df.columns.isin(['Tumor_Sample_Barcode', 'Sample_ID', 'sample_id', 'Sample_id')][0]
     maf_df['id'] = maf_df.apply(lambda x: get_unique_identifier(x, start_pos=start_pos, alt=alt), axis=1)
     maf_df.set_index('id', inplace=True, drop=False)
 

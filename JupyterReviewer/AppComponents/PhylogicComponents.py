@@ -386,6 +386,8 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
             if (j !='None') & (j not in cluster_list):
                 cluster_list.append(j)
 
+    cluster_list = sorted(cluster_list)
+
     for node in cluster_list:
         color_list.append(cluster_color(node))
 
