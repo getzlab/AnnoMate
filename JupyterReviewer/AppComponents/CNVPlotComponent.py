@@ -14,7 +14,7 @@ from JupyterReviewer.ReviewDataApp import AppComponent
 from JupyterReviewer.AppComponents.utils import cluster_color, get_unique_identifier
 
 import cnv_suite
-from cnv_suite.visualize import plot_acr_interactive, update_cnv_scatter_cn, update_cnv_scatter_color, update_cnv_scatter_sigma_toggle
+from cnv_suite.visualize import plot_acr_interactive, update_cnv_scatter_cn, update_cnv_scatter_color, update_cnv_scatter_sigma_toggle, calc_color, get_phylogic_color_scale
 from cnv_suite.utils import calc_avg_cn, calc_absolute_cn, calc_cn_levels, return_seg_data_at_loci, apply_segment_data_to_df, get_segment_interval_trees, switch_contigs
 from JupyterReviewer.DataTypes.PatientSampleData import PatientSampleData
 
@@ -198,7 +198,6 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     sample_selection_corrected
         sample checkbox value
     """
-    sample_id_col_name = 'Tumor_Sample_Barcode' or 'Sample_ID' or 'sample_id'
 
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     start_pos = maf_df.columns[maf_df.columns.isin(['Start_position', 'Start_Position'])][0]
@@ -219,17 +218,27 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
 
     sigmas_val = 'Show CNV Sigmas' in sigmas
 
-    if color == 'Differential':
-        segment_colors = 'difference'
-    elif color == 'Cluster':
-        segment_colors = 'cluster'
-    # unsure about clonal/subclonal
-    else:
-        segment_colors = color
+    # if color == 'Differential':
+    #     segment_colors = 'difference'
+    # elif color == 'Cluster':
+    #     segment_colors = 'cluster'
+    # # unsure about clonal/subclonal
+    # else:
+    #     segment_colors = color
 
     seg_df = []
     for sample_id in sample_list:
         this_seg_df = pd.read_csv(samples_df.loc[sample_id, 'cnv_seg_fn'], sep='\t')
+        if color == 'Differential':
+            this_seg_df['color_bottom'], this_seg_df['color_top'] = calc_color(this_seg_df, 'mu.major', 'mu.minor')
+        elif color == 'Cluster' and 'cluster_assignment' in this_seg_df.columns:
+            phylogic_color_dict = get_phylogic_color_scale()
+            this_seg_df['color_bottom'] = this_seg_df['cluster_assignment'].map(phylogic_color_dict)
+            this_seg_df['color_top'] = this_seg_df['color_bottom']
+        # unsure about clonal/subclonal
+        else:
+            this_seg_df['color_bottom'] = '#2C38A8'  # blue
+            this_seg_df['color_top'] = '#E6393F'  # red
         this_seg_df['Sample_ID'] = sample_id
         seg_df.append(this_seg_df)
 
@@ -253,18 +262,18 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
 
     #cnv_plot = make_subplots(len(sample_selection_corrected), 1)
     for i, sample_id in enumerate(sample_selection_corrected):
-        #start_trace, end_trace = plot_acr_interactive(seg_df[sample_list.index(sample_id)], cnv_plot, csize, segment_colors=segment_colors, sigmas=sigmas_val, row=i)
-        cnv_plot, start_trace, end_trace = pickle.load(open(f'{preprocess_data_dir}/cnv_figs/{sample_id}.cnv_fig.pkl', "rb"))
+        this_maf_df = maf_df[maf_df[sample_id_col] == sample_id]
+        this_seg_df = seg_df[sample_list.index(sample_id)]
 
+        cnv_plot, start_trace, end_trace = pickle.load(open(f'{preprocess_data_dir}/cnv_figs/{sample_id}.cnv_fig.pkl', "rb"))
+        update_cnv_scatter_sigma_toggle(cnv_plot, sigmas_val)
+        update_cnv_scatter_color(cnv_plot, this_seg_df['color_bottom'], this_seg_df['color_top'], start_trace, end_trace)
         #cnv_plot.add_trace(current_cnv_plot, row=i, col=1)
 
         if 'wxs_purity' in list(samples_df):
             purity = samples_df.loc[sample_id, 'wxs_purity']
             ploidy = samples_df.loc[sample_id, 'wxs_ploidy']
             c_0, c_delta = calc_cn_levels(purity, ploidy)
-
-            this_maf_df = maf_df[maf_df[sample_id_col] == sample_id]
-            this_seg_df = seg_df[sample_list.index(sample_id)]
 
             if 'Display Absolute CN' in absolute:
                 this_maf_df['mu_major_adj'] = (this_maf_df['mu_major'] - c_0) / c_delta
