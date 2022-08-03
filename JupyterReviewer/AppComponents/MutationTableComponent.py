@@ -8,6 +8,7 @@ import dash_bootstrap_components as dbc
 
 from JupyterReviewer.ReviewDataApp import AppComponent
 from JupyterReviewer.AppComponents.utils import cluster_color, get_unique_identifier
+from JupyterReviewer.DataTypes.PatientSampleData import PatientSampleData
 
 
 def gen_mutation_table_app_component():
@@ -253,9 +254,10 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
         if classification not in variant_classifications:
             variant_classifications.append(classification)
 
-    for n in maf_df.Cluster_Assignment.unique():
-        if n not in cluster_assignments:
-            cluster_assignments.append(n)
+    if 'Cluster_Assignment' in list(maf_df):
+        for n in maf_df.Cluster_Assignment.unique():
+            if n not in cluster_assignments:
+                cluster_assignments.append(n)
 
     filtered_maf_df = maf_df.copy()
     if hugo:
@@ -263,7 +265,8 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
     if variant:
         filtered_maf_df = filtered_maf_df[filtered_maf_df.Variant_Classification.isin(variant)]
     if cluster:
-        filtered_maf_df = filtered_maf_df[filtered_maf_df.Cluster_Assignment.isin(cluster)]
+        if 'Cluster_Assignment' in list(maf_df):
+            filtered_maf_df = filtered_maf_df[filtered_maf_df.Cluster_Assignment.isin(cluster)]
 
     return [
         maf_df,
@@ -297,14 +300,16 @@ def maf_callback_return(maf_cols_options, values, maf_cols_value, filtered_maf_d
         cluster_assignments
     ]
 
-def gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster, custom_colors):
+def gen_maf_table(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, custom_colors):
     """Mutation table callback function with parameters being the callback inputs and returns being callback outputs."""
+    df = data.participant_df
     maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
 
     return maf_callback_return(maf_cols_options, maf_cols_value, maf_cols_value, filtered_maf_df, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments)
 
-def internal_gen_maf_table(df, idx, cols, hugo, table_size, variant, cluster, custom_colors):
+def internal_gen_maf_table(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, custom_colors):
     """Mutation table internal callback function with parameters being the callback inputs and returns being callback outputs."""
+    df = data.participant_df
     maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
 
     return maf_callback_return(maf_cols_options, cols, maf_cols_value, filtered_maf_df, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments)

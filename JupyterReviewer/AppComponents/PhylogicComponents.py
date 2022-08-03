@@ -15,6 +15,7 @@ import scipy.stats as ss
 
 from JupyterReviewer.ReviewDataApp import AppComponent
 from JupyterReviewer.AppComponents.utils import cluster_color, get_unique_identifier
+from JupyterReviewer.DataTypes.PatientSampleData import PatientSampleData
 
 
 # --------------------- Phylogic CCF Plot and Tree ------------------------
@@ -37,9 +38,9 @@ def gen_phylogic_app_component():
             Output('tree-dropdown', 'value'),
             Output('phylogic-tree-component', 'children')
         ],
-        callback_states_for_autofill=[
-            State('tree-dropdown', 'value')
-        ],
+        # callback_states_for_autofill=[
+        #     State('tree-dropdown', 'value')
+        # ],
         new_data_callback=gen_phylogic_graphics,
         internal_callback=internal_gen_phylogic_graphics
     )
@@ -126,7 +127,7 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
         scatter_x = 'order'
         rect_x = 6
 
-    treatments_df = pd.read_csv(df.loc[idx, 'treatment_fn'], sep='\t', comment='#')
+    treatments_df = pd.read_csv(df.loc[idx, 'treatments_fn'], sep='\t', comment='#')
     treatments_in_frame_df = treatments_df[(treatments_df['stop_date_dfd'] >= timing_data[samples_in_order[0]]) &
                                            (treatments_df['start_date_dfd'] <= timing_data[samples_in_order[-1]])]
 
@@ -386,6 +387,8 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
             if (j !='None') & (j not in cluster_list):
                 cluster_list.append(j)
 
+    cluster_list = sorted(cluster_list)
+
     for node in cluster_list:
         color_list.append(cluster_color(node))
 
@@ -422,7 +425,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
 
     elements = nodes + edges
 
-    stylesheet = gen_stylesheet(cluster_list, color_list)  # todo debug color assignment bug
+    stylesheet = gen_stylesheet(cluster_list, color_list)
 
     return [
         cyto.Cytoscape(
@@ -439,24 +442,36 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
         possible_trees
     ]
 
-def gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, drivers_fn, samples_df):
+def gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, mutation, drivers_fn):
     """Phylogic graphics callback function with parameters being the callback inputs and returns being callback outputs."""
-    ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
-    tree, possible_trees = gen_phylogic_tree(df, idx, 0, drivers_fn)
+    df = data.participant_df
+    samples_df = data.sample_df
 
-    return [ccf_plot, possible_trees, possible_trees[0], tree]
+    if df.loc[idx, 'cluster_ccfs_fn']:
+        ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
+        tree, possible_trees = gen_phylogic_tree(df, idx, 0, drivers_fn)
 
-def internal_gen_phylogic_graphics(df, idx, time_scaled, chosen_tree, mutation, drivers_fn, samples_df):
+        return [ccf_plot, possible_trees, possible_trees[0], tree]
+    else:
+        return [go.Figure, [], 0, '']
+
+def internal_gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, mutation, drivers_fn):
     """Phylogic graphics internal callback function with parameters being the callback inputs and returns being callback outputs."""
-    tree_num = 0
-    for n in chosen_tree.split():
-        if n.isdigit():
-            tree_num = int(n)
+    df = data.participant_df
+    samples_df = data.sample_df
 
-    ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
-    tree, possible_trees = gen_phylogic_tree(df, idx, tree_num-1, drivers_fn)
+    if df.loc[idx, 'cluster_ccfs_fn']:
+        tree_num = 0
+        for n in chosen_tree.split():
+            if n.isdigit():
+                tree_num = int(n)
 
-    return [ccf_plot, possible_trees, chosen_tree, tree]
+        ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
+        tree, possible_trees = gen_phylogic_tree(df, idx, tree_num-1, drivers_fn)
+
+        return [ccf_plot, possible_trees, chosen_tree, tree]
+    else:
+        return [go.Figure, [], 0, '']
 
 
 # -------------------------- Phylogic PMF Plot ----------------------------
