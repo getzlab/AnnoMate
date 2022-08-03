@@ -11,6 +11,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import dash_cytoscape as cyto
 import re
+import scipy.stats as ss
 
 from JupyterReviewer.ReviewDataApp import AppComponent
 from JupyterReviewer.AppComponents.utils import cluster_color, get_unique_identifier
@@ -357,7 +358,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     maf_df.drop_duplicates(subset='Start_position', inplace=True)
     if drivers_fn:
-        drivers = pd.read_csv(f'~/Broad/JupyterReviewer/example_notebooks/example_data/{drivers_fn}')
+        drivers = pd.read_csv(drivers_fn, header=None, names=['drivers'])
 
     cluster_assignments = maf_df.Cluster_Assignment.unique().tolist()
     possible_trees = []
@@ -477,27 +478,39 @@ def internal_gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, ch
 def gen_ccf_pmf_component():
     return AppComponent(name='CCF pmf Mutation Plot',
                         layout=html.Div([
-                           html.Div([
-                               dcc.Checklist(options=[],
-                                             value=[],
-                                             id='sample-selection'),
-                               daq.BooleanSwitch(id='group-clusters', on=False)
-                           ]),
-                           dcc.Graph(id='pmf-plot',
-                                     figure=go.Figure())
+                            dbc.Row([
+                                dbc.Col([
+                                    dcc.Graph(id='pmf-plot',
+                                              figure=go.Figure())
+                                ], width=10),
+                                dbc.Col([html.H3('Customize Plot'),
+                                         html.H5('Samples:'),
+                                         dcc.Checklist(options=[],
+                                                       value=[],
+                                                       id='sample-selection'),
+                                         html.P(''),
+                                         html.H5('Group by Cluster:'),
+                                         daq.BooleanSwitch(id='group-clusters', on=True),
+                                         html.P(''),
+                                         html.Button('Submit', id='pmf-button')
+                                ], width=2)
+                            ])
                         ]),
                         callback_input=[
-                            Input('sample-selection', 'value'),
-                            Input('group-clusters', 'on')
+                            Input('pmf-button', 'n_clicks')
                         ],
                         callback_output=[
                             Output('pmf-plot', 'figure'),
                             Output('sample-selection', 'options'),
                             Output('sample-selection', 'value')
                         ],
+                        callback_state=[
+                            State('sample-selection', 'value'),
+                            State('group-clusters', 'on')
+                        ],
                         callback_state_external=[
-                            State('mutation-table', 'derived_virtual_selected_row_ids'),
-                            State('mutation-table', 'derived_virtual_row_ids')
+                            State('mutation-table', 'derived_virtual_selected_row_ids'),  # selected rows after filtering
+                            State('mutation-table', 'derived_virtual_row_ids')  # all rows in table after filtering
                         ],
                         new_data_callback=gen_pmf_component,
                         internal_callback=update_pmf_component
@@ -505,6 +518,7 @@ def gen_ccf_pmf_component():
 
 
 def ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids):
+
     """Plots the CCF pmf distribution for the chosen mutation(s).
 
     Notes
@@ -522,6 +536,7 @@ def ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_id
     """
     mut_ccfs_df = pd.read_csv(data_df.loc[idx, 'maf_fn'], sep='\t')
     mut_ccfs_df['unique_mut_id'] = mut_ccfs_df.apply(get_unique_identifier, axis=1)  # must be mut_ccfs file with default columns
+    mut_ccfs_df.set_index('unique_mut_id', inplace=True, drop=False)
 
     # Use only the selected mutations unless no mutations selected, then use filtered list
     if selected_mut_ids:
@@ -532,6 +547,7 @@ def ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_id
 
     sample_list = mut_ccfs_df['Sample_ID'].unique()  # todo ensure sorted by collection date
     sample_selection = sample_list if not sample_selection else sample_selection
+    mut_ccfs_df = mut_ccfs_df[mut_ccfs_df['Sample_ID'].isin(sample_selection)].copy()
 
     ccfs_headers = [re.search('.*[01].[0-9]+', i) for i in mut_ccfs_df.columns]
     ccfs_headers = [x.group() for x in ccfs_headers if x]
@@ -544,7 +560,8 @@ def ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_id
         stacked_muts['Cluster_Assignment'] = stacked_muts['Cluster_Assignment'].astype(str)
         fig = px.histogram(stacked_muts, x='CCF', y='Probability', facet_row='Sample_ID', barmode='group',
                            height=300 * len(sample_selection), color='Cluster_Assignment', histfunc='avg',
-                           color_discrete_map=cluster_color())
+                           color_discrete_map=cluster_color(),
+                           category_orders={'Cluster_Assignment': np.arange(1, 100)})
     else:
         fig = px.histogram(stacked_muts, x='CCF', y='Probability', facet_row='Sample_ID', barmode='group',
                            height=300 * len(sample_selection), color='unique_mut_id',
@@ -559,13 +576,86 @@ def ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_id
     return fig, sample_list
 
 
-def gen_pmf_component(data_df, idx, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids):
+def gen_pmf_component(data_df, idx, button_clicks, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids):
     fig, sample_list = ccf_pmf_plot(data_df, idx, None, group_clusters, selected_mut_ids, filtered_mut_ids)
 
     return [fig, sample_list, sample_list]
 
 
-def update_pmf_component(data_df, idx, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids):
+def update_pmf_component(data_df, idx, button_clicks, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids):
     fig, sample_list = ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids)
 
     return [fig, sample_list, sample_selection]
+
+# ----------------------------- Phylogic Cluster Metrics -------------------------------
+
+
+def gen_cluster_metrics_component():
+    return AppComponent(name='Mutation Types by Cluster',
+                        layout=html.Div([
+                                    dcc.Graph(id='metric-plot',
+                                              figure=go.Figure())
+                        ]),
+                        callback_output=[
+                            Output('metric-plot', 'figure'),
+                        ],
+                        new_data_callback=gen_cluster_metric_fig,
+                        internal_callback=gen_cluster_metric_fig
+                        )
+
+
+def gen_cluster_metric_fig(data_df, idx):
+    """Generate a figure showing mutation type comparisons across clusters with indication of differences."""
+    mut_ccfs_df = pd.read_csv(data_df.loc[idx, 'maf_fn'], sep='\t')
+    mut_ccfs_df['unique_mut_id'] = mut_ccfs_df.apply(get_unique_identifier, axis=1)  # mut_ccfs file has default columns
+    mut_ccfs_df.drop_duplicates('unique_mut_id', inplace=True)
+
+    # apply functions to specify coding vs. non-coding; silent vs. nonsyn
+    mut_ccfs_df['snp_indel'] = mut_ccfs_df['Variant_Type'].apply(lambda x: 'SNP' if x == 'SNP' else 'INDEL')
+    mut_ccfs_df['class'] = mut_ccfs_df['Variant_Classification'].apply(classify_mut)
+
+    mut_type_counts = mut_ccfs_df.groupby(['Cluster_Assignment', 'snp_indel']).size().unstack(fill_value=0)
+    mut_classes_counts = mut_ccfs_df.groupby(['Cluster_Assignment', 'class']).size().unstack(fill_value=0)
+    mut_classes_counts['coding'] = mut_classes_counts['synonymous'] + mut_classes_counts['non-synonymous']
+
+    mut_counts_df = mut_classes_counts.join(mut_type_counts)
+    mut_counts_df_mod = mut_counts_df.copy()
+    mut_counts_df_mod.loc['ALL', :] = mut_counts_df_mod.sum()
+    mut_counts_df_mod = mut_counts_df_mod.stack().reset_index().rename(columns={'level_1': 'annotation', 0: 'count'})
+    mut_counts_df_mod['type'] = mut_counts_df_mod['annotation'].apply(
+        lambda x: 'Non/Coding' if 'coding' in x else ('Non/Syn' if 'syn' in x else 'SNP/INDEL'))
+
+    # turn these into pie charts (one for each mut comparison type)
+    fig = px.pie(mut_counts_df_mod, names='annotation', values='count', facet_col='Cluster_Assignment', facet_row='type',
+                 height=500, facet_row_spacing=0.07)
+    fig.for_each_annotation(lambda a: a.update(text=a.text.replace("Cluster_Assignment=", ""), y=1.05),
+                            selector={'xanchor': 'center'})
+    fig.for_each_annotation(lambda a: a.update(text=a.text.replace("type=", "")))
+    fig.for_each_annotation(lambda a: a.update(font_size=18))
+    fig.update_traces(textinfo='value')
+
+    # annotate any cluster that is significantly different from all other clusters
+    # using fisher exact test to compare each cluster to all other clusters
+    fisher_p_df = pd.DataFrame()
+    for col1, col2 in zip(['non-coding', 'synonymous', 'INDEL'], ['coding', 'non-synonymous', 'SNP']):
+        for idx in mut_counts_df.index:
+            odds_ratio, p_val = ss.fisher_exact([[mut_counts_df.loc[idx, col1], mut_counts_df[col1].drop(idx).sum()],
+                                                 [mut_counts_df.loc[idx, col2], mut_counts_df[col2].drop(idx).sum()]])
+            fisher_p_df.loc[idx, col2] = p_val
+
+    cluster_sig = (fisher_p_df < 0.05).any(axis=1)
+    for idx in cluster_sig[cluster_sig].index:
+        fig.for_each_annotation(lambda a: a.update(text=f'<b>{idx}*<b>', font_color='red'),
+                                selector={'text': str(idx)})
+    # todo add indication of which category is significantly different
+
+    return [fig]
+
+
+def classify_mut(variant_class):
+    if variant_class in ['lincRNA', 'RNA', 'IGR', "3'UTR", "5'UTR", 'Intron', "5'Flank", "3'Flank"]:
+        return 'non-coding'
+    elif variant_class == 'Silent':
+        return 'synonymous'
+    else:
+        return 'non-synonymous'
