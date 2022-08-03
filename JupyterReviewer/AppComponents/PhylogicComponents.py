@@ -357,7 +357,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     maf_df.drop_duplicates(subset='Start_position', inplace=True)
     if drivers_fn:
-        drivers = pd.read_csv(f'~/Broad/JupyterReviewer/example_notebooks/example_data/{drivers_fn}')
+        drivers = pd.read_csv(drivers_fn, header=None, names=['drivers'])
 
     cluster_assignments = maf_df.Cluster_Assignment.unique().tolist()
     possible_trees = []
