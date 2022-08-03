@@ -44,11 +44,12 @@ class ReviewerTemplate(ABC):
 
     @abstractmethod
     def gen_data(self,
-                 index: List,
                  description: str,
-                 annot_df: pd.DataFrame,
-                 annot_col_config_dict: Dict,
-                 history_df: pd.DataFrame,
+                 annot_df: pd.DataFrame = None,
+                 annot_col_config_dict: Dict = None,
+                 history_df: pd.DataFrame = None,
+                 index: List = None,
+                 *args,
                  **kwargs) -> Data:
         """
         Specify type of data object to return and include additional kwargs
@@ -73,7 +74,7 @@ class ReviewerTemplate(ABC):
         pass
 
     @abstractmethod
-    def gen_review_app(self) -> ReviewDataApp:
+    def gen_review_app(self, *args, **kwargs) -> ReviewDataApp:
         """
         Generates a ReviewDataApp object
 
