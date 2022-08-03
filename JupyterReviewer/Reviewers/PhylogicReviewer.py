@@ -4,7 +4,7 @@ from JupyterReviewer.ReviewData import ReviewData, ReviewDataAnnotation
 from JupyterReviewer.ReviewDataApp import ReviewDataApp, AppComponent
 from JupyterReviewer.ReviewerTemplate import ReviewerTemplate
 
-from JupyterReviewer.AppComponents.PhylogicComponents import gen_ccf_pmf_component, gen_phylogic_app_component
+from JupyterReviewer.AppComponents.PhylogicComponents import gen_ccf_pmf_component, gen_phylogic_app_component, gen_cluster_metrics_component
 from JupyterReviewer.AppComponents.MutationTableComponent import gen_mutation_table_app_component
 from JupyterReviewer.AppComponents.CNVPlotComponent import gen_cnv_plot_app_component
 
@@ -85,17 +85,10 @@ class PhylogicReviewer(ReviewerTemplate):
         app = ReviewDataApp()
 
         app.add_component(gen_mutation_table_app_component(), custom_colors=custom_colors)
-
         app.add_component(gen_phylogic_app_component(), drivers_fn=drivers_fn, samples_df=sample_data_df)
-
+        app.add_component(gen_cluster_metrics_component())
         app.add_component(gen_cnv_plot_app_component(), samples_df=sample_data_df, preprocess_data_dir=preprocess_data_dir)
-
-        # app.add_component(cluster_metrics)
-
-        # todo finish mutation table updates
-        # todo add button to switch mutations
-        # do we want to allow multiple types of mutation selection (filter vs. selection)?
-        app.add_component(gen_ccf_pmf_component())  # todo debug
+        app.add_component(gen_ccf_pmf_component())
 
         return app
 
