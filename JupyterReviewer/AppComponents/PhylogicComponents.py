@@ -11,6 +11,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import dash_cytoscape as cyto
 import re
+import scipy.stats as ss
 
 from JupyterReviewer.ReviewDataApp import AppComponent
 from JupyterReviewer.AppComponents.utils import cluster_color, get_unique_identifier
@@ -570,3 +571,76 @@ def update_pmf_component(data_df, idx, button_clicks, sample_selection, group_cl
     fig, sample_list = ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids)
 
     return [fig, sample_list, sample_selection]
+
+# ----------------------------- Phylogic Cluster Metrics -------------------------------
+
+
+def gen_cluster_metrics_component():
+    return AppComponent(name='Mutation Types by Cluster',
+                        layout=html.Div([
+                                    dcc.Graph(id='metric-plot',
+                                              figure=go.Figure())
+                        ]),
+                        callback_output=[
+                            Output('metric-plot', 'figure'),
+                        ],
+                        new_data_callback=gen_cluster_metric_fig,
+                        internal_callback=gen_cluster_metric_fig
+                        )
+
+
+def gen_cluster_metric_fig(data_df, idx):
+    """Generate a figure showing mutation type comparisons across clusters with indication of differences."""
+    mut_ccfs_df = pd.read_csv(data_df.loc[idx, 'maf_fn'], sep='\t')
+    mut_ccfs_df['unique_mut_id'] = mut_ccfs_df.apply(get_unique_identifier, axis=1)  # mut_ccfs file has default columns
+    mut_ccfs_df.drop_duplicates('unique_mut_id', inplace=True)
+
+    # apply functions to specify coding vs. non-coding; silent vs. nonsyn
+    mut_ccfs_df['snp_indel'] = mut_ccfs_df['Variant_Type'].apply(lambda x: 'SNP' if x == 'SNP' else 'INDEL')
+    mut_ccfs_df['class'] = mut_ccfs_df['Variant_Classification'].apply(classify_mut)
+
+    mut_type_counts = mut_ccfs_df.groupby(['Cluster_Assignment', 'snp_indel']).size().unstack(fill_value=0)
+    mut_classes_counts = mut_ccfs_df.groupby(['Cluster_Assignment', 'class']).size().unstack(fill_value=0)
+    mut_classes_counts['coding'] = mut_classes_counts['synonymous'] + mut_classes_counts['non-synonymous']
+
+    mut_counts_df = mut_classes_counts.join(mut_type_counts)
+    mut_counts_df_mod = mut_counts_df.copy()
+    mut_counts_df_mod.loc['ALL', :] = mut_counts_df_mod.sum()
+    mut_counts_df_mod = mut_counts_df_mod.stack().reset_index().rename(columns={'level_1': 'annotation', 0: 'count'})
+    mut_counts_df_mod['type'] = mut_counts_df_mod['annotation'].apply(
+        lambda x: 'Non/Coding' if 'coding' in x else ('Non/Syn' if 'syn' in x else 'SNP/INDEL'))
+
+    # turn these into pie charts (one for each mut comparison type)
+    fig = px.pie(mut_counts_df_mod, names='annotation', values='count', facet_col='Cluster_Assignment', facet_row='type',
+                 height=500, facet_row_spacing=0.07)
+    fig.for_each_annotation(lambda a: a.update(text=a.text.replace("Cluster_Assignment=", ""), y=1.05),
+                            selector={'xanchor': 'center'})
+    fig.for_each_annotation(lambda a: a.update(text=a.text.replace("type=", "")))
+    fig.for_each_annotation(lambda a: a.update(font_size=18))
+    fig.update_traces(textinfo='value')
+
+    # annotate any cluster that is significantly different from all other clusters
+    # using fisher exact test to compare each cluster to all other clusters
+    fisher_p_df = pd.DataFrame()
+    for col1, col2 in zip(['non-coding', 'synonymous', 'INDEL'], ['coding', 'non-synonymous', 'SNP']):
+        for idx in mut_counts_df.index:
+            odds_ratio, p_val = ss.fisher_exact([[mut_counts_df.loc[idx, col1], mut_counts_df[col1].drop(idx).sum()],
+                                                 [mut_counts_df.loc[idx, col2], mut_counts_df[col2].drop(idx).sum()]])
+            fisher_p_df.loc[idx, col2] = p_val
+
+    cluster_sig = (fisher_p_df < 0.05).any(axis=1)
+    for idx in cluster_sig[cluster_sig].index:
+        fig.for_each_annotation(lambda a: a.update(text=f'<b>{idx}*<b>', font_color='red'),
+                                selector={'text': str(idx)})
+    # todo add indication of which category is significantly different
+
+    return [fig]
+
+
+def classify_mut(variant_class):
+    if variant_class in ['lincRNA', 'RNA', 'IGR', "3'UTR", "5'UTR", 'Intron', "5'Flank", "3'Flank"]:
+        return 'non-coding'
+    elif variant_class == 'Silent':
+        return 'synonymous'
+    else:
+        return 'non-synonymous'
