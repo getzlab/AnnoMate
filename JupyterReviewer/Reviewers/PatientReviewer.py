@@ -222,7 +222,7 @@ def collect_data(config_path):
     clinical_df = clinical_df[clinical_cols]
     participants_df = participants_df.join(clinical_df, on='participant_id')
 
-    treatments_df = pd.read_csv(treatments_fn, sep='\t')
+    treatments_df = pd.read_csv(treatments_fn, sep='\t', comment='#')
 
     if not os.path.exists(data_path):
         os.makedirs(data_path)
