@@ -576,14 +576,14 @@ def ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_id
     return fig, sample_list
 
 
-def gen_pmf_component(data_df, idx, button_clicks, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids):
-    fig, sample_list = ccf_pmf_plot(data_df, idx, None, group_clusters, selected_mut_ids, filtered_mut_ids)
+def gen_pmf_component(data: PatientSampleData, idx, button_clicks, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids):
+    fig, sample_list = ccf_pmf_plot(data.participant_df, idx, None, group_clusters, selected_mut_ids, filtered_mut_ids)
 
     return [fig, sample_list, sample_list]
 
 
-def update_pmf_component(data_df, idx, button_clicks, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids):
-    fig, sample_list = ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids)
+def update_pmf_component(data: PatientSampleData, idx, button_clicks, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids):
+    fig, sample_list = ccf_pmf_plot(data.participant_df, idx, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids)
 
     return [fig, sample_list, sample_selection]
 
@@ -604,8 +604,10 @@ def gen_cluster_metrics_component():
                         )
 
 
-def gen_cluster_metric_fig(data_df, idx):
+def gen_cluster_metric_fig(data: PatientSampleData, idx):
     """Generate a figure showing mutation type comparisons across clusters with indication of differences."""
+    data_df = data.participant_df
+
     mut_ccfs_df = pd.read_csv(data_df.loc[idx, 'maf_fn'], sep='\t')
     mut_ccfs_df['unique_mut_id'] = mut_ccfs_df.apply(get_unique_identifier, axis=1)  # mut_ccfs file has default columns
     mut_ccfs_df.drop_duplicates('unique_mut_id', inplace=True)
