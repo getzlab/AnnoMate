@@ -319,7 +319,7 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster, table_size):
     sorted_samples = sorted(sample_maf['Sample_ID'].unique())
     sample_mafs_list = []
     for sample in sorted_samples:
-        sample_mafs_list.append(sample_maf[sample_maf.Sample_ID == sample].reset_index(drop=True))
+        sample_mafs_list.append(sample_maf[sample_maf.Sample_ID == sample].sort_index(axis=1).reset_index(drop=True))
 
     sample_mafs_df = pd.concat(sample_mafs_list, axis=1)
 
@@ -336,24 +336,6 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster, table_size):
         index=sample_mafs_df.index,
         columns=index,
     )
-    
-    mutation_sample_table_fig = dash_table.DataTable(
-        id='mutation-sample-table',
-        columns=[{'name': [x1, x2], 'id': f'{x1}_{x2}'} for x1, x2 in final_sample_maf.columns if x2 in maf_cols_value],
-        data=[
-            {
-                **{'': final_sample_maf.index[n]},
-                **{f'{x1}_{x2}': y for (x1, x2), y in data},
-            }
-            for (n, data) in [
-                *enumerate([list(x.items()) for x in final_sample_maf.T.to_dict().values()])
-            ]
-        ],
-        merge_duplicate_headers=True,
-        page_action='native',
-        page_current=0,
-        page_size=table_size
-    )
 
     return [
         maf_df,
@@ -363,10 +345,10 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster, table_size):
         variant_classifications,
         sorted(cluster_assignments),
         participant_maf,
-        mutation_sample_table_fig
+        final_sample_maf
     ]
 
-def maf_callback_return(maf_cols_options, values, maf_cols_value, participant_maf, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, mutation_sample_table_fig):
+def maf_callback_return(maf_cols_options, values, maf_cols_value, participant_maf, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf):
     return [
         maf_cols_options,
         values,
@@ -386,19 +368,35 @@ def maf_callback_return(maf_cols_options, values, maf_cols_value, participant_ma
         hugo_symbols,
         variant_classifications,
         cluster_assignments,
-        mutation_sample_table_fig
+        dash_table.DataTable(
+            id='mutation-sample-table',
+            columns=[{'name': [x1, x2], 'id': f'{x1}_{x2}'} for x1, x2 in final_sample_maf.columns if x2 in values],
+            data=[
+                {
+                    **{'': final_sample_maf.index[n]},
+                    **{f'{x1}_{x2}': y for (x1, x2), y in data},
+                }
+                for (n, data) in [
+                    *enumerate([list(x.items()) for x in final_sample_maf.T.to_dict().values()])
+                ]
+            ],
+            merge_duplicate_headers=True,
+            page_action='native',
+            page_current=0,
+            page_size=table_size
+        )
     ]
 
 def gen_maf_table(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, custom_colors):
     """Mutation table callback function with parameters being the callback inputs and returns being callback outputs."""
     df = data.participant_df
-    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df, mutation_sample_table_fig = gen_maf_columns(df, idx, cols, hugo, variant, cluster, table_size)
+    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df, final_sample_maf = gen_maf_columns(df, idx, cols, hugo, variant, cluster, table_size)
 
-    return maf_callback_return(maf_cols_options, maf_cols_value, maf_cols_value, filtered_maf_df, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, mutation_sample_table_fig)
+    return maf_callback_return(maf_cols_options, maf_cols_value, maf_cols_value, filtered_maf_df, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf)
 
 def internal_gen_maf_table(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, custom_colors):
     """Mutation table internal callback function with parameters being the callback inputs and returns being callback outputs."""
     df = data.participant_df
-    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df, mutation_sample_table_fig = gen_maf_columns(df, idx, cols, hugo, variant, cluster, table_size)
+    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df, final_sample_maf = gen_maf_columns(df, idx, cols, hugo, variant, cluster, table_size)
 
-    return maf_callback_return(maf_cols_options, cols, maf_cols_value, filtered_maf_df, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, mutation_sample_table_fig)
+    return maf_callback_return(maf_cols_options, cols, maf_cols_value, filtered_maf_df, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf)
