@@ -54,7 +54,8 @@ def gen_cnv_plot_layout():
                     id='cnv_plot',
                     figure=go.Figure()
                 ),
-            ], width=10),
+            ],
+            width=10),
             dbc.Col([
                 html.H3('Customize Plot'),
                 html.H5('Samples:'),
@@ -198,6 +199,7 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     sample_selection_corrected
         sample checkbox value
     """
+    sample_id_col_name = 'Tumor_Sample_Barcode' or 'Sample_ID' or 'sample_id'
 
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     start_pos = maf_df.columns[maf_df.columns.isin(['Start_position', 'Start_Position'])][0]
@@ -210,6 +212,7 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
         maf_df = maf_df.loc[selected_mutation_rows]
     elif filtered_mutation_rows:
         maf_df = maf_df.loc[filtered_mutation_rows]
+
     # else (if all mutations in table are filtered out and none selected): use all mutations
 
     sample_list = samples_df[samples_df['participant_id'] == idx].index.tolist()
@@ -263,8 +266,8 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
         #cnv_plot.add_trace(current_cnv_plot, row=i, col=1)
 
         if 'wxs_purity' in list(samples_df):
-            purity = samples_df.loc[sample_id, 'wxs_purity']
-            ploidy = samples_df.loc[sample_id, 'wxs_ploidy']
+            purity = float(samples_df.loc[sample_id, 'wxs_purity'])
+            ploidy = float(samples_df.loc[sample_id, 'wxs_ploidy'])
             c_0, c_delta = calc_cn_levels(purity, ploidy)
 
             if 'Display Absolute CN' in absolute:
@@ -310,6 +313,8 @@ def gen_absolute_components(data: PatientSampleData, idx, sample_selection, sigm
     """Absolute components callback function with parameters being the callback inputs/states and returns being callback outputs."""
     df = data.participant_df
     samples_df = data.sample_df
+
+    filtered_mutation_rows = None
 
     cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, [], sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir)
     button_clicks = None
