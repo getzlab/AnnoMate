@@ -1,7 +1,7 @@
 def get_hex_string(c):
     return '#{:02X}{:02X}{:02X}'.format(*c)
 
-def cluster_color(v):
+def cluster_color(v=None):
     phylogic_color_list = [[166, 17, 129],
                            [39, 140, 24],
                            [103, 200, 243],
@@ -62,7 +62,10 @@ def cluster_color(v):
                            [0, 0, 0]]  # black
     colors_dict = {str(i): get_hex_string(c) for i, c in enumerate(phylogic_color_list)}
 
-    return colors_dict[str(v)]
+    if v:
+        return colors_dict[str(v)]
+    else:
+        return colors_dict
 
 
 def get_unique_identifier(row, chrom='Chromosome', start_pos='Start_position',
