@@ -212,6 +212,7 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
         maf_df = maf_df.loc[selected_mutation_rows]
     elif filtered_mutation_rows:
         maf_df = maf_df.loc[filtered_mutation_rows]
+
     # else (if all mutations in table are filtered out and none selected): use all mutations
 
     sample_list = samples_df[samples_df['participant_id'] == idx].index.tolist()
@@ -312,6 +313,8 @@ def gen_absolute_components(data: PatientSampleData, idx, sample_selection, sigm
     """Absolute components callback function with parameters being the callback inputs/states and returns being callback outputs."""
     df = data.participant_df
     samples_df = data.sample_df
+
+    filtered_mutation_rows = None
 
     cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, [], sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir)
     button_clicks = None

@@ -226,44 +226,45 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
         row=2, col=1
     )
 
-    for start, stop, drug, drug_combo, category, stop_reason, post_status in zip(treatments_in_frame_df.start_date_dfd,
-                                                                                 treatments_in_frame_df.stop_date_dfd,
-                                                                                 treatments_in_frame_df.drugs,
-                                                                                 treatments_in_frame_df.drug_combination,
-                                                                                 treatments_df.categories,
-                                                                                 treatments_in_frame_df.stop_reason,
-                                                                                 treatments_in_frame_df.post_status):
-        drug = drug_combo if pd.isna(drug) else drug
+    if 'Time Scaled' in time_scaled:
+        for start, stop, drug, drug_combo, category, stop_reason, post_status in zip(treatments_in_frame_df.start_date_dfd,
+                                                                                     treatments_in_frame_df.stop_date_dfd,
+                                                                                     treatments_in_frame_df.drugs,
+                                                                                     treatments_in_frame_df.drug_combination,
+                                                                                     treatments_df.categories,
+                                                                                     treatments_in_frame_df.stop_reason,
+                                                                                     treatments_in_frame_df.post_status):
+            drug = drug_combo if pd.isna(drug) else drug
 
-        # todo deal with overlapping treatments
-        ccf_plot.add_trace(
-            go.Scatter(
-                # todo bug when not Time-Scaled (need to implement 'order' for x)
-                x=[max(start, int(timing_data[samples_in_order[0]])), min(stop, int(timing_data[samples_in_order[-1]]))],
-                y=[0,0],
-                line_width=20,
-                line_color=treatment_category_colors[category] if category in treatment_category_colors.keys() else 'gray',
-                fill='toself',
-                hovertemplate = '<extra></extra>' +
-                    f'Treatment Regimen: {drug} <br>' +
-                    f'Stop Reason: {stop_reason} <br>' +
-                    f'Post Status: {post_status}',
-                showlegend=False
-            ),
-            row=2, col=1
-        )
-        ccf_plot.add_vline(
-            x=max(start, int(timing_data[samples_in_order[0]])),
-            line_width=2,
-            line_color='black',
-            row=2, col=1
-        )
-        ccf_plot.add_vline(
-                x=min(stop, int(timing_data[samples_in_order[-1]])),
+            # todo deal with overlapping treatments
+            ccf_plot.add_trace(
+                go.Scatter(
+                    # todo bug when not Time-Scaled (need to implement 'order' for x)
+                    x=[max(start, int(timing_data[samples_in_order[0]])), min(stop, int(timing_data[samples_in_order[-1]]))],
+                    y=[0,0],
+                    line_width=20,
+                    line_color=treatment_category_colors[category] if category in treatment_category_colors.keys() else 'gray',
+                    fill='toself',
+                    hovertemplate = '<extra></extra>' +
+                        f'Treatment Regimen: {drug} <br>' +
+                        f'Stop Reason: {stop_reason} <br>' +
+                        f'Post Status: {post_status}',
+                    showlegend=False
+                ),
+                row=2, col=1
+            )
+            ccf_plot.add_vline(
+                x=max(start, int(timing_data[samples_in_order[0]])),
                 line_width=2,
                 line_color='black',
                 row=2, col=1
-        )
+            )
+            ccf_plot.add_vline(
+                    x=min(stop, int(timing_data[samples_in_order[-1]])),
+                    line_width=2,
+                    line_color='black',
+                    row=2, col=1
+            )
 
     ccf_plot.update_yaxes(row=2, visible=False)
     ccf_plot.update_xaxes(row=1, visible=False, showticklabels=False)
