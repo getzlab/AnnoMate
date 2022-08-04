@@ -516,5 +516,5 @@ class PatientReviewer(ReviewerTemplate):
 
 
     def set_default_autofill(self):
-        if 'Phylogic Graphics' in self.app.more_components.items():
-            self.add_autofill('Phylogic Graphics', State('tree-dropdown', 'value'), 'Selected Tree (idx)')
+        if 'build_tree_posterior_fn' and 'cluster_ccfs_fn' in list(self.review_data.data.participant_df):
+            self.add_autofill('Phylogic Tree', State('tree-dropdown', 'value'), 'Selected Tree (idx)')

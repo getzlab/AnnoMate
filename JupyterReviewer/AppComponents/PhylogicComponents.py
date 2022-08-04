@@ -128,8 +128,8 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
         rect_x = 6
 
     treatments_df = pd.read_csv(df.loc[idx, 'treatments_fn'], sep='\t', comment='#')
-    treatments_in_frame_df = treatments_df[(treatments_df['stop_date_dfd'] >= timing_data[samples_in_order[0]]) &
-                                           (treatments_df['start_date_dfd'] <= timing_data[samples_in_order[-1]])]
+    treatments_in_frame_df = treatments_df[(treatments_df['stop_date_dfd'] >= int(timing_data[samples_in_order[0]])) &
+                                           (treatments_df['start_date_dfd'] <= int(timing_data[samples_in_order[-1]]))]
 
     # get mutation counts
     mut_ccfs = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
@@ -239,7 +239,7 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
         ccf_plot.add_trace(
             go.Scatter(
                 # todo bug when not Time-Scaled (need to implement 'order' for x)
-                x=[max(start, timing_data[samples_in_order[0]]), min(stop, timing_data[samples_in_order[-1]])],
+                x=[max(start, int(timing_data[samples_in_order[0]])), min(stop, int(timing_data[samples_in_order[-1]]))],
                 y=[0,0],
                 line_width=20,
                 line_color=treatment_category_colors[category] if category in treatment_category_colors.keys() else 'gray',
@@ -253,13 +253,13 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
             row=2, col=1
         )
         ccf_plot.add_vline(
-            x=max(start, timing_data[samples_in_order[0]]),
+            x=max(start, int(timing_data[samples_in_order[0]])),
             line_width=2,
             line_color='black',
             row=2, col=1
         )
         ccf_plot.add_vline(
-                x=min(stop, timing_data[samples_in_order[-1]]),
+                x=min(stop, int(timing_data[samples_in_order[-1]])),
                 line_width=2,
                 line_color='black',
                 row=2, col=1
