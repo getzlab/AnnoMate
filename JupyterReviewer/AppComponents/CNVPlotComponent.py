@@ -232,7 +232,6 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     No mutation scatter plot if no purity and ploidy in data
 
     """
-    sample_id_col_name = 'Tumor_Sample_Barcode' or 'Sample_ID' or 'sample_id'
 
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     start_pos = maf_df.columns[maf_df.columns.isin(['Start_position', 'Start_Position'])][0]

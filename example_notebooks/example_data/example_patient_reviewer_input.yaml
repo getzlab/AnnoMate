@@ -5,14 +5,28 @@ workspace: broad-getzlab-ibm-prans-t/Parsons_Breast_MASTER-PrAn-final
 data_path: ../../example_notebooks/example_data/
 
 # sample and participant file names (default is samples.txt and participants.txt)
-saved_files:
-  sample_file: pran_samples.txt
-  participant_file: pran_participants.txt
+# saved_files:
+#   sample_file: paired_analysis_clean_samples.txt
+#   participant_file: paired_analysis_clean_participants.txt
 
 # clinical data file * and specified column names + column names you want displayed
 clinical_file:
   file_name: ../../example_notebooks/example_data/clinical_data.txt
-  columns: # list or dictionary
+  columns:
+    # specified default columns. if none specified, all will be assigned default
+    # names. if some specified, only those will be shown
+    tumor_molecular_subtype:
+    tumor_morphology:
+    tumor_primary_site:
+    cancer_stage:
+    vital_status:
+    death_date_dfd:
+    follow_up_date:
+    age_at_diagnosis:
+    gender:
+    notes:
+  additional_columns:
+    # a list of additional clinical data columns not in the above default list
 
 # maf file name and types *
 maf_files:
@@ -28,19 +42,27 @@ cnv_files:
 # treatment file path
 treatment_file: ../../example_notebooks/example_data/treatments.tsv
 
-# additional sample column names (purity, ploidy, collection_date, preservation method, bait set, sample types)
+# sample column default column names (purity, ploidy, collection_date, preservation method, bait set, sample types)
 sample_columns:
-  participant_id: participant
-  collection_date: pdb_collection_date_dfd
-  purity:
-  ploidy:
-  preservation_method:
-  bait_set:
-  sample_type:
+  columns:
+    # specified default columns. if none specified, all will be assigned default
+    # names. if some specified, defaults will be set for those unspecified
+    participant_id: participant
+    collection_date: pdb_collection_date_dfd
+    purity:
+    ploidy:
+    preservation_method: pdb_preservation_method
+    cram_bam_columns: ['gpdw_DNA_WES_twistv1_cram_or_bam_path', 'gpdw_DNA_WES_agilent_cram_or_bam_path', 'gpdw_DNA_WES_icev1_cram_or_bam_path']
+  additional_columns:
+    # a list of additional sample data columns not in the above default list
 
 pairs_columns:
-  sample_id: case_sample #*
+  # specified default columns. if none specified, all will be assigned default
+  # names. if some specified, defaults will be set for those unspecified
+  sample_id: case_sample
   participant_id: participant
+  purity:
+  ploidy:
 
 
 # phylogic file names (tres and clusters)
@@ -48,6 +70,4 @@ phylogic_files:
   clusters_file:
   trees_file:
 
-# cnv clustering file column
-
-# additional user specified columns
+# cnv clustering file columns

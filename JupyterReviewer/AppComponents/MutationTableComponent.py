@@ -267,6 +267,8 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     start_pos_id = maf_df.columns[maf_df.columns.isin(['Start_position', 'Start_Position'])][0]
     alt_allele_id = maf_df.columns[maf_df.columns.isin(['Tumor_Seq_Allele2', 'Tumor_Seq_Allele'])][0]
+    sample_id_col = maf_df.columns[maf_df.columns.isin(['Tumor_Sample_Barcode', 'Sample_ID', 'sample_id', 'Sample_id'])][0]
+    maf_df['Sample_ID'] = maf_df[sample_id_col]
     maf_df['id'] = maf_df.apply(lambda x: get_unique_identifier(x, start_pos=start_pos_id, alt=alt_allele_id), axis=1)
     maf_df.set_index('id', inplace=True, drop=False)
 

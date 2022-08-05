@@ -94,8 +94,8 @@ def collect_data(config_path):
     config_dict = parse_patient_reviewer_input(config_path)
 
     # define config inputs with defaults
-    sample_file = config_dict['saved_files']['sample_file'] if config_dict['saved_files']['sample_file'] else 'samples.txt'
-    participant_file = config_dict['saved_files']['participant_file'] if config_dict['saved_files']['participant_file'] else 'participants.txt'
+    # sample_file = config_dict['saved_files']['sample_file'] if config_dict['saved_files']['sample_file'] else 'samples.txt'
+    # participant_file = config_dict['saved_files']['participant_file'] if config_dict['saved_files']['participant_file'] else 'participants.txt'
 
     default_clinical_cols = [
         'tumor_molecular_subtype',
@@ -126,16 +126,16 @@ def collect_data(config_path):
             'gpdw_DNA_WGS_cram_or_bam_path'
         ],
         'participant_id': 'participant',
-        'ploidy': 'wxs_ploidy',
+        'ploidy': None,
         'preservation_method': 'pdb_preservation_method',
-        'purity': 'wxs_purity'
+        'purity': None
     }
     input_sample_cols = config_dict['sample_columns']['columns']
     sample_cols=[]
     for col in input_sample_cols:
         if input_sample_cols[col]:
             sample_cols.extend(input_sample_cols[col]) if isinstance(input_sample_cols[col], list) else sample_cols.append(input_sample_cols[col])
-        else:
+        elif default_sample_cols[col]:
             sample_cols.extend(default_sample_cols[col]) if isinstance(default_sample_cols[col], list) else sample_cols.append(default_sample_cols[col])
     if config_dict['sample_columns']['additional_columns']:
         sample_cols.extend(config_dict['sample_columns']['additional_columns'])
@@ -143,15 +143,15 @@ def collect_data(config_path):
     default_pairs_cols = {
         'sample_id': 'case_sample',
         'participant_id': 'participant',
-        'purity': 'wxs_purity',
-        'ploidy': 'wxs_ploidy'
+        'purity': None,
+        'ploidy': None
     }
     input_pairs_cols = config_dict['pairs_columns']
     pairs_cols = []
     for col in input_pairs_cols:
         if input_pairs_cols[col]:
             pairs_cols.append(input_pairs_cols[col])
-        else:
+        elif default_pairs_cols[col]:
             pairs_cols.append(default_pairs_cols[col])
 
     # define required config inputs
@@ -285,13 +285,13 @@ def collect_data(config_path):
 
     participants_df.dropna(subset=['treatments_fn', 'maf_fn'], inplace=True)
 
-    participant_file_name = f'{data_path}/{participant_file}'
-    samples_file_name = f'{data_path}/{sample_file}'
+    # participant_file_name = f'{data_path}/{participant_file}'
+    # samples_file_name = f'{data_path}/{sample_file}'
 
-    if not os.path.exists(participant_file_name):
-        participants_df.to_csv(participant_file_name, sep='\t', index=False)
-    if not os.path.exists(samples_file_name):
-        combined_samples_df.to_csv(samples_file_name, sep='\t', index=False)
+    # if not os.path.exists(participant_file_name):
+    #     participants_df.to_csv(participant_file_name, sep='\t', index=False)
+    # if not os.path.exists(samples_file_name):
+    #     combined_samples_df.to_csv(samples_file_name, sep='\t', index=False)
 
     return [combined_samples_df, participants_df]
 
