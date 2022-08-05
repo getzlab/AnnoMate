@@ -1,3 +1,9 @@
+"""MutationTableComponent.py module
+
+Interactive Mutation Table with column selection, sorting, selecting, and filtering
+
+"""
+
 import pandas as pd
 from dash import dcc
 from dash import html
@@ -15,6 +21,7 @@ from JupyterReviewer.DataTypes.PatientSampleData import PatientSampleData
 
 
 def gen_mutation_table_app_component():
+    """Generate Interactive Mutation Table component"""
     return AppComponent(
         'Mutations',
         layout=gen_mutation_table_layout(),
@@ -42,6 +49,7 @@ def gen_mutation_table_app_component():
     )
 
 def gen_mutation_table_layout():
+    """Generate Mutation Table component layout"""
     return html.Div([
         html.Div([
             dbc.Row([
@@ -125,7 +133,7 @@ def gen_mutation_table_layout():
     ])
 
 def format_style_data(column_id, filter_query, color='Black', backgroundColor='White'):
-    """
+    """Formatting for mutation table coloring
 
     Parameters
     ----------
@@ -140,7 +148,7 @@ def format_style_data(column_id, filter_query, color='Black', backgroundColor='W
     Returns
     -------
     dict
-        dict following the style_data_conditinal format for a dash table
+        dict following the style_data_conditinal format for a dash DataTable
 
     """
     return {
@@ -153,26 +161,26 @@ def format_style_data(column_id, filter_query, color='Black', backgroundColor='W
         'fontWeight': 'bold'
     }
 
-def gen_style_data_conditional(df, custom_colors, maf_cols_value):
+def gen_style_data_conditional(maf_df, custom_colors, maf_cols_value):
     """Generate mutation table coloring and add custom colors if given.
 
     Parameters
     ----------
-    df
-        df from gen_review_data
+    maf_df
+        maf file DataFrame
     custom_colors
         custom_colors kwarg from gen_review_app
 
     Returns
     -------
-    style_data_conditinal : list of dicts
+    style_data_conditinal: list of dicts
         list of dicts from format_style_data
 
     """
     style_data_conditional = []
 
     if 'Cluster_Assignment' in maf_cols_value:
-        for n in df.Cluster_Assignment.unique():
+        for n in maf_df.Cluster_Assignment.unique():
             style_data_conditional.append(format_style_data('Cluster_Assignment', n, color=cluster_color(n)))
 
     if 'functional_effect' in maf_cols_value:
@@ -187,18 +195,19 @@ def gen_style_data_conditional(df, custom_colors, maf_cols_value):
     if 'dbNSFP_Polyphen2_HDIV_ann' in maf_cols_value:
         style_data_conditional.append(format_style_data('dbNSFP_Polyphen2_HDIV_ann', 'D', backgroundColor='FireBrick'))
 
-    if custom_colors != []:
+    if custom_colors:
         for list in custom_colors:
             style_data_conditional.append(format_style_data(list[0], list[1], list[2], list[3]))
 
     return style_data_conditional
 
-def gen_maf_columns(df, idx, cols, hugo, variant, cluster, table_size):
+def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
     """Generate mutation table columns from selected columns and filtering dropdowns.
 
     Parameters
     ----------
     df
+        participant level DataFrame
     idx
     cols
         column selection dropdown value
@@ -223,8 +232,10 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster, table_size):
         all variant classifications present in given data
     sorted(cluster_assignments) : list of int
         all cluster assignments present in given data, in order
-    filtered_maf_df: pd.DataFrame
-        maf_df after being filtered by hugo, variant, and cluster
+    participant_maf: pd.DataFrame
+        maf_df of participant specific data after being filtered by hugo, variant, and cluster
+    final_sample_maf
+        maf_df of sample specific data after being filted by hugo, variant, and cluster
 
     """
     start_pos = 'Start_position' or 'Start_Position'
@@ -312,7 +323,6 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster, table_size):
             if separated_mafs[i].loc[0, col] != separated_mafs[i+1].loc[0, col] and col not in sample_cols:
                     sample_cols.append(col)
 
-    #participant_maf = maf_df_copy.drop(columns=sample_cols).drop_duplicates()
     participant_maf = maf_df_copy.drop(columns=sample_cols).drop_duplicates(subset=['Hugo_Symbol', 'Start_position'])
     sample_maf = maf_df_copy[sample_cols]
 
@@ -349,6 +359,7 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster, table_size):
     ]
 
 def maf_callback_return(maf_cols_options, values, maf_cols_value, participant_maf, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf):
+    """Mutation Table callback functions return (accociated with mutation table component outputs)"""
     return [
         maf_cols_options,
         values,
@@ -390,13 +401,13 @@ def maf_callback_return(maf_cols_options, values, maf_cols_value, participant_ma
 def gen_maf_table(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, custom_colors):
     """Mutation table callback function with parameters being the callback inputs and returns being callback outputs."""
     df = data.participant_df
-    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df, final_sample_maf = gen_maf_columns(df, idx, cols, hugo, variant, cluster, table_size)
+    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df, final_sample_maf = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
 
     return maf_callback_return(maf_cols_options, maf_cols_value, maf_cols_value, filtered_maf_df, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf)
 
 def internal_gen_maf_table(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, custom_colors):
     """Mutation table internal callback function with parameters being the callback inputs and returns being callback outputs."""
     df = data.participant_df
-    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df, final_sample_maf = gen_maf_columns(df, idx, cols, hugo, variant, cluster, table_size)
+    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df, final_sample_maf = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
 
     return maf_callback_return(maf_cols_options, cols, maf_cols_value, filtered_maf_df, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf)

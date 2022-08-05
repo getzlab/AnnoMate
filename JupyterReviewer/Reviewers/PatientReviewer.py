@@ -37,11 +37,24 @@ def validate_string_list(x):
         return False
 
 def check_required_inputs(required_inputs):
+    """Check for required config inputs in list of given inputs"""
     for input in required_inputs:
         if required_inputs[input] == None:
             raise ValueError(f'Required input was not given: {input}')
 
 def parse_patient_reviewer_input(config_path):
+    """Parse config file, ensuring all required inputs are given.
+
+    Parameters
+    ----------
+    config_path: str
+        path to config file
+
+    Returns
+    -------
+    config_dict: dict
+        parsed yaml file as a dictionary
+    """
     # load yaml file
     with open(config_path, 'r') as file:
         try:
@@ -63,6 +76,21 @@ def parse_patient_reviewer_input(config_path):
     return config_dict
 
 def collect_data(config_path):
+    """Collect data from config file into sample and participant dataframes.
+
+    Parameters
+    ----------
+    config_path: str
+        path to config file
+
+    Returns
+    -------
+    combined_samples_df: pd.DataFrame()
+        All sample based data from config file
+    participants_df: pd.DataFrame()
+        All participant based data from config file
+
+    """
     config_dict = parse_patient_reviewer_input(config_path)
 
     # define config inputs with defaults
@@ -268,6 +296,20 @@ def collect_data(config_path):
     return [combined_samples_df, participants_df]
 
 def gen_clinical_data_table(df, idx):
+    """Format clinical data into a dash DataTable.
+
+    Parameters
+    ----------
+    df
+        Participant level DataFrame
+    idx
+
+    Returns
+    -------
+    dash_table.DataTable()
+
+    """
+
     default_cols = {
         'tumor_molecular_subtype': 'Molecular Subtype',
         'tumor_morphology': 'Morphology',
@@ -288,6 +330,7 @@ def gen_clinical_data_table(df, idx):
     this_participant_df.reset_index(inplace=True)
     this_participant_df['index'] = this_participant_df['index'].apply(lambda x: default_cols[x] if x in default_cols else x.replace('_', ' '))
     this_participant_df.set_index('index')
+    this_participant_df = this_participant_df.replace(['unknown', 'not reported'], np.NaN)
     this_participant_df.dropna(inplace=True)
 
     return [dash_table.DataTable(
@@ -298,6 +341,19 @@ def gen_clinical_data_table(df, idx):
     )]
 
 def gen_sample_data_table(df, idx):
+    """Format sample data into a dash DataTable.
+
+    Parameters
+    ----------
+    df
+        Sample level DataFrame
+    idx
+
+    Returns
+    -------
+    dash_table.DataTable()
+
+    """
     default_cols = {
         'sample_id': 'Sample ID',
         'collection_date_dfd': 'Collection Date (dfd)',
@@ -329,6 +385,7 @@ def gen_sample_data_table(df, idx):
     sample_cols = [col for col in list(df) if not (re.search('fn$', col) or re.search('cram_or_bam', col))]
     this_sample_df = df.loc[idx, sample_cols]
     this_sample_df.reset_index(drop=True, inplace=True)
+    this_sample_df.dropna(axis=1, how='all', inplace=True)
 
     formatted_cols = [{'name': default_cols[col], 'id': col} if col in default_cols else {'name': col.replace('_', ' '), 'id': col} for col in sample_cols ]
 
@@ -342,6 +399,7 @@ def gen_sample_data_table(df, idx):
 
 
 def gen_clinical_sample_data_table(data: PatientSampleData, idx):
+    """Clinical and sample data callback function"""
     df = data.participant_df
     samples_df = data.sample_df
 
@@ -432,6 +490,7 @@ class PatientReviewer(ReviewerTemplate):
         return rd
 
     def set_default_review_data_annotations(self):
+        """Set default annotation sections in the app"""
         self.add_review_data_annotation('Resistance Explained', DataAnnotation('string',
                                                                                      options=['Mutation', 'CNV',
                                                                                               'Partial/Hypothesized',
@@ -448,6 +507,7 @@ class PatientReviewer(ReviewerTemplate):
         self.add_review_data_annotation('Other Notes', DataAnnotation('string'))
 
     def set_default_review_data_annotations_app_display(self):
+        """Set the display of the components generated in set_default_review_data_annotations"""
         self.add_review_data_annotations_app_display('Resistance Explained', 'radioitem')
         self.add_review_data_annotations_app_display('Resistance Notes', 'textarea')
         self.add_review_data_annotations_app_display('Growing Clones', 'text')
@@ -459,7 +519,7 @@ class PatientReviewer(ReviewerTemplate):
     def gen_review_app(
         self,
         preprocess_data_dir,
-        custom_colors=[],
+        custom_colors=None,
         drivers_fn=None,
     ) -> ReviewDataApp:
         """Generate app layout.
@@ -516,5 +576,6 @@ class PatientReviewer(ReviewerTemplate):
 
 
     def set_default_autofill(self):
-        if 'build_tree_posterior_fn' and 'cluster_ccfs_fn' in list(self.review_data.data.participant_df):
+        """Set default autofill functionality for annotations """
+        if 'build_tree_posterior_fn' and 'cluster_ccfs_f' in list(self.review_data.data.participant_df):
             self.add_autofill('Phylogic Tree', State('tree-dropdown', 'value'), 'Selected Tree (idx)')

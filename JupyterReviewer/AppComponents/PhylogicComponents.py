@@ -1,3 +1,11 @@
+"""PhylogicComponents.py module
+
+Phylogic CCF Plot and Trees implemented in the PatientReviewer and PhylogicReviewer
+
+Phylogic PMF Plot implemented in the PhylogicReviewer
+
+"""
+
 import pandas as pd
 import numpy as np
 from dash import dcc
@@ -21,6 +29,7 @@ from JupyterReviewer.DataTypes.PatientSampleData import PatientSampleData
 # --------------------- Phylogic CCF Plot and Tree ------------------------
 
 def gen_phylogic_app_component():
+    """Generate Phylogic CCG Plot and Tree components"""
     return AppComponent(
         'Phylogic Graphics',
         layout=gen_phylogic_components_layout(),
@@ -38,14 +47,12 @@ def gen_phylogic_app_component():
             Output('tree-dropdown', 'value'),
             Output('phylogic-tree-component', 'children')
         ],
-        # callback_states_for_autofill=[
-        #     State('tree-dropdown', 'value')
-        # ],
         new_data_callback=gen_phylogic_graphics,
         internal_callback=internal_gen_phylogic_graphics
     )
 
 def gen_phylogic_components_layout():
+    """Generate Phylogic CCF Plot and Tree layout"""
     return html.Div([
         dcc.Checklist(
             id='time-scale-checklist',
@@ -86,6 +93,7 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
     Parameters
     ----------
     df
+        participant level DataFrame
     idx
     time_scaled
         time scaled checkbox value
@@ -94,7 +102,7 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
 
     Returns
     -------
-    ccf_plot : go.Figure
+    ccf_plot : make_subplots()
 
     """
     # todo add more categories
@@ -170,7 +178,6 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
                 ),
                 row=1, col=1
             )
-
             #confidence interval
             ccf_plot.add_trace(
                 go.Scatter(
@@ -239,7 +246,7 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
             # todo deal with overlapping treatments
             ccf_plot.add_trace(
                 go.Scatter(
-                    # todo bug when not Time-Scaled (need to implement 'order' for x)
+                    # todo implement 'order' for x
                     x=[max(start, int(timing_data[samples_in_order[0]])), min(stop, int(timing_data[samples_in_order[-1]]))],
                     y=[0,0],
                     line_width=20,
@@ -327,10 +334,24 @@ def gen_stylesheet(cluster_list, color_list):
 
     return stylesheet
 
-def gen_driver_edge_labels(drivers, cluster):
+def gen_driver_edge_labels(drivers, cluster_hugo_list):
+    """Add driver mutation label to edges of clusters containing that driver
+
+    Parameters
+    ----------
+    drivers: pd.DataFrame()
+        DataFrame from the drivers kwarg file
+    cluster_hugo_list: list of str
+        list of hugo symbols associated with a particular cluster
+
+    Returns
+    -------
+    label: str
+
+    """
     label = ''
     for driver in drivers.drivers:
-        if driver in cluster:
+        if driver in cluster_hugo_list:
             label += ('%s \n' % driver)
 
     return label
@@ -341,6 +362,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
     Parameters
     ----------
     df
+        participant level DataFrame
     idx
     tree_num
         number assigned to the chosen tree that is to be displayed
@@ -350,7 +372,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
     Returns
     -------
     cyto.Cytoscape
-        the tree image
+        the tree figure
     possible_trees : list of str
         possible tree options for dropdown
 
