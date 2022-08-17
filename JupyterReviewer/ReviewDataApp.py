@@ -1,30 +1,20 @@
 import pandas as pd
 import numpy as np
-import pathlib
-import os
-from IPython.display import display
-from datetime import datetime, timedelta
-import time
-
-import plotly.express as px
-from plotly.subplots import make_subplots
 from jupyter_dash import JupyterDash
 from dash import dcc
 from dash import html
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
-from dash import Dash, dash_table
 import dash
 import dash_bootstrap_components as dbc
-import functools
 import inspect
-import enum
 from collections import OrderedDict
 from typing import Dict
 import copy
 import warnings
+from typing import Union, List, Tuple
 
-from .ReviewData import ReviewData, DataAnnotation
+from .ReviewData import ReviewData
 
 valid_annotation_app_display_types = ['text',
                                       'textarea',
@@ -38,11 +28,11 @@ class AppComponent:
     
     def __init__(self, 
                  name: str, 
-                 layout, 
-                 callback_output: [Output] = [],
-                 callback_input: [Input] = [],
-                 callback_state: [State] = [],
-                 callback_state_external: [State] = [],
+                 layout: Union[List, Tuple],
+                 callback_output: [Output] = None,
+                 callback_input: [Input] = None,
+                 callback_state: [State] = None,
+                 callback_state_external: [State] = None,
                  new_data_callback=None,
                  internal_callback=None,
                  use_name_as_title=True):
@@ -132,13 +122,6 @@ class AppComponent:
             raise ValueError(f'new_data_callback and internal_callback do not have the same signature.\n'
                              f'new_data_callback signature:{inspect.signature(new_data_callback)}\n'
                              f'internal_callback signature:{inspect.signature(internal_callback)}')
-        
-        # callback_states_for_autofill_ids = get_callback_io_ids(callback_states_for_autofill, expected_io_type=State)
-        # check_duplicate_objects(callback_states_for_autofill_ids, 'callback_states_for_autofill_objects')
-        # check_callback_io_id_in_list(callback_states_for_autofill_ids,
-        #                              all_ids,
-        #                              ids_type='callback_states_for_autofill_ids',
-        #                              all_ids_type='component_ids')
             
         self.name = name
         if use_name_as_title:
@@ -147,15 +130,13 @@ class AppComponent:
             self.layout = html.Div(layout)
             
         self.all_component_ids = all_ids
-        self.callback_output = callback_output
-        self.callback_input = callback_input
-        self.callback_state = callback_state
+        self.callback_output = callback_output if callback_output is not None else []
+        self.callback_input = callback_input if callback_input is not None else []
+        self.callback_state = callback_state if callback_state is not None else []
         self.callback_state_external = callback_state_external
         
         self.new_data_callback = new_data_callback
         self.internal_callback = internal_callback
-        
-        # self.callback_states_for_autofill = callback_states_for_autofill
 
     
 class ReviewDataApp:
@@ -165,7 +146,7 @@ class ReviewDataApp:
         ReviewData object's annotation and history.
 
         """
-        self.more_components = OrderedDict()  # TODO: set custom layout?
+        self.more_components = OrderedDict()
             
     def run(self, 
             review_data: ReviewData,
@@ -572,7 +553,7 @@ class ReviewDataApp:
                                         ))
 
 
-def get_component_ids(component):
+def get_component_ids(component: Union[List, Tuple]):
     if isinstance(component, list) or isinstance(component, tuple):
         id_list = []
         for comp in component:

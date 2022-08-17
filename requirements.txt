@@ -21,3 +21,14 @@ pillow=9.1.0=pypi_0
 pip=21.2.4=py38hecd8cb5_0
 plotly=5.8.0=py_0
 setuptools=61.2.0=py38hecd8cb5_0
+
+setuptools~=61.2.0
+numpy~=1.21.5
+matplotlib~=3.5.2
+plotly~=5.8.0
+natsort~=8.1.0
+pandas~=1.4.2
+jupyterreviewer~=0.0.1
+dash~=2.4.1
+rpy2~=3.5.2
+ipython~=8.3.0
