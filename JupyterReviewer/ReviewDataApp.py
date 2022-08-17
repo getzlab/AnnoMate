@@ -29,10 +29,10 @@ class AppComponent:
     def __init__(self, 
                  name: str, 
                  layout: Union[List, Tuple],
-                 callback_output: [Output] = None,
-                 callback_input: [Input] = None,
-                 callback_state: [State] = None,
-                 callback_state_external: [State] = None,
+                 callback_output: [Output] = [],
+                 callback_input: [Input] = [],
+                 callback_state: [State] = [],
+                 callback_state_external: [State] = [],
                  new_data_callback=None,
                  internal_callback=None,
                  use_name_as_title=True):
@@ -130,9 +130,9 @@ class AppComponent:
             self.layout = html.Div(layout)
             
         self.all_component_ids = all_ids
-        self.callback_output = callback_output if callback_output is not None else []
-        self.callback_input = callback_input if callback_input is not None else []
-        self.callback_state = callback_state if callback_state is not None else []
+        self.callback_output = callback_output
+        self.callback_input = callback_input
+        self.callback_state = callback_state
         self.callback_state_external = callback_state_external
         
         self.new_data_callback = new_data_callback
@@ -186,15 +186,15 @@ class ReviewDataApp:
             At run time, adds buttons for each component included and if clicked, defines how to autofill
             annotations for the review_data object using the specified data corresponding to the component
             
-            Format: {component_name: {annot_name: State()}, 
-                     another_compoment_name: {annot_name: State(), another_annot_name: 'a literal value'}}
+            Format: {button_name_1: {annot_name: State()},
+                     button_name_2: {annot_name: State(), another_annot_name: 'a literal value'}}
             
             Rules:
-                - component_name:  must be a name of a component in the app
+                - button_name:  must be a name of a button
                 - annot_name:      must be the name of an annotation type in the review_data (ReviewData) data
                                    annot_col_config_dict
                 - autofill values: State()'s referring to objects in the component named component name, or a 
-                                   valid literal value according to the ReviewDataAnnotation object's validation method.
+                                   valid literal value according to the DataAnnotation object's validation method.
 
         """
         
@@ -366,7 +366,6 @@ class ReviewDataApp:
             return r.name
        
     def gen_autofill_buttons_and_states(self, review_data, autofill_dict):
-
         review_data_annot_names = list(review_data.data.annot_col_config_dict.keys())
             
         autofill_buttons = []
@@ -420,11 +419,12 @@ class ReviewDataApp:
                                                     n_clicks=0,
                                                     style={"marginBottom": "15px"})
             autofill_buttons += [autofill_button_component]
-            autofill_states[autofill_button_component.id] = button_autofill_dict
+            autofill_states[autofill_button_component.id] = button_autofill_states_dict
             autofill_literals[autofill_button_component.id] = button_autofill_non_states_dict
             
         return autofill_buttons, autofill_states, autofill_literals
-    
+
+
     def gen_annotation_panel_component(self, 
                                        review_data: ReviewData,
                                        autofill_buttons: [html.Button],

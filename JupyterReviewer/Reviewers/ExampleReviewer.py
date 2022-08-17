@@ -121,4 +121,4 @@ class ExampleReviewer(ReviewerTemplate):
         self.add_review_data_annotations_app_display('Flag', 'radioitem')
 
     def set_default_autofill(self):
-        pass
+        self.add_autofill('example-autofill-button', 'Nothing to say', 'Notes')
