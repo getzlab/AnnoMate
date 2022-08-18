@@ -432,7 +432,7 @@ class PatientReviewer(ReviewerTemplate):
         history_df: pd.DataFrame = None,
         review_data_annotation_dict: {str: DataAnnotation} = {},
         preprocess_data_dir='.',
-        reload_cnv_figs=False,
+        load_figs_mafs=True,
         index: List = None
     ) -> PatientSampleData:
 
@@ -457,6 +457,8 @@ class PatientReviewer(ReviewerTemplate):
             dictionary containing annotation fields
         preprocess_data_dir
             directory for preproccessing data to be stored
+        load_figs_mafs: bool
+            Should cnv figures and maf dataframes be computed again? (default True)
         index: List
             List of values to annotate. participant_df's index
 
@@ -465,23 +467,41 @@ class PatientReviewer(ReviewerTemplate):
         ReviewData object
 
         """
-        cnv_figs_dir = f'{preprocess_data_dir}/cnv_figs'
+        cnv_figs_dir = f'{preprocess_data_dir}/cnv_figs'  # todo make this logic better - what if all files don't exist?
         if not os.path.exists(cnv_figs_dir):
             os.makedirs(cnv_figs_dir)
-            reload_cnv_figs = True
+            load_figs_mafs = True
         else:
             print(f'cnv figs directory already exists: {cnv_figs_dir}')
 
-        if reload_cnv_figs:
-            sample_list = sample_df.index.tolist()
+        maf_dir = f'{preprocess_data_dir}/maf_df'
+        if not os.path.exists(maf_dir):
+            os.makedirs(maf_dir)
+            load_figs_mafs = True
+        else:
+            print(f'Maf directory already exists: {maf_dir}')
 
-            for sample in sample_list:
-                output_fn = f'{cnv_figs_dir}/{sample}.cnv_fig.pkl'
-                fig, start_trace, end_trace = gen_preloaded_cnv_plot(sample_df, sample)
-                pickle.dump([fig, start_trace, end_trace], open(output_fn, 'wb'))
+        if load_figs_mafs:
+            participant_list = participant_df.index.tolist()
+
+            sample_cnv_list = []
+            participant_maf_list = []
+            for participant_id in participant_list:
+                sample_cnv_series, participant_maf_series = gen_preloaded_cnv_plot(participant_df, participant_id,
+                                                                                   sample_df, preprocess_data_dir)
+                sample_cnv_list.append(sample_cnv_series)
+                participant_maf_list.append(participant_maf_series)
+
+            sample_cnv_list = pd.concat(sample_cnv_list)
+            participant_maf_list = pd.concat(participant_maf_list)
+
+            participant_df['maf_df_pickle'] = participant_maf_list
+            sample_df['cnv_fig_pickle'] = sample_cnv_list
+        else:
+            pass  # todo get pickle locations
 
         rd = PatientSampleData(
-            index=participant_df.index,
+            index=participant_df.index.tolist(),
             description=description,
             participant_df=participant_df,
             sample_df=sample_df,
