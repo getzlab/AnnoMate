@@ -1,3 +1,11 @@
+"""CNVPlotComponent.py module
+
+Interactive CNV Plot with mutation multiplicity scatterplot
+
+Mutation scatter interactive with mutation table
+
+"""
+
 import pandas as pd
 import numpy as np
 from dash import dcc
@@ -20,6 +28,7 @@ from JupyterReviewer.DataTypes.PatientSampleData import PatientSampleData
 
 
 def gen_cnv_plot_app_component():
+    """Generate CNV Plot app component"""
     return AppComponent(
         'CNV Plot',
         layout=gen_cnv_plot_layout(),
@@ -47,6 +56,7 @@ def gen_cnv_plot_app_component():
     )
 
 def gen_cnv_plot_layout():
+    """Generate CNV Plot Component Layout"""
     return html.Div([
         dbc.Row([
             dbc.Col([
@@ -54,7 +64,8 @@ def gen_cnv_plot_layout():
                     id='cnv_plot',
                     figure=go.Figure()
                 ),
-            ], width=10),
+            ],
+            width=10),
             dbc.Col([
                 html.H3('Customize Plot'),
                 html.H5('Samples:'),
@@ -99,6 +110,7 @@ csize = {'1': 249250621, '2': 243199373, '3': 198022430, '4': 191154276, '5': 18
         '21': 48129895, '22': 51304566, '23': 156040895, '24': 57227415}
 
 def calculate_error(alt, ref, purity, percentile):
+    """Calculate error for mutation scatter error bars"""
     if alt == 0:
         return 0
     else:
@@ -110,7 +122,7 @@ def gen_mut_scatter(maf_df, mut_sigma, sample):
     Parameters
     ----------
     maf_df
-        df from maf_fn filtered by the mutation table filtering dropdowns
+        DataFrame from maf_fn filtered by the mutation table filtering dropdowns
     mut_sigma : bool
         sigmas value based on the sigma checkbox
     sample
@@ -159,6 +171,21 @@ def gen_mut_scatter(maf_df, mut_sigma, sample):
     return mut_scatter
 
 def gen_preloaded_cnv_plot(samples_df, sample):
+    """Generate a CNV Plot to be stored in a pickle files
+    Parameters
+    ----------
+    samples_df: pd.DataFrame
+        Sample level DataFrame
+    sample: str
+        name of the sample to be plotted
+
+    Returns
+    -------
+    cnv_plot : make_subplots()
+    start_trace: int
+    end_trace: int
+
+    """
     cnv_seg_df = pd.read_csv(samples_df.loc[sample, 'cnv_seg_fn'], sep='\t')
 
     cnv_plot = make_subplots()
@@ -173,6 +200,7 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     Parameters
     ----------
     df
+        participant level DataFrame
     idx
     sample_selection
         sample selection checkbox value
@@ -182,21 +210,27 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
         color checkbox value
     absolute
         absolute CN checkbox value
-    samples_df
-        sample dataframe passed into review_data_app as kwarg
     selected_mutation_rows
-
+        rows selected in the mutation table, None if none selected
     filtered_mutation_rows
+        rows filtered in the mutations table, None if none selected
+    samples_df
+        sample level dataframe
     preprocess_data_dir
         directory path in which preprocessed CNV pickle files are stored
 
     Returns
     -------
-    cnv_plot : go.Figure
+    cnv_plot : make_subplots()
     sample_list : list of str
         sample checkbox options
     sample_selection_corrected
-        sample checkbox value
+        first two selections in the sample selection checkbox
+
+    Notes
+    -----
+    No mutation scatter plot if no purity and ploidy in data
+
     """
 
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
@@ -252,7 +286,6 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     maf_df['x_loc'] = maf_df.apply(lambda x: c_size_cumsum[x['Chromosome'] - 1] + x['Start_position'], axis=1)
     maf_df['VAF'] = maf_df['t_alt_count'] / (maf_df['t_alt_count'] + maf_df['t_ref_count'])
 
-    #cnv_plot = make_subplots(len(sample_selection_corrected), 1)
     for i, sample_id in enumerate(sample_selection_corrected):
         this_maf_df = maf_df[maf_df[sample_id_col] == sample_id]
         this_seg_df = seg_df[sample_list.index(sample_id)]
@@ -260,11 +293,10 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
         cnv_plot, start_trace, end_trace = pickle.load(open(f'{preprocess_data_dir}/cnv_figs/{sample_id}.cnv_fig.pkl', "rb"))
         update_cnv_scatter_sigma_toggle(cnv_plot, sigmas_val)
         update_cnv_scatter_color(cnv_plot, this_seg_df['color_bottom'], this_seg_df['color_top'], start_trace, end_trace)
-        #cnv_plot.add_trace(current_cnv_plot, row=i, col=1)
 
         if 'wxs_purity' in list(samples_df):
-            purity = samples_df.loc[sample_id, 'wxs_purity']
-            ploidy = samples_df.loc[sample_id, 'wxs_ploidy']
+            purity = float(samples_df.loc[sample_id, 'wxs_purity'])
+            ploidy = float(samples_df.loc[sample_id, 'wxs_ploidy'])
             c_0, c_delta = calc_cn_levels(purity, ploidy)
 
             if 'Display Absolute CN' in absolute:
@@ -306,10 +338,13 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
         sample_selection_corrected
     ]
 
-def gen_absolute_components(data: PatientSampleData, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, selected_mutation_rows, filtered_mutation_rows, preprocess_data_dir):
+def gen_absolute_components(
+    data: PatientSampleData, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, selected_mutation_rows, filtered_mutation_rows, preprocess_data_dir):
     """Absolute components callback function with parameters being the callback inputs/states and returns being callback outputs."""
     df = data.participant_df
     samples_df = data.sample_df
+
+    filtered_mutation_rows = None
 
     cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, [], sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir)
     button_clicks = None
