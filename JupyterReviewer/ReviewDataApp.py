@@ -28,7 +28,7 @@ class AppComponent:
     
     def __init__(self, 
                  name: str, 
-                 layout: Union[List, Tuple],
+                 layout: Union[List, Tuple, html.Div],
                  callback_output: [Output] = [],
                  callback_input: [Input] = [],
                  callback_state: [State] = [],

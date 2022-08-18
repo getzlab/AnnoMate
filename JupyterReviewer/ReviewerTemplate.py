@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 import pathlib
 import pickle
 import inspect
+import traceback
 
 
 def make_docstring(object_type_name, func1_doc, func2):
@@ -26,21 +27,26 @@ class ReviewerTemplate(ABC):
         self.app = None
         self.autofill_dict = {}
         self.annot_app_display_types_dict = {}
-
         type(self).add_review_data_annotation.__doc__ = \
             make_docstring(object_type_name="ReviewData",
                            func1_doc=type(self).add_review_data_annotation.__doc__,
                            func2=ReviewData.add_annotation)
 
-        type(self).set_review_app.__doc__ = \
-            make_docstring(object_type_name=type(self).__name__,
-                           func1_doc=type(self).set_review_app.__doc__,
-                           func2=type(self).gen_review_app)
+        try:
+            type(self).set_review_app.__doc__ = \
+                make_docstring(object_type_name=type(self).__name__,
+                               func1_doc=type(self).set_review_app.__doc__,
+                               func2=type(self).gen_review_app)
 
-        type(self).set_review_data.__doc__ = \
-            make_docstring(object_type_name=type(self).__name__,
-                           func1_doc=type(self).set_review_data.__doc__,
-                           func2=type(self).gen_data)
+            type(self).set_review_data.__doc__ = \
+                make_docstring(object_type_name=type(self).__name__,
+                               func1_doc=type(self).set_review_data.__doc__,
+                               func2=type(self).gen_data)
+        except TypeError as e:
+            raise TypeError(
+                f"Docstrings may be missing from gen_review_app and/or gen_data.\n"
+                f"Full trace:\n {traceback.format_exc()}")
+
 
     @abstractmethod
     def gen_data(self,
