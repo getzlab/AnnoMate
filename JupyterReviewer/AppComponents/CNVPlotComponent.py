@@ -310,7 +310,7 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
 
         fig_list.append(cnv_plot)
 
-    cnv_subplots_fig = plot_acr_subplots(fig_list, 'Copy Number Plots', sample_selection_corrected)
+    cnv_subplots_fig = plot_acr_subplots(fig_list, 'Copy Number Plots', sample_selection_corrected, csize)
     update_cnv_scatter_sigma_toggle(cnv_subplots_fig, sigmas_val)
 
     maf_df = pickle.load(open(df.loc[idx, 'maf_df_pickle'], "rb"))
