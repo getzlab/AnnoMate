@@ -220,8 +220,6 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
 
     Returns
     -------
-    maf_df : pd.DataFrame
-        unchanged df from maf_fn
     maf_cols_options : list of str
         options in mutation table columns dropdown
     maf_cols_value : list of str
@@ -259,105 +257,56 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster):
         n_alt_count
     ]
 
-    maf_cols_value = []
-    hugo_symbols = []
-    variant_classifications = []
-    cluster_assignments = []
-
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
     start_pos_id = maf_df.columns[maf_df.columns.isin(['Start_position', 'Start_Position'])][0]
     alt_allele_id = maf_df.columns[maf_df.columns.isin(['Tumor_Seq_Allele2', 'Tumor_Seq_Allele'])][0]
     sample_id_col = maf_df.columns[maf_df.columns.isin(['Tumor_Sample_Barcode', 'Sample_ID', 'sample_id', 'Sample_id'])][0]
     maf_df['Sample_ID'] = maf_df[sample_id_col]
     maf_df['id'] = maf_df.apply(lambda x: get_unique_identifier(x, start_pos=start_pos_id, alt=alt_allele_id), axis=1)
-    maf_df.set_index('id', inplace=True, drop=False)
+    maf_df.set_index('id', inplace=True, drop=True)
 
-    maf_cols_options = (list(maf_df.dropna(axis=1)))
-
-    for col in default_maf_cols:
-        if col in maf_cols_options and col not in maf_cols_value:
-            maf_cols_value.append(col)
-
-    for col in cols:
-        if col in maf_cols_options and col not in maf_cols_value:
-            maf_cols_value.append(col)
-
-    for symbol in maf_df.Hugo_Symbol.unique():
-        if symbol not in hugo_symbols:
-            hugo_symbols.append(symbol)
-
-    for classification in maf_df.Variant_Classification.unique():
-        if classification not in variant_classifications:
-            variant_classifications.append(classification)
-
-    if 'Cluster_Assignment' in list(maf_df):
-        for n in maf_df.Cluster_Assignment.unique():
-            if n not in cluster_assignments:
-                cluster_assignments.append(n)
+    maf_cols_options = maf_df.dropna(axis=1, how='all').columns.tolist()
+    maf_cols_value = list((set(default_maf_cols) | set(cols)) & set(maf_cols_options))
+    hugo_symbols = maf_df['Hugo_Symbol'].unique()
+    variant_classifications = maf_df['Variant_Classification'].unique()
+    cluster_assignments = [] if 'Cluster_Assignment' not in maf_df else maf_df['Cluster_Assignment'].unique()
 
     filtered_maf_df = maf_df.copy()
     if hugo:
-        filtered_maf_df = filtered_maf_df[filtered_maf_df.Hugo_Symbol.isin(hugo)]
+        filtered_maf_df = filtered_maf_df[filtered_maf_df['Hugo_Symbol'].isin(hugo)]
     if variant:
-        filtered_maf_df = filtered_maf_df[filtered_maf_df.Variant_Classification.isin(variant)]
-    if cluster:
-        if 'Cluster_Assignment' in list(maf_df):
-            filtered_maf_df = filtered_maf_df[filtered_maf_df.Cluster_Assignment.isin(cluster)]
+        filtered_maf_df = filtered_maf_df[filtered_maf_df['Variant_Classification'].isin(variant)]
+    if cluster and 'Cluster_Assignment' in maf_df:
+        filtered_maf_df = filtered_maf_df[filtered_maf_df['Cluster_Assignment'].isin(cluster)]
 
-    sample_options = maf_df.Sample_ID.unique()
+    sample_options = filtered_maf_df['Sample_ID'].unique()
 
-    maf_df_copy = filtered_maf_df.copy()
+    filtered_maf_df = filtered_maf_df.sort_values(['Chromosome', start_pos_id]).dropna(axis=1, how='all')
+
+    # todo put this back (to link participant and sample tables)
     # if selected_rows:
     #     maf_df_copy = maf_df_copy.loc[selected_rows]
     # elif filtered_rows:
     #     maf_df_copy = maf_df_copy.loc[filtered_rows]
 
-    maf_df_copy = maf_df_copy.sort_values(['Hugo_Symbol', 'Start_position']).dropna(axis=1)
-    maf_df_copy.reset_index(drop=True, inplace=True)
+    # pull all columns that differ between samples
+    # use <= so we don't accidentally catch columns that have all NaNs for certain mutations (nunique == 0)
+    columns_equivalent = filtered_maf_df.groupby('id').nunique().le(1).all()
+    sample_cols = columns_equivalent[~columns_equivalent].index.tolist()
 
-    separated_mafs=[]
-    for i, sample in enumerate(maf_df_copy['Sample_ID'].unique()):
-        separated_mafs.append(maf_df_copy[maf_df_copy['Sample_ID'] == maf_df_copy.loc[i, 'Sample_ID']].reset_index())
-
-    sample_cols = []
-    for col in list(maf_df_copy):
-        for i in range(len(separated_mafs)-1):
-            if separated_mafs[i].loc[0, col] != separated_mafs[i+1].loc[0, col] and col not in sample_cols:
-                    sample_cols.append(col)
-
-    participant_maf = maf_df_copy.drop(columns=sample_cols).drop_duplicates(subset=['Hugo_Symbol', 'Start_position'])
-    sample_maf = maf_df_copy[sample_cols]
-
-    sorted_samples = sorted(sample_maf['Sample_ID'].unique())
-    sample_mafs_list = []
-    for sample in sorted_samples:
-        sample_mafs_list.append(sample_maf[sample_maf.Sample_ID == sample].sort_index(axis=1).reset_index(drop=True))
-
-    sample_mafs_df = pd.concat(sample_mafs_list, axis=1)
-
-    index_arrays = np.array(sorted([[b, a] for a in sample_cols for b in sorted_samples]))
-
-    index_df = pd.DataFrame(
-        sorted(index_arrays, key=lambda x: (x[0][1], x[0][0])), columns=["Sample", None]
-    )
-
-    index = pd.MultiIndex.from_frame(index_df)
-
-    final_sample_maf = pd.DataFrame(
-        sample_mafs_df.to_numpy(),
-        index=sample_mafs_df.index,
-        columns=index,
-    )
+    # generate participant-level (cols w/ no difference between samples) and sample-level mafs
+    participant_maf = filtered_maf_df[~filtered_maf_df.index.duplicated(keep='first')].drop(columns=sample_cols)
+    # todo change to sort samples by timing
+    sample_maf = filtered_maf_df[sample_cols].reset_index().sort_values(['id', 'Sample_ID']).set_index(['id', 'Sample_ID']).unstack(1)
 
     return [
-        maf_df,
         maf_cols_options,
         maf_cols_value,
         hugo_symbols,
         variant_classifications,
         sorted(cluster_assignments),
         participant_maf,
-        final_sample_maf
+        sample_maf
     ]
 
 def maf_callback_return(maf_cols_options, values, maf_cols_value, participant_maf, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf):
@@ -371,8 +320,9 @@ def maf_callback_return(maf_cols_options, values, maf_cols_value, participant_ma
             columns=[{'name': i, 'id': i, 'selectable': True} for i in values if i in list(participant_maf)],
             filter_action='native',
             sort_action='native',
+            sort_mode='multi',
             row_selectable='multi',
-            column_selectable='multi',
+            column_selectable='multi',  # todo add fixed_columns dict (to freeze columns)
             page_action='native',
             page_current=0,
             page_size=table_size,
@@ -383,19 +333,18 @@ def maf_callback_return(maf_cols_options, values, maf_cols_value, participant_ma
         cluster_assignments,
         dash_table.DataTable(
             id='mutation-sample-table',
-            columns=[{'name': [x1, x2], 'id': f'{x1}_{x2}'} for x1, x2 in final_sample_maf.columns if x2 in values],
+            columns=[{'name': [col, s_id], 'id': f'{col}_{s_id}'} for col, s_id in final_sample_maf.columns if col in values],
             data=[
                 {
                     **{'': final_sample_maf.index[n]},
-                    **{f'{x1}_{x2}': y for (x1, x2), y in data},
+                    **{f'{col}_{s_id}': y for (col, s_id), y in data},
                 }
                 for (n, data) in [
                     *enumerate([list(x.items()) for x in final_sample_maf.T.to_dict().values()])
                 ]
             ],
             merge_duplicate_headers=True,
-            page_action='native',
-            page_current=0,
+            page_action='none',  # disables paging, renders all data at once
             page_size=table_size
         )
     ]
@@ -403,13 +352,13 @@ def maf_callback_return(maf_cols_options, values, maf_cols_value, participant_ma
 def gen_maf_table(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, custom_colors):
     """Mutation table callback function with parameters being the callback inputs and returns being callback outputs."""
     df = data.participant_df
-    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df, final_sample_maf = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
+    maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df, final_sample_maf = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
 
     return maf_callback_return(maf_cols_options, maf_cols_value, maf_cols_value, filtered_maf_df, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf)
 
 def internal_gen_maf_table(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, custom_colors):
     """Mutation table internal callback function with parameters being the callback inputs and returns being callback outputs."""
     df = data.participant_df
-    maf_df, maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df, final_sample_maf = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
+    maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df, final_sample_maf = gen_maf_columns(df, idx, cols, hugo, variant, cluster)
 
     return maf_callback_return(maf_cols_options, cols, maf_cols_value, filtered_maf_df, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf)
