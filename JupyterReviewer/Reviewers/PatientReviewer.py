@@ -329,7 +329,7 @@ def gen_clinical_data_table(df, idx):
     }
 
     participant_cols = list(df)
-    clinical_cols = [col for col in participant_cols if not re.search('fn$', col) and not re.search('id$', col)]
+    clinical_cols = [col for col in participant_cols if not re.search('fn$|id$|pickle$', col)]
 
     this_participant_df = df.loc[idx, clinical_cols].to_frame()
     this_participant_df.reset_index(inplace=True)
@@ -387,7 +387,7 @@ def gen_sample_data_table(df, idx):
 
     df.reset_index(inplace=True)
     df.set_index('participant_id', inplace=True)
-    sample_cols = [col for col in list(df) if not (re.search('fn$', col) or re.search('cram_or_bam', col))]
+    sample_cols = [col for col in list(df) if not (re.search('fn$|cram_or_bam|pickle$', col))]
     this_sample_df = df.loc[idx, sample_cols]
     this_sample_df.reset_index(drop=True, inplace=True)
     this_sample_df.dropna(axis=1, how='all', inplace=True)
