@@ -230,8 +230,8 @@ def collect_data(config_path):
 
     # force purity and ploidy columns to be type float
     if 'wxs_purity' and 'wxs_ploidy' in combined_samples_df:
-        combined_samples_df['wxs_purity'] = combined_samples_df['wxs_purity'].astype(float)
-        combined_samples_df['wxs_ploidy'] = combined_samples_df['wxs_ploidy'].astype(float)
+        combined_samples_df['wxs_purity'] = combined_samples_df['wxs_purity'].replace({'NA': np.NaN}).astype(float)
+        combined_samples_df['wxs_ploidy'] = combined_samples_df['wxs_ploidy'].replace({'NA': np.NaN}).astype(float)
 
     clinical_df = pd.read_csv(clinical_fn, sep='\t', comment='#')
     clinical_df.set_index('participant_id', inplace=True)
