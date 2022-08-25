@@ -1,3 +1,11 @@
+"""PhylogicComponents.py module
+
+Phylogic CCF Plot and Trees implemented in the PatientReviewer and PhylogicReviewer
+
+Phylogic PMF Plot implemented in the PhylogicReviewer
+
+"""
+
 import pandas as pd
 import numpy as np
 from dash import dcc
@@ -21,6 +29,7 @@ from JupyterReviewer.DataTypes.PatientSampleData import PatientSampleData
 # --------------------- Phylogic CCF Plot and Tree ------------------------
 
 def gen_phylogic_app_component():
+    """Generate Phylogic CCG Plot and Tree components"""
     return AppComponent(
         'Phylogic Graphics',
         layout=gen_phylogic_components_layout(),
@@ -38,14 +47,12 @@ def gen_phylogic_app_component():
             Output('tree-dropdown', 'value'),
             Output('phylogic-tree-component', 'children')
         ],
-        # callback_states_for_autofill=[
-        #     State('tree-dropdown', 'value')
-        # ],
         new_data_callback=gen_phylogic_graphics,
         internal_callback=internal_gen_phylogic_graphics
     )
 
 def gen_phylogic_components_layout():
+    """Generate Phylogic CCF Plot and Tree layout"""
     return html.Div([
         dcc.Checklist(
             id='time-scale-checklist',
@@ -86,6 +93,7 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
     Parameters
     ----------
     df
+        participant level DataFrame
     idx
     time_scaled
         time scaled checkbox value
@@ -94,7 +102,7 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
 
     Returns
     -------
-    ccf_plot : go.Figure
+    ccf_plot : make_subplots()
 
     """
     # todo add more categories
@@ -128,8 +136,8 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
         rect_x = 6
 
     treatments_df = pd.read_csv(df.loc[idx, 'treatments_fn'], sep='\t', comment='#')
-    treatments_in_frame_df = treatments_df[(treatments_df['stop_date_dfd'] >= timing_data[samples_in_order[0]]) &
-                                           (treatments_df['start_date_dfd'] <= timing_data[samples_in_order[-1]])]
+    treatments_in_frame_df = treatments_df[(treatments_df['stop_date_dfd'] >= int(timing_data[samples_in_order[0]])) &
+                                           (treatments_df['start_date_dfd'] <= int(timing_data[samples_in_order[-1]]))]
 
     # get mutation counts
     mut_ccfs = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
@@ -170,7 +178,6 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
                 ),
                 row=1, col=1
             )
-
             #confidence interval
             ccf_plot.add_trace(
                 go.Scatter(
@@ -226,44 +233,45 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
         row=2, col=1
     )
 
-    for start, stop, drug, drug_combo, category, stop_reason, post_status in zip(treatments_in_frame_df.start_date_dfd,
-                                                                                 treatments_in_frame_df.stop_date_dfd,
-                                                                                 treatments_in_frame_df.drugs,
-                                                                                 treatments_in_frame_df.drug_combination,
-                                                                                 treatments_df.categories,
-                                                                                 treatments_in_frame_df.stop_reason,
-                                                                                 treatments_in_frame_df.post_status):
-        drug = drug_combo if pd.isna(drug) else drug
+    if 'Time Scaled' in time_scaled:
+        for start, stop, drug, drug_combo, category, stop_reason, post_status in zip(treatments_in_frame_df.start_date_dfd,
+                                                                                     treatments_in_frame_df.stop_date_dfd,
+                                                                                     treatments_in_frame_df.drugs,
+                                                                                     treatments_in_frame_df.drug_combination,
+                                                                                     treatments_df.categories,
+                                                                                     treatments_in_frame_df.stop_reason,
+                                                                                     treatments_in_frame_df.post_status):
+            drug = drug_combo if pd.isna(drug) else drug
 
-        # todo deal with overlapping treatments
-        ccf_plot.add_trace(
-            go.Scatter(
-                # todo bug when not Time-Scaled (need to implement 'order' for x)
-                x=[max(start, timing_data[samples_in_order[0]]), min(stop, timing_data[samples_in_order[-1]])],
-                y=[0,0],
-                line_width=20,
-                line_color=treatment_category_colors[category] if category in treatment_category_colors.keys() else 'gray',
-                fill='toself',
-                hovertemplate = '<extra></extra>' +
-                    f'Treatment Regimen: {drug} <br>' +
-                    f'Stop Reason: {stop_reason} <br>' +
-                    f'Post Status: {post_status}',
-                showlegend=False
-            ),
-            row=2, col=1
-        )
-        ccf_plot.add_vline(
-            x=max(start, timing_data[samples_in_order[0]]),
-            line_width=2,
-            line_color='black',
-            row=2, col=1
-        )
-        ccf_plot.add_vline(
-                x=min(stop, timing_data[samples_in_order[-1]]),
+            # todo deal with overlapping treatments
+            ccf_plot.add_trace(
+                go.Scatter(
+                    # todo implement 'order' for x
+                    x=[max(start, int(timing_data[samples_in_order[0]])), min(stop, int(timing_data[samples_in_order[-1]]))],
+                    y=[0,0],
+                    line_width=20,
+                    line_color=treatment_category_colors[category] if category in treatment_category_colors.keys() else 'gray',
+                    fill='toself',
+                    hovertemplate = '<extra></extra>' +
+                        f'Treatment Regimen: {drug} <br>' +
+                        f'Stop Reason: {stop_reason} <br>' +
+                        f'Post Status: {post_status}',
+                    showlegend=False
+                ),
+                row=2, col=1
+            )
+            ccf_plot.add_vline(
+                x=max(start, int(timing_data[samples_in_order[0]])),
                 line_width=2,
                 line_color='black',
                 row=2, col=1
-        )
+            )
+            ccf_plot.add_vline(
+                    x=min(stop, int(timing_data[samples_in_order[-1]])),
+                    line_width=2,
+                    line_color='black',
+                    row=2, col=1
+            )
 
     ccf_plot.update_yaxes(row=2, visible=False)
     ccf_plot.update_xaxes(row=1, visible=False, showticklabels=False)
@@ -326,10 +334,24 @@ def gen_stylesheet(cluster_list, color_list):
 
     return stylesheet
 
-def gen_driver_edge_labels(drivers, cluster):
+def gen_driver_edge_labels(drivers, cluster_hugo_list):
+    """Add driver mutation label to edges of clusters containing that driver
+
+    Parameters
+    ----------
+    drivers: pd.DataFrame()
+        DataFrame from the drivers kwarg file
+    cluster_hugo_list: list of str
+        list of hugo symbols associated with a particular cluster
+
+    Returns
+    -------
+    label: str
+
+    """
     label = ''
     for driver in drivers.drivers:
-        if driver in cluster:
+        if driver in cluster_hugo_list:
             label += ('%s \n' % driver)
 
     return label
@@ -340,6 +362,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
     Parameters
     ----------
     df
+        participant level DataFrame
     idx
     tree_num
         number assigned to the chosen tree that is to be displayed
@@ -349,7 +372,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
     Returns
     -------
     cyto.Cytoscape
-        the tree image
+        the tree figure
     possible_trees : list of str
         possible tree options for dropdown
 
