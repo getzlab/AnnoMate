@@ -228,6 +228,11 @@ def collect_data(config_path):
     # errors=ignore ignored error if unmatched alleliccapseg and maf are not present
     combined_samples_df.drop(columns=[unmatched_alleliccapseg, unmatched_maf], errors='ignore', inplace=True)
 
+    # force purity and ploidy columns to be type float
+    if 'wxs_purity' and 'wxs_ploidy' in combined_samples_df:
+        combined_samples_df['wxs_purity'] = combined_samples_df['wxs_purity'].astype(float)
+        combined_samples_df['wxs_ploidy'] = combined_samples_df['wxs_ploidy'].astype(float)
+
     clinical_df = pd.read_csv(clinical_fn, sep='\t', comment='#')
     clinical_df.set_index('participant_id', inplace=True)
 
@@ -324,7 +329,7 @@ def gen_clinical_data_table(df, idx):
     }
 
     participant_cols = list(df)
-    clinical_cols = [col for col in participant_cols if not re.search('fn$', col) and not re.search('id$', col)]
+    clinical_cols = [col for col in participant_cols if not re.search('fn$|id$|pickle$', col)]
 
     this_participant_df = df.loc[idx, clinical_cols].to_frame()
     this_participant_df.reset_index(inplace=True)
@@ -382,7 +387,7 @@ def gen_sample_data_table(df, idx):
 
     df.reset_index(inplace=True)
     df.set_index('participant_id', inplace=True)
-    sample_cols = [col for col in list(df) if not (re.search('fn$', col) or re.search('cram_or_bam', col))]
+    sample_cols = [col for col in list(df) if not (re.search('fn$|cram_or_bam|pickle$', col))]
     this_sample_df = df.loc[idx, sample_cols]
     this_sample_df.reset_index(drop=True, inplace=True)
     this_sample_df.dropna(axis=1, how='all', inplace=True)
