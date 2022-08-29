@@ -189,7 +189,7 @@ def gen_preloaded_cnv_plot(participant_df, participant_id, samples_df, output_di
     sample_cnv_series = pd.Series()
     for sample_id in samples_df[samples_df['participant_id'] == participant_id].index:
         cnv_seg_df = pd.read_csv(samples_df.loc[sample_id, 'cnv_seg_fn'], sep='\t')
-        cnv_plot, cnv_seg_df_mod, start_trace, end_trace = plot_acr_interactive(cnv_seg_df, csize, purity=samples_df.loc[sample_id, 'wxs_purity'], ploidy=samples_df.loc[sample_id, 'wxs_ploidy'])
+        cnv_plot, cnv_seg_df_mod, start_trace, end_trace = plot_acr_interactive(cnv_seg_df, csize, purity=float(samples_df.loc[sample_id, 'wxs_purity']), ploidy=float(samples_df.loc[sample_id, 'wxs_ploidy']))
 
         output_fn = f'{output_dir}/cnv_figs/{sample_id}.cnv_fig.pkl'
         pickle.dump([cnv_plot, cnv_seg_df_mod, start_trace, end_trace], open(output_fn, 'wb'))

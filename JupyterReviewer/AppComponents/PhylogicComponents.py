@@ -384,7 +384,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
         drivers = pd.read_csv(drivers_fn, header=None, names=['drivers'])
 
     cluster_assignments = maf_df.Cluster_Assignment.unique().tolist()
-    possible_trees = []
+    possible_trees = {}
     possible_trees_edges = []
     clusters = {}
     cluster_count = {}
@@ -394,7 +394,8 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
     trees = tree_df.loc[:, 'edges']
     for i, tree in enumerate(trees):
         possible_trees_edges.append(tree.split(','))
-        possible_trees.append(f'Tree {i+1} ({tree_df.n_iter[i]})')
+        #possible_trees.append({'label': f'Tree {i+1} ({tree_df.n_iter[i]})', 'value': i+1})
+        possible_trees[i+1] = f'Tree {i+1} ({tree_df.n_iter[i]})'
 
     for i in range(len(cluster_assignments)):
         clusters[cluster_assignments[i]] = [hugo for clust, hugo in zip(maf_df.Cluster_Assignment, maf_df.Hugo_Symbol) if clust == cluster_assignments[i]]
@@ -474,7 +475,7 @@ def gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree
         ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
         tree, possible_trees = gen_phylogic_tree(df, idx, 0, drivers_fn)
 
-        return [ccf_plot, possible_trees, possible_trees[0], tree]
+        return [ccf_plot, possible_trees, str(list(possible_trees.keys())[0]), tree]
     else:
         return [go.Figure, [], 0, '']
 
