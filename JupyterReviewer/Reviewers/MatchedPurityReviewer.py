@@ -48,7 +48,7 @@ def gen_data_summary_table(
     sample_data_df['Console_link'] = sample_data_df['Console_link'].apply(lambda url: html.A(html.P(url),
                                                                               href=url,
                                                                               target="_blank"))
-    return [[html.H1(f'{r.name} Data Summary'), dbc.Table.from_dataframe(sample_data_df.reset_index())]]
+    return [[html.H2(f'{r.name} Data Summary'), dbc.Table.from_dataframe(sample_data_df.reset_index())]]
 
 
 def plot_cnp_histogram(fig, row, col, 
@@ -145,6 +145,7 @@ def gen_absolute_component(data: GenericData,
         absolute_rdata_df = pd.DataFrame()
 
     absolute_rdata_df = pd.read_csv(r[rdata_tsv_fn], sep='\t', index_col=0)
+    absolute_rdata_df = absolute_rdata_df.round(2)
 
     cnp_fig = load_pickle(r[cnp_fig_pkl_fn_col])
 
@@ -378,9 +379,8 @@ class MatchedPurityReviewer(ReviewerTemplate):
         app = ReviewDataApp()
         app.add_component(
             AppComponent(
-                'cnp-plot',
-                html.Div(children=[html.H1('Absolute Solutions'),
-                                   html.H2('Absolute Solutions Table'),
+                'Absolute Solutions',
+                html.Div(children=[html.H2('Absolute Solutions Table'),
                                    dash_table.DataTable(
                                        id='absolute-rdata-select-table',
                                        columns=[
@@ -429,8 +429,8 @@ class MatchedPurityReviewer(ReviewerTemplate):
 
         app.add_component(
             AppComponent(
-                'sample-info-component',
-                [html.Div(children=[html.H1('Data Summary'),
+                'Sample Data',
+                [html.Div(children=[html.H2('Data Summary'),
                                    dbc.Table.from_dataframe(df=pd.DataFrame())],
                          id='sample-info-component'
                          )],
@@ -476,9 +476,8 @@ class MatchedPurityReviewer(ReviewerTemplate):
         # Adding another component to prebuilt dash board
         app.add_component(
             AppComponent(
-                'custom-cnp-plot',
-                [html.Div([html.H2('Custom Copy Number Profile', id='custom-header-cnp-id'),
-                           dbc.Row([
+                'Manual Purity',
+                [html.Div([dbc.Row([
                                dbc.Col([dcc.Graph(id='custom-cnp-graph',
                                                   figure={})
                                         ],
@@ -526,8 +525,12 @@ class MatchedPurityReviewer(ReviewerTemplate):
         return app
     
     def set_default_autofill(self):
-        self.add_autofill('cnp-plot-button', State('absolute-purity', 'children'), 'Purity')
-        self.add_autofill('cnp-plot-button', State('absolute-ploidy', 'children'), 'Ploidy')
+        self.add_autofill('Pick current ABSOLUTE solution', State('absolute-purity', 'children'), 'Purity')
+        self.add_autofill('Pick current ABSOLUTE solution', State('absolute-ploidy', 'children'), 'Ploidy')
+        self.add_autofill('Use current manual solution', State('custom-cnp-graph-purity', 'children'), 'Purity')
+        self.add_autofill('Use current manual solution', State('custom-cnp-graph-ploidy', 'children'), 'Ploidy')
+
+        
 
     def set_default_review_data_annotations(self):
         self.add_review_data_annotation(
