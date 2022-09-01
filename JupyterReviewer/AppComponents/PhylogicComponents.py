@@ -278,15 +278,13 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
 
     return ccf_plot
 
-def gen_stylesheet(cluster_list, color_list):
+def gen_stylesheet(cluster_list):
     """Format Phylogic tree to have correct cluster colors and labels
 
     Parameters
     ----------
     cluster_list
         list of clusters in given data
-    color_list
-        list of colors from cluster_color function
 
     Returns
     -------
@@ -322,13 +320,13 @@ def gen_stylesheet(cluster_list, color_list):
         stylesheet.append({
             'selector': ('node[label = "%s"]' % node),
             'style': {
-                'background-color': color_list[int(node) - 1]
+                'background-color': cluster_color(int(node))
             }
         })
         stylesheet.append({
             'selector': ('edge[target = "%s"]' % f'cluster_{node}'),
             'style': {
-                'line-color': color_list[int(node) - 1]
+                'line-color': cluster_color(int(node))
             }
         })
 
@@ -389,7 +387,6 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
     clusters = {}
     cluster_count = {}
     cluster_list = []
-    color_list = []
 
     trees = tree_df.loc[:, 'edges']
     for i, tree in enumerate(trees):
@@ -409,11 +406,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
         for j in new_list:
             if (j !='None') & (j not in cluster_list):
                 cluster_list.append(j)
-
     cluster_list = sorted(cluster_list)
-
-    for node in cluster_list:
-        color_list.append(cluster_color(node))
 
     nodes = [{'data': {'id': 'normal', 'label': 'normal'}, 'position': {'x': 0, 'y': 0}}]
 
@@ -448,7 +441,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
 
     elements = nodes + edges
 
-    stylesheet = gen_stylesheet(cluster_list, color_list)
+    stylesheet = gen_stylesheet(cluster_list)
 
     return [
         cyto.Cytoscape(
