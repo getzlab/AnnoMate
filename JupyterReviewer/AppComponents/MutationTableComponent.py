@@ -3,17 +3,16 @@
 Interactive Mutation Table with column selection, sorting, selecting, and filtering
 
 """
+import os.path
 
 import pandas as pd
-from dash import dcc
-from dash import html
+from dash import dcc, html, dash_table, ctx
 from dash.dependencies import Input, Output, State
-from dash import Dash, dash_table
-import dash
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
+from functools import lru_cache
 
 from JupyterReviewer.ReviewDataApp import AppComponent
 from JupyterReviewer.AppComponents.utils import cluster_color, get_unique_identifier
@@ -32,21 +31,41 @@ def gen_mutation_table_app_component():
             Input('table-size-dropdown', 'value'),
             Input('variant-classification-dropdown', 'value'),
             Input('cluster-assignment-dropdown', 'value'),
-            Input('mutation-table', 'derived_virtual_row_ids'),  # order of rows across all pages
-            Input('mutation-table', 'page_current')
+            Input('mutation-table', 'page_current'),
+            Input('mutation-table', 'sort_by'),
+            Input('mutation-table', 'filter_query'),
+            Input('mutation-table', 'derived_viewport_selected_row_ids')
         ],
         callback_output=[
             Output('column-selection-dropdown', 'options'),
             Output('column-selection-dropdown', 'value'),
-            Output('mutation-table-component', 'children'),
             Output('hugo-dropdown', 'options'),
             Output('variant-classification-dropdown', 'options'),
             Output('cluster-assignment-dropdown', 'options'),
-            Output('mutation-sample-table-component', 'children')
+            Output('mutation-table', 'data'),
+            Output('mutation-table', 'page_size'),
+            Output('mutation-table', 'columns'),
+            Output('mutation-table', 'style_data_conditional'),
+            Output('mutation-table', 'selected_row_ids'),
+            Output('mutation-table', 'selected_rows'),
+            Output('mutation-sample-table', 'data'),
+            Output('mutation-sample-table', 'page_size'),
+            Output('mutation-sample-table', 'columns'),
+            Output('mutation-sample-table', 'style_data_conditional'),
+            Output('mutation-selected-ids', 'value'),
+            Output('mutation-selected-ids', 'options')
         ],
-        new_data_callback=gen_maf_table,
-        internal_callback=internal_gen_maf_table
+        callback_state=[
+            State('mutation-selected-ids', 'value'),
+            State('mutation-table', 'derived_viewport_row_ids')
+        ],
+        new_data_callback=update_mutation_tables,
+        internal_callback=update_mutation_tables
     )
+
+
+DEFAULT_PAGE_SIZE = 10
+
 
 def gen_mutation_table_layout():
     """Generate Mutation Table component layout"""
@@ -65,7 +84,7 @@ def gen_mutation_table_layout():
                     dcc.Dropdown(
                         id='table-size-dropdown',
                         options=[10,20,30],
-                        value=10
+                        value=DEFAULT_PAGE_SIZE
                     )
                 ], width=2),
                 dbc.Col([
@@ -111,24 +130,47 @@ def gen_mutation_table_layout():
         html.Div([
             dbc.Row([
                 dbc.Col([
-                    html.Div(
-                        dash_table.DataTable(
-                            id='mutation-table',
-                            columns=[{'name': i, 'id': i, 'selectable': True} for i in pd.DataFrame().columns],
-                            data=pd.DataFrame().to_dict('records')
-                        ), id='mutation-table-component'
+                    #html.Div(
+                    dash_table.DataTable(
+                        id='mutation-table',
+                        # columns=default_columns,  # todo add fixed_columns dict (to freeze columns)
+                        row_selectable='multi',
+
+                        page_current=0,
+                        page_size=DEFAULT_PAGE_SIZE,
+                        page_action='custom',
+
+                        filter_action='custom',
+                        filter_query='',
+
+                        sort_action='custom',
+                        sort_mode='multi',
+                        sort_by=[]
+                    #    ), id='mutation-table-component'
                     )
                 ], width=7),
                 dbc.Col([
-                    html.Div(
-                        dash_table.DataTable(
-                            id='mutation-sample-table',
-                            columns=[{'name': i, 'id': i, 'selectable': True} for i in pd.DataFrame().columns],
-                            data=pd.DataFrame().to_dict('records')
-                        ), id='mutation-sample-table-component'
+                    #html.Div(
+                    dash_table.DataTable(
+                        id='mutation-sample-table',
+                        # columns=default_sample_columns,
+                        merge_duplicate_headers=True,
+
+                        page_action='none',  # disables paging, renders all data at once
+                        page_size=DEFAULT_PAGE_SIZE
+                    #    ), id='mutation-sample-table-component'
                     )
                 ], width=5),
             ])
+        ]),
+        html.Div([
+            dcc.Dropdown(
+                id='mutation-selected-ids',
+                options=[],
+                multi=True,
+                placeholder='Selected Mutations',
+                style={'display': 'none'}
+            )
         ])
     ])
 
@@ -201,7 +243,8 @@ def gen_style_data_conditional(maf_df, custom_colors, maf_cols_value):
 
     return style_data_conditional
 
-def gen_maf_columns(df, idx, cols, hugo, variant, cluster, all_row_ids, table_size, page):
+
+def gen_maf_columns(df, idx, cols, hugo, variant, cluster, all_row_ids, table_size, page, ):
     """Generate mutation table columns from selected columns and filtering dropdowns.
 
     Parameters
@@ -377,3 +420,208 @@ def internal_gen_maf_table(data: PatientSampleData, idx, cols, hugo, table_size,
         df, idx, cols, hugo, variant, cluster, all_row_ids, table_size, page)
 
     return maf_callback_return(maf_cols_options, cols, maf_cols_value, filtered_maf_df, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf, page)
+
+
+@lru_cache(maxsize=32)
+def load_file(filename):
+    if os.path.splitext(filename)[1] == '.pkl':
+        return pd.read_pickle(filename)
+    else:
+        return pd.read_csv(filename, sep='\t')
+
+
+def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, page_current, sort_by, filter_query, viewport_selected_row_ids, prev_selected_ids, viewport_ids, custom_colors):
+    """Mutation table callback function with parameters being the callback inputs and returns being callback outputs.
+    """
+    df = data.participant_df
+
+    #####
+    start_pos = 'Start_position' or 'Start_Position'
+    end_pos = 'End_position' or 'End_Position'
+    protein_change = 'Protein_change' or 'Protein_Change'
+    t_ref_count = 't_ref_count' or 't_ref_count_post_forcecall'
+    t_alt_count = 't_alt_count' or 't_alt_count_post_forcecall'
+    n_ref_count = 'n_ref_count' or 'n_ref_count_post_forcecall'
+    n_alt_count = 'n_alt_count' or 'n_alt_count_post_forcecall'
+
+    default_maf_cols = [
+        'Hugo_Symbol',
+        'Chromosome',
+        start_pos,
+        end_pos,
+        protein_change,
+        'Variant_Classification',
+        t_ref_count,
+        t_alt_count,
+        n_ref_count,
+        n_alt_count
+    ]
+
+    if 'maf_df_pickle' in df:
+        maf_df = load_file(df.loc[idx, 'maf_df_pickle'])
+    else:
+        maf_df = load_file(df.loc[idx, 'maf_fn'])
+
+    #  todo all this should be done in preprocessing
+    start_pos_id = maf_df.columns[maf_df.columns.isin(['Start_position', 'Start_Position'])][0]
+    alt_allele_id = maf_df.columns[maf_df.columns.isin(['Tumor_Seq_Allele2', 'Tumor_Seq_Allele'])][0]
+    sample_id_col = \
+    maf_df.columns[maf_df.columns.isin(['Tumor_Sample_Barcode', 'Sample_ID', 'sample_id', 'Sample_id'])][0]
+    maf_df['Sample_ID'] = maf_df[sample_id_col]
+    maf_df['id'] = maf_df.apply(lambda x: get_unique_identifier(x, start_pos=start_pos_id, alt=alt_allele_id), axis=1)
+    maf_df.set_index('id', inplace=True, drop=True)
+    #
+
+    maf_cols_options = maf_df.dropna(axis=1, how='all').columns.tolist()
+    if not cols:  # Nothing selected for columns
+        maf_cols_value = list(set(default_maf_cols) & set(maf_cols_options))
+    else:
+        maf_cols_value = list(set(cols) & set(maf_cols_options))
+
+    hugo_symbols = maf_df['Hugo_Symbol'].unique()
+    variant_classifications = maf_df['Variant_Classification'].unique()
+    cluster_assignments = [] if 'Cluster_Assignment' not in maf_df else maf_df['Cluster_Assignment'].unique()
+
+    filtered_maf_df = maf_df.copy()
+    if hugo:
+        filtered_maf_df = filtered_maf_df[filtered_maf_df['Hugo_Symbol'].isin(hugo)]
+    if variant:
+        filtered_maf_df = filtered_maf_df[filtered_maf_df['Variant_Classification'].isin(variant)]
+    if cluster and 'Cluster_Assignment' in maf_df:
+        filtered_maf_df = filtered_maf_df[filtered_maf_df['Cluster_Assignment'].isin(cluster)]
+
+    filtering_expressions = filter_query.split(' && ')
+    for filter_part in filtering_expressions:
+        col_name, operator, filter_value = split_filter_part(filter_part)
+
+        if operator in ('eq', 'ne', 'lt', 'le', 'gt', 'ge'):
+            # these operators match pandas series operator method names
+            filtered_maf_df = filtered_maf_df.loc[getattr(filtered_maf_df[col_name], operator)(filter_value)]
+        elif operator == 'contains':
+            filtered_maf_df = filtered_maf_df.loc[filtered_maf_df[col_name].str.contains(filter_value)]
+        elif operator == 'datestartswith':
+            # this is a simplification of the front-end filtering logic,
+            # only works with complete fields in standard format
+            filtered_maf_df = filtered_maf_df.loc[filtered_maf_df[col_name].str.startswith(filter_value)]
+
+    if len(sort_by):
+        filtered_maf_df = filtered_maf_df.sort_values(
+            [col['column_id'] for col in sort_by],
+            ascending=[
+                col['direction'] == 'asc'
+                for col in sort_by
+            ],
+            inplace=False
+        )
+
+    sample_options = filtered_maf_df['Sample_ID'].unique()
+
+    filtered_maf_df = filtered_maf_df.dropna(axis=1, how='all')
+
+    # pull all columns that differ between samples
+    # use <= so we don't accidentally catch columns that have all NaNs for certain mutations (nunique == 0)
+    columns_equivalent = filtered_maf_df.groupby('id').nunique().le(1).all()
+    sample_cols = columns_equivalent[~columns_equivalent].index.tolist()
+
+    # generate participant-level (cols w/ no difference between samples) and sample-level mafs
+    participant_maf = filtered_maf_df[~filtered_maf_df.index.duplicated(keep='first')].drop(columns=sample_cols)
+    participant_maf['id'] = participant_maf.index.tolist()
+
+    # todo change to sort samples by timing
+    sample_maf = filtered_maf_df[sample_cols].reset_index().sort_values(['id', 'Sample_ID']).set_index(
+        ['id', 'Sample_ID']).unstack(1)
+    sample_maf['id'] = sample_maf.index.tolist()
+
+    #####
+
+    participant_table_data = participant_maf.iloc[page_current * table_size: (page_current + 1) * table_size]  #.to_dict('records')
+    participant_columns = [{'name': i, 'id': i, 'selectable': True} for i in maf_cols_value if i in list(participant_maf)]
+
+    sample_table = sample_maf.loc[participant_table_data.index]
+    sample_table_data = [{
+        **{'': sample_table.index[n]},
+        **{f'{col}_{s_id}': y for (col, s_id), y in data},
+    }
+        for (n, data) in [
+            *enumerate([list(x.items()) for x in sample_table.T.to_dict().values()])
+        ]
+    ]
+    sample_columns_s_id = [{'name': [col, s_id], 'id': f'{col}_{s_id}'} for col, s_id in sample_table.columns if col in maf_cols_value]
+
+    prev_selected_ids = [] if prev_selected_ids is None else prev_selected_ids
+    print(f'NEW CLICK: {ctx.triggered_prop_ids}')
+    print(f'Viewport ids: {viewport_ids}')
+    print(f'Viewport selected: {viewport_selected_row_ids}')
+    print(f'Prev: {prev_selected_ids}')
+
+    if 'mutation-table.derived_viewport_selected_row_ids' in ctx.triggered_prop_ids.keys():
+        updated_selected_ids = list((set(prev_selected_ids) - set(viewport_ids)) | set(viewport_selected_row_ids))
+    else:
+        updated_selected_ids = prev_selected_ids
+    print(f'Saved ids: {updated_selected_ids}')
+
+    if updated_selected_ids and len(updated_selected_ids):
+        derived_viewport_selected_row_ids = participant_table_data.loc[set(updated_selected_ids) & set(participant_table_data.index)].index
+        print(f'Viewport: {derived_viewport_selected_row_ids}')
+        derived_viewport_selected_rows = [participant_table_data.index.get_loc(vis_row_id) for vis_row_id in derived_viewport_selected_row_ids]
+    else:
+        derived_viewport_selected_row_ids = []
+        derived_viewport_selected_rows = []
+
+    return [
+        maf_cols_options,
+        maf_cols_value,
+        hugo_symbols,
+        variant_classifications,
+        sorted(cluster_assignments),
+        participant_table_data.to_dict('records'),  # participant_data
+        table_size,
+        participant_columns,
+        gen_style_data_conditional(participant_maf, custom_colors, maf_cols_value),
+        derived_viewport_selected_row_ids,
+        derived_viewport_selected_rows,
+        sample_table_data,
+        table_size,
+        sample_columns_s_id,
+        gen_style_data_conditional(participant_maf, custom_colors, maf_cols_value),
+        updated_selected_ids,
+        maf_df.index.unique().tolist()
+    ]
+
+
+operators = [['ge ', '>='],
+             ['le ', '<='],
+             ['lt ', '<'],
+             ['gt ', '>'],
+             ['ne ', '!='],
+             ['eq ', '='],
+             ['contains '],
+             ['datestartswith ']]
+
+
+def split_filter_part(filter_part):
+    """Split filter query into operator and value
+
+    Taken from dash documentation at https://dash.plotly.com/datatable/callbacks on the Python-Driven Filtering, Paging, Sorting Page.
+    """
+    for operator_type in operators:
+        for operator in operator_type:
+            if operator in filter_part:
+                name_part, value_part = filter_part.split(operator, 1)
+                name = name_part[name_part.find('{') + 1: name_part.rfind('}')]
+
+                value_part = value_part.strip()
+                v0 = value_part[0]
+                if (v0 == value_part[-1] and v0 in ("'", '"', '`')):
+                    value = value_part[1: -1].replace('\\' + v0, v0)
+                else:
+                    try:
+                        value = float(value_part)
+                    except ValueError:
+                        value = value_part
+
+                # word operators need spaces after them in the filter string,
+                # but we don't want these later
+                return name, operator_type[0].strip(), value
+
+    return [None] * 3
