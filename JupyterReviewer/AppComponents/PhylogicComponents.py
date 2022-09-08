@@ -38,9 +38,6 @@ def gen_phylogic_app_component():
             Input('time-scale-checklist', 'value'),
             Input('tree-dropdown', 'value')
         ],
-        callback_state_external=[
-            State('mutation-table-component', 'children')  # todo is this needed?
-        ],
         callback_output=[
             Output('ccf-plot', 'figure'),
             Output('tree-dropdown', 'options'),
@@ -458,7 +455,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
         possible_trees
     ]
 
-def gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, mutation, drivers_fn):
+def gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, drivers_fn):
     """Phylogic graphics callback function with parameters being the callback inputs and returns being callback outputs."""
     df = data.participant_df
     samples_df = data.sample_df
@@ -471,7 +468,7 @@ def gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree
     else:
         return [go.Figure, [], 0, '']
 
-def internal_gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, mutation, drivers_fn):
+def internal_gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, drivers_fn):
     """Phylogic graphics internal callback function with parameters being the callback inputs and returns being callback outputs."""
     df = data.participant_df
     samples_df = data.sample_df
@@ -525,8 +522,8 @@ def gen_ccf_pmf_component():
                             State('group-clusters', 'on')
                         ],
                         callback_state_external=[
-                            State('mutation-table', 'derived_virtual_selected_row_ids'),  # selected rows after filtering
-                            State('mutation-table', 'derived_virtual_row_ids')  # all rows in table after filtering
+                            State('mutation-selected-ids', 'value'),  # selected rows
+                            State('mutation-filtered-ids', 'value')  # all rows in table after filtering
                         ],
                         new_data_callback=gen_pmf_component,
                         internal_callback=update_pmf_component

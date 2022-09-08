@@ -44,8 +44,8 @@ def gen_cnv_plot_app_component():
             Output('cnv-button', 'n_clicks')
         ],
         callback_state_external=[
-            State('mutation-table', 'selected_row_ids'),  # selected rows regardless of filtering
-            State('mutation-table', 'derived_virtual_row_ids')  # all rows in table after filtering (and sorting)
+            State('mutation-selected-ids', 'value'),  # selected rows regardless of filtering
+            State('mutation-filtered-ids', 'value')  # all rows in table after filtering
         ],
         new_data_callback=gen_absolute_components,
         internal_callback=internal_gen_absolute_components
