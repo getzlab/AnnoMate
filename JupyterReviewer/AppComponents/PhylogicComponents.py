@@ -38,9 +38,6 @@ def gen_phylogic_app_component():
             Input('time-scale-checklist', 'value'),
             Input('tree-dropdown', 'value')
         ],
-        callback_state_external=[
-            State('mutation-table-component', 'children')
-        ],
         callback_output=[
             Output('ccf-plot', 'figure'),
             Output('tree-dropdown', 'options'),
@@ -458,7 +455,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
         possible_trees
     ]
 
-def gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, mutation, drivers_fn):
+def gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, drivers_fn):
     """Phylogic graphics callback function with parameters being the callback inputs and returns being callback outputs."""
     df = data.participant_df
     samples_df = data.sample_df
@@ -471,7 +468,7 @@ def gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree
     else:
         return [go.Figure, [], 0, '']
 
-def internal_gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, mutation, drivers_fn):
+def internal_gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, drivers_fn):
     """Phylogic graphics internal callback function with parameters being the callback inputs and returns being callback outputs."""
     df = data.participant_df
     samples_df = data.sample_df
