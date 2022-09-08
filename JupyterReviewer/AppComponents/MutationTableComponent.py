@@ -549,20 +549,22 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
     sample_columns_s_id = [{'name': [col, s_id], 'id': f'{col}_{s_id}'} for col, s_id in sample_table.columns if col in maf_cols_value]
 
     prev_selected_ids = [] if prev_selected_ids is None else prev_selected_ids
-    print(f'NEW CLICK: {ctx.triggered_prop_ids}')
-    print(f'Viewport ids: {viewport_ids}')
-    print(f'Viewport selected: {viewport_selected_row_ids}')
-    print(f'Prev: {prev_selected_ids}')
 
-    if 'mutation-table.derived_viewport_selected_row_ids' in ctx.triggered_prop_ids.keys():
+    # There is a bug where the selected_rows attribute is erased after certain table actions (filter query, table size)
+    # To allow for keeping the selected rows after these callback triggers,
+    # check that only the selected rows have changed (not the data).
+    # The table size change is more tricky, but checking that button selections only go down to zero from size one.
+    # Follow bug reports here: https://github.com/plotly/dash-table/issues/924,
+    #                          https://github.com/plotly/dash-table/issues/938
+    if 'mutation-table.derived_viewport_selected_row_ids' in ctx.triggered_prop_ids.keys() and set(viewport_ids) == set(participant_table_data.index):
         updated_selected_ids = list((set(prev_selected_ids) - set(viewport_ids)) | set(viewport_selected_row_ids))
+        if len(updated_selected_ids) == 0 and len(prev_selected_ids) > 1:
+            updated_selected_ids = prev_selected_ids
     else:
         updated_selected_ids = prev_selected_ids
-    print(f'Saved ids: {updated_selected_ids}')
 
     if updated_selected_ids and len(updated_selected_ids):
         derived_viewport_selected_row_ids = participant_table_data.loc[set(updated_selected_ids) & set(participant_table_data.index)].index
-        print(f'Viewport: {derived_viewport_selected_row_ids}')
         derived_viewport_selected_rows = [participant_table_data.index.get_loc(vis_row_id) for vis_row_id in derived_viewport_selected_row_ids]
     else:
         derived_viewport_selected_row_ids = []
