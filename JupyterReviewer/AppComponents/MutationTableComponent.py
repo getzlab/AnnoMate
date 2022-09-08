@@ -32,7 +32,8 @@ def gen_mutation_table_app_component():
             Input('table-size-dropdown', 'value'),
             Input('variant-classification-dropdown', 'value'),
             Input('cluster-assignment-dropdown', 'value'),
-            Input('mutation-table', 'derived_virtual_row_ids')  # order of rows across all pages
+            Input('mutation-table', 'derived_virtual_row_ids'),  # order of rows across all pages
+            Input('mutation-table', 'page_current')
         ],
         callback_output=[
             Output('column-selection-dropdown', 'options'),
@@ -200,7 +201,7 @@ def gen_style_data_conditional(maf_df, custom_colors, maf_cols_value):
 
     return style_data_conditional
 
-def gen_maf_columns(df, idx, cols, hugo, variant, cluster, all_row_ids, table_size):
+def gen_maf_columns(df, idx, cols, hugo, variant, cluster, all_row_ids, table_size, page):
     """Generate mutation table columns from selected columns and filtering dropdowns.
 
     Parameters
@@ -301,7 +302,10 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster, all_row_ids, table_si
     if not all_row_ids:
         all_row_ids = filtered_maf_df.index
 
-    final_participant_index = pd.unique([v for v in all_row_ids if v in participant_maf.index])
+    #final_participant_index = pd.unique([v for v in all_row_ids if v in participant_maf.index])
+
+    if not page:
+        page = 0
 
     return [
         maf_cols_options,
@@ -309,12 +313,12 @@ def gen_maf_columns(df, idx, cols, hugo, variant, cluster, all_row_ids, table_si
         hugo_symbols,
         variant_classifications,
         sorted(cluster_assignments),
-        participant_maf.loc[final_participant_index],  # todo implement back-end paging
-        sample_maf.loc[final_participant_index[:table_size]]
+        participant_maf,
+        sample_maf.loc[participant_maf.index[page * table_size : page * table_size + table_size]]
     ]
 
 
-def maf_callback_return(maf_cols_options, values, maf_cols_value, participant_maf, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf):
+def maf_callback_return(maf_cols_options, values, maf_cols_value, participant_maf, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf, page):
     """Mutation Table callback functions return (accociated with mutation table component outputs)"""
     return [
         maf_cols_options,
@@ -328,7 +332,7 @@ def maf_callback_return(maf_cols_options, values, maf_cols_value, participant_ma
             sort_mode='multi',
             row_selectable='multi',  # todo add fixed_columns dict (to freeze columns)
             page_action='native',  # todo implement back-end paging
-            page_current=0,
+            page_current=page,
             page_size=table_size,
             style_data_conditional=gen_style_data_conditional(participant_maf, custom_colors, maf_cols_value)
         ),
@@ -354,22 +358,22 @@ def maf_callback_return(maf_cols_options, values, maf_cols_value, participant_ma
     ]
 
 
-def gen_maf_table(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, all_row_ids, custom_colors):
+def gen_maf_table(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, all_row_ids, page, custom_colors):
     """Mutation table callback function with parameters being the callback inputs and returns being callback outputs.
     """
     df = data.participant_df
     maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df, final_sample_maf = gen_maf_columns(
-        df, idx, cols, hugo, variant, cluster, all_row_ids, table_size)
+        df, idx, cols, hugo, variant, cluster, all_row_ids, table_size, page)
 
-    return maf_callback_return(maf_cols_options, maf_cols_value, maf_cols_value, filtered_maf_df, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf)
+    return maf_callback_return(maf_cols_options, maf_cols_value, maf_cols_value, filtered_maf_df, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf, page)
 
 
-def internal_gen_maf_table(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, all_row_ids,
+def internal_gen_maf_table(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, all_row_ids, page,
                            custom_colors):
     """Mutation table internal callback function with parameters being the callback inputs and returns being callback outputs.
     """
     df = data.participant_df
     maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df, final_sample_maf = gen_maf_columns(
-        df, idx, cols, hugo, variant, cluster, all_row_ids, table_size)
+        df, idx, cols, hugo, variant, cluster, all_row_ids, table_size, page)
 
-    return maf_callback_return(maf_cols_options, cols, maf_cols_value, filtered_maf_df, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf)
+    return maf_callback_return(maf_cols_options, cols, maf_cols_value, filtered_maf_df, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf, page)
