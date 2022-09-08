@@ -522,8 +522,8 @@ def gen_ccf_pmf_component():
                             State('group-clusters', 'on')
                         ],
                         callback_state_external=[
-                            State('mutation-table', 'derived_virtual_selected_row_ids'),  # selected rows after filtering
-                            State('mutation-table', 'derived_virtual_row_ids')  # all rows in table after filtering
+                            State('mutation-selected-ids', 'value'),  # selected rows
+                            State('mutation-filtered-ids', 'value')  # all rows in table after filtering
                         ],
                         new_data_callback=gen_pmf_component,
                         internal_callback=update_pmf_component

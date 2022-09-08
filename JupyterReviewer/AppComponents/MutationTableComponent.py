@@ -53,7 +53,9 @@ def gen_mutation_table_app_component():
             Output('mutation-sample-table', 'columns'),
             Output('mutation-sample-table', 'style_data_conditional'),
             Output('mutation-selected-ids', 'value'),
-            Output('mutation-selected-ids', 'options')
+            Output('mutation-selected-ids', 'options'),
+            Output('mutation-filtered-ids', 'value'),
+            Output('mutation-filtered-ids', 'options')
         ],
         callback_state=[
             State('mutation-selected-ids', 'value'),
@@ -169,6 +171,15 @@ def gen_mutation_table_layout():
                 options=[],
                 multi=True,
                 placeholder='Selected Mutations',
+                style={'display': 'none'}
+            )
+        ]),
+        html.Div([
+            dcc.Dropdown(
+                id='mutation-filtered-ids',
+                options=[],
+                multi=True,
+                placeholder='Remaining Mutations',
                 style={'display': 'none'}
             )
         ])
@@ -498,6 +509,7 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
             # these operators match pandas series operator method names
             filtered_maf_df = filtered_maf_df.loc[getattr(filtered_maf_df[col_name], operator)(filter_value)]
         elif operator == 'contains':
+            filtered_maf_df = filtered_maf_df.dropna(axis=0, subset=[col_name])
             filtered_maf_df = filtered_maf_df.loc[filtered_maf_df[col_name].str.contains(filter_value)]
         elif operator == 'datestartswith':
             # this is a simplification of the front-end filtering logic,
@@ -554,6 +566,7 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
     # To allow for keeping the selected rows after these callback triggers,
     # check that only the selected rows have changed (not the data).
     # The table size change is more tricky, but checking that button selections only go down to zero from size one.
+    #   There are some cases where this is unintended (when only 1 row is selected), but it's the best I can do for now.
     # Follow bug reports here: https://github.com/plotly/dash-table/issues/924,
     #                          https://github.com/plotly/dash-table/issues/938
     if 'mutation-table.derived_viewport_selected_row_ids' in ctx.triggered_prop_ids.keys() and set(viewport_ids) == set(participant_table_data.index):
@@ -587,7 +600,9 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
         sample_columns_s_id,
         gen_style_data_conditional(participant_maf, custom_colors, maf_cols_value),
         updated_selected_ids,
-        maf_df.index.unique().tolist()
+        maf_df.index.unique().tolist(),
+        participant_maf.index.tolist(),
+        maf_df.index.unique().tolist(),
     ]
 
 
