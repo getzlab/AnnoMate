@@ -9,9 +9,6 @@ import pandas as pd
 from dash import dcc, html, dash_table, ctx
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import numpy as np
 from functools import lru_cache
 
 from JupyterReviewer.ReviewDataApp import AppComponent
@@ -255,184 +252,6 @@ def gen_style_data_conditional(maf_df, custom_colors, maf_cols_value):
     return style_data_conditional
 
 
-def gen_maf_columns(df, idx, cols, hugo, variant, cluster, all_row_ids, table_size, page, ):
-    """Generate mutation table columns from selected columns and filtering dropdowns.
-
-    Parameters
-    ----------
-    df
-        participant level DataFrame
-    idx
-    cols
-        column selection dropdown value
-    hugo
-        hugo symbol filtering dropdown value
-    variant
-        variant classification filtering dropdown value
-    cluster
-        cluster assignment filtering dropdown value
-    all_row_ids : list of str
-        all row ids in datatable in order, after filtering and sorting (natively)
-    table_size : int
-        number of mutations displayed in
-
-    Returns
-    -------
-    maf_cols_options : list of str
-        options in mutation table columns dropdown
-    maf_cols_value : list of str
-        values selected in mutation table columns dropdown
-    hugo_symbols : list of str
-        all hugo symbols present in given data
-    variant_classifications : list of str
-        all variant classifications present in given data
-    sorted(cluster_assignments) : list of int
-        all cluster assignments present in given data, in order
-    participant_maf: pd.DataFrame
-        maf_df of participant specific data after being filtered by hugo, variant, and cluster
-    final_sample_maf
-        maf_df of sample specific data after being filtered by hugo, variant, and cluster
-    """
-    start_pos = 'Start_position' or 'Start_Position'
-    end_pos = 'End_position' or 'End_Position'
-    protein_change = 'Protein_change' or 'Protein_Change'
-    t_ref_count = 't_ref_count' or 't_ref_count_post_forcecall'
-    t_alt_count = 't_alt_count' or 't_alt_count_post_forcecall'
-    n_ref_count = 'n_ref_count' or 'n_ref_count_post_forcecall'
-    n_alt_count = 'n_alt_count' or 'n_alt_count_post_forcecall'
-
-    default_maf_cols = [
-        'Hugo_Symbol',
-        'Chromosome',
-        start_pos,
-        end_pos,
-        protein_change,
-        'Variant_Classification',
-        t_ref_count,
-        t_alt_count,
-        n_ref_count,
-        n_alt_count
-    ]
-
-    maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
-    start_pos_id = maf_df.columns[maf_df.columns.isin(['Start_position', 'Start_Position'])][0]
-    alt_allele_id = maf_df.columns[maf_df.columns.isin(['Tumor_Seq_Allele2', 'Tumor_Seq_Allele'])][0]
-    sample_id_col = maf_df.columns[maf_df.columns.isin(['Tumor_Sample_Barcode', 'Sample_ID', 'sample_id', 'Sample_id'])][0]
-    maf_df['Sample_ID'] = maf_df[sample_id_col]
-    maf_df['id'] = maf_df.apply(lambda x: get_unique_identifier(x, start_pos=start_pos_id, alt=alt_allele_id), axis=1)
-    maf_df.set_index('id', inplace=True, drop=True)
-
-    maf_cols_options = maf_df.dropna(axis=1, how='all').columns.tolist()
-    maf_cols_value = list((set(default_maf_cols) | set(cols)) & set(maf_cols_options))
-    hugo_symbols = maf_df['Hugo_Symbol'].unique()
-    variant_classifications = maf_df['Variant_Classification'].unique()
-    cluster_assignments = [] if 'Cluster_Assignment' not in maf_df else maf_df['Cluster_Assignment'].unique()
-
-    filtered_maf_df = maf_df.copy()
-    if hugo:
-        filtered_maf_df = filtered_maf_df[filtered_maf_df['Hugo_Symbol'].isin(hugo)]
-    if variant:
-        filtered_maf_df = filtered_maf_df[filtered_maf_df['Variant_Classification'].isin(variant)]
-    if cluster and 'Cluster_Assignment' in maf_df:
-        filtered_maf_df = filtered_maf_df[filtered_maf_df['Cluster_Assignment'].isin(cluster)]
-
-    sample_options = filtered_maf_df['Sample_ID'].unique()
-
-    filtered_maf_df = filtered_maf_df.dropna(axis=1, how='all')
-
-    # pull all columns that differ between samples
-    # use <= so we don't accidentally catch columns that have all NaNs for certain mutations (nunique == 0)
-    columns_equivalent = filtered_maf_df.groupby('id').nunique().le(1).all()
-    sample_cols = columns_equivalent[~columns_equivalent].index.tolist()
-
-    # generate participant-level (cols w/ no difference between samples) and sample-level mafs
-    participant_maf = filtered_maf_df[~filtered_maf_df.index.duplicated(keep='first')].drop(columns=sample_cols)
-    participant_maf['id'] = participant_maf.index.tolist()
-
-    # todo change to sort samples by timing
-    sample_maf = filtered_maf_df[sample_cols].reset_index().sort_values(['id', 'Sample_ID']).set_index(['id', 'Sample_ID']).unstack(1)
-    sample_maf['id'] = sample_maf.index.tolist()
-
-    if not all_row_ids:
-        all_row_ids = filtered_maf_df.index
-
-    #final_participant_index = pd.unique([v for v in all_row_ids if v in participant_maf.index])
-
-    if not page:
-        page = 0
-
-    return [
-        maf_cols_options,
-        maf_cols_value,
-        hugo_symbols,
-        variant_classifications,
-        sorted(cluster_assignments),
-        participant_maf,
-        sample_maf.loc[participant_maf.index[page * table_size : page * table_size + table_size]]
-    ]
-
-
-def maf_callback_return(maf_cols_options, values, maf_cols_value, participant_maf, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf, page):
-    """Mutation Table callback functions return (accociated with mutation table component outputs)"""
-    return [
-        maf_cols_options,
-        values,
-        dash_table.DataTable(
-            id='mutation-table',
-            data=participant_maf.to_dict('records'),
-            columns=[{'name': i, 'id': i, 'selectable': True} for i in values if i in list(participant_maf)],
-            filter_action='native',
-            sort_action='native',
-            sort_mode='multi',
-            row_selectable='multi',  # todo add fixed_columns dict (to freeze columns)
-            page_action='native',  # todo implement back-end paging
-            page_current=page,
-            page_size=table_size,
-            style_data_conditional=gen_style_data_conditional(participant_maf, custom_colors, maf_cols_value)
-        ),
-        hugo_symbols,
-        variant_classifications,
-        cluster_assignments,
-        dash_table.DataTable(
-            id='mutation-sample-table',
-            columns=[{'name': [col, s_id], 'id': f'{col}_{s_id}'} for col, s_id in final_sample_maf.columns if col in values],
-            data=[
-                {
-                    **{'': final_sample_maf.index[n]},
-                    **{f'{col}_{s_id}': y for (col, s_id), y in data},
-                }
-                for (n, data) in [
-                    *enumerate([list(x.items()) for x in final_sample_maf.T.to_dict().values()])
-                ]
-            ],
-            merge_duplicate_headers=True,
-            page_action='none',  # disables paging, renders all data at once
-            page_size=table_size
-        )
-    ]
-
-
-def gen_maf_table(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, all_row_ids, page, custom_colors):
-    """Mutation table callback function with parameters being the callback inputs and returns being callback outputs.
-    """
-    df = data.participant_df
-    maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df, final_sample_maf = gen_maf_columns(
-        df, idx, cols, hugo, variant, cluster, all_row_ids, table_size, page)
-
-    return maf_callback_return(maf_cols_options, maf_cols_value, maf_cols_value, filtered_maf_df, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf, page)
-
-
-def internal_gen_maf_table(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, all_row_ids, page,
-                           custom_colors):
-    """Mutation table internal callback function with parameters being the callback inputs and returns being callback outputs.
-    """
-    df = data.participant_df
-    maf_cols_options, maf_cols_value, hugo_symbols, variant_classifications, cluster_assignments, filtered_maf_df, final_sample_maf = gen_maf_columns(
-        df, idx, cols, hugo, variant, cluster, all_row_ids, table_size, page)
-
-    return maf_callback_return(maf_cols_options, cols, maf_cols_value, filtered_maf_df, table_size, custom_colors, hugo_symbols, variant_classifications, cluster_assignments, final_sample_maf, page)
-
-
 @lru_cache(maxsize=32)
 def load_file(filename):
     if os.path.splitext(filename)[1] == '.pkl':
@@ -442,7 +261,34 @@ def load_file(filename):
 
 
 def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, page_current, sort_by, filter_query, viewport_selected_row_ids, prev_selected_ids, viewport_ids, custom_colors):
-    """Mutation table callback function with parameters being the callback inputs and returns being callback outputs.
+    """Generate mutation table columns from selected columns and filtering dropdowns.
+
+    Parameters
+    ----------
+    data
+        PatientSampleData containing participant and sample dfs
+    idx
+    cols
+        column selection dropdown value
+    hugo
+        hugo symbol filtering dropdown value
+    page_current
+    sort_by
+    filter_query
+    viewport_selected_row_ids
+    prev_selected_ids
+    viewport_ids
+    custom_colors
+    variant
+        variant classification filtering dropdown value
+    cluster
+        cluster assignment filtering dropdown value
+    table_size : int
+        number of mutations displayed in
+
+    Returns
+    -------
+
     """
     df = data.participant_df
 
@@ -629,7 +475,7 @@ def split_filter_part(filter_part):
 
                 value_part = value_part.strip()
                 v0 = value_part[0]
-                if (v0 == value_part[-1] and v0 in ("'", '"', '`')):
+                if v0 == value_part[-1] and v0 in ("'", '"', '`'):
                     value = value_part[1: -1].replace('\\' + v0, v0)
                 else:
                     try:
