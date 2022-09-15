@@ -527,9 +527,10 @@ class MatchedPurityReviewer(ReviewerTemplate):
     def set_default_autofill(self):
         self.add_autofill('Pick current ABSOLUTE solution', State('absolute-purity', 'children'), 'Purity')
         self.add_autofill('Pick current ABSOLUTE solution', State('absolute-ploidy', 'children'), 'Ploidy')
+        self.add_autofill('Pick current ABSOLUTE solution', fill_value='Absolute', annot_col='Method')
         self.add_autofill('Use current manual solution', State('custom-cnp-graph-purity', 'children'), 'Purity')
         self.add_autofill('Use current manual solution', State('custom-cnp-graph-ploidy', 'children'), 'Ploidy')
-
+        self.add_autofill('Use current manual solution', fill_value='Manual', annot_col='Method')
         
 
     def set_default_review_data_annotations(self):
@@ -539,7 +540,21 @@ class MatchedPurityReviewer(ReviewerTemplate):
         self.add_review_data_annotation(
             annot_name='Ploidy',
             review_data_annotation=DataAnnotation('float', validate_input=validate_ploidy))
+        
+        self.add_review_data_annotation(
+            annot_name='Method', 
+            review_data_annotation=DataAnnotation(
+                annot_value_type='string', 
+                options=['Absolute', 'Manual']))
+        
+        self.add_review_data_annotation(
+            annot_name='Notes', 
+            review_data_annotation=DataAnnotation(
+                annot_value_type='string')
+        )
 
     def set_default_review_data_annotations_app_display(self):
         self.add_review_data_annotations_app_display(annot_name='Purity', app_display_type='number')
         self.add_review_data_annotations_app_display(annot_name='Ploidy', app_display_type='number')
+        self.add_review_data_annotations_app_display(annot_name='Method', app_display_type='select')
+        self.add_review_data_annotations_app_display(annot_name='Notes', app_display_type='textarea')
