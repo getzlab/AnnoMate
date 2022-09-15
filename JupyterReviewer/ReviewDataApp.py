@@ -269,8 +269,9 @@ class ReviewDataApp:
                 output_dict['annot_panel'] = {annot_col: '' for annot_col in review_data.data.annot_df.columns}
                             
             elif (prop_id == 'APP-submit-button-state') & (submit_annot_button > 0):
-                for name, annot_type in review_data.data.annot_col_config_dict.items():
-                    annot_type.validate(annot_input_state[name])
+                for annot_name in annot_app_display_types_dict.keys():
+                    annot_type = review_data.data.annot_col_config_dict[annot_name]
+                    annot_type.validate(annot_input_state[annot_name])
                 review_data._update(dropdown_value, annot_input_state)
                 output_dict['history_table'] = dbc.Table.from_dataframe(
                     review_data.data.history_df.loc[review_data.data.history_df['index'] == dropdown_value].loc[::-1])
@@ -479,21 +480,29 @@ class ReviewDataApp:
                             dbc.Col(input_component)],
                            style={"margin-bottom": "15px"})
 
-        panel_components = autofill_buttons + [annotation_input(name, annot, annot_app_display_types_dict[name]) for
-                                               name, annot in
-                                               review_data.data.annot_col_config_dict.items()] + [submit_annot_button]
+        # panel_components = autofill_buttons + [annotation_input(name, annot, annot_app_display_types_dict[name]) for
+        #                                        name, annot in
+        #                                        review_data.data.annot_col_config_dict.items()] + [submit_annot_button]
+        
+        panel_components = autofill_buttons + [
+            annotation_input(
+                annot_name, review_data.data.annot_col_config_dict[annot_name], display_type
+            ) for annot_name, display_type in annot_app_display_types_dict.items()
+        ] + [submit_annot_button]
+        
         panel_inputs = [Input('APP-submit-button-state', 'nclicks')]
-        return AppComponent(name='APP-Panel',
-                            layout=panel_components,
-                            callback_output={
-                                name: Output(f"APP-{name}-{annot_app_display_types_dict[name]}-input-state", "value")
-                                for name, annot in review_data.data.annot_col_config_dict.items()},
-                            callback_input=panel_inputs,
-                            callback_state={
-                                name: State(f"APP-{name}-{annot_app_display_types_dict[name]}-input-state", "value") for
-                                name, annot in review_data.data.annot_col_config_dict.items()},
-                            use_name_as_title=False
-                            )
+        return AppComponent(
+            name='APP-Panel',
+            layout=panel_components,
+            callback_output={
+                annot_name: Output(f"APP-{annot_name}-{display_type}-input-state", "value")
+                for annot_name, display_type in annot_app_display_types_dict.items()},
+            callback_input=panel_inputs,
+            callback_state={
+                annot_name: State(f"APP-{annot_name}-{display_type}-input-state", "value") for
+                    annot_name, display_type in annot_app_display_types_dict.items()},
+            use_name_as_title=False
+        )
         
     def add_component(self, 
                       component: AppComponent, 
