@@ -1,11 +1,13 @@
 import pandas as pd
 from typing import List, Dict
+from dash.dependencies import Output
+from dash import html, dash_table
 import os
 import pickle
 
 from JupyterReviewer.ReviewData import ReviewData
 from JupyterReviewer.Data import DataAnnotation
-from JupyterReviewer.ReviewDataApp import ReviewDataApp
+from JupyterReviewer.ReviewDataApp import ReviewDataApp, AppComponent
 from JupyterReviewer.ReviewerTemplate import ReviewerTemplate
 from JupyterReviewer.DataTypes.PatientSampleData import PatientSampleData
 
@@ -155,6 +157,22 @@ class PhylogicReviewer(ReviewerTemplate):
         app.add_component(gen_phylogic_app_component(), drivers_fn=drivers_fn)
         app.add_component(gen_cluster_metrics_component())
         app.add_component(gen_mutation_table_app_component(), custom_colors=custom_colors)
+
+        def get_sample_data_table(data: PatientSampleData, idx):
+            """Clinical and sample data callback function"""
+            sample_df = data.sample_df[data.sample_df['participant_id'] == idx].sort_values('collection_date_dfd')
+            columns = ['sample_id', 'wxs_purity', 'wxs_ploidy', 'collection_date_dfd']
+
+            return [
+                sample_df.reset_index()[columns].to_dict('records'),
+                [{"name": i, "id": i} for i in columns]
+            ]
+        app.add_component(AppComponent('Sample Data',
+                                       dash_table.DataTable(id='sample-datatable'),
+                                       callback_output=[Output('sample-datatable', 'data'),
+                                                        Output('sample-datatable', 'columns')],
+                                       new_data_callback=get_sample_data_table))
+
         app.add_component(gen_cnv_plot_app_component(), preprocess_data_dir=preprocess_data_dir)
         app.add_component(gen_ccf_pmf_component())
 
