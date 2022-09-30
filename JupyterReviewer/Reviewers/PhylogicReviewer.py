@@ -1,8 +1,10 @@
 import pandas as pd
+import numpy as np
 from typing import List, Dict
 from dash.dependencies import Output
-from dash import html, dash_table
+from dash import html, dash_table, dcc
 import os
+import re
 import pickle
 
 from JupyterReviewer.ReviewData import ReviewData
@@ -124,7 +126,11 @@ class PhylogicReviewer(ReviewerTemplate):
         return rd
 
     def set_default_review_data_annotations(self):
-        self.add_review_data_annotation('cluster_annotation', DataAnnotation('string'))
+        self.add_review_data_annotation('cluster_annotation', DataAnnotation('string', validate_input=cluster_ann_validation))
+        self.add_review_data_annotation('To-Do', DataAnnotation('string'))
+        self.add_review_data_annotation('Urgency', DataAnnotation('string',
+                                                                  options=['Important (broken tree)', 'Minor',
+                                                                           'No changes needed']))
         self.add_review_data_annotation('selected_tree_idx', DataAnnotation('int', default=1))  # options=range(1, tree_num+1) how to access this?
         self.add_review_data_annotation('selected_tree', DataAnnotation('string'))
         self.add_review_data_annotation('notes', DataAnnotation('string'))
@@ -132,6 +138,8 @@ class PhylogicReviewer(ReviewerTemplate):
 
     def set_default_review_data_annotations_app_display(self):
         self.add_review_data_annotations_app_display('cluster_annotation', 'text')
+        self.add_review_data_annotations_app_display('To-Do', 'text')
+        self.add_review_data_annotations_app_display('Urgency', 'radioitem')
         self.add_review_data_annotations_app_display('selected_tree_idx', 'number')
         self.add_review_data_annotations_app_display('selected_tree', 'text')
         self.add_review_data_annotations_app_display('notes', 'textarea')
@@ -154,6 +162,12 @@ class PhylogicReviewer(ReviewerTemplate):
         """
         app = ReviewDataApp()
 
+        app.add_component(AppComponent('Cluster Annotations',
+                                       html.Div([html.P('To annotate cluster artifacts, use commas to separate '
+                                                        'annotations and semicolons to separate the clusters '
+                                                        '(eg: 3-F,S;4-CL,SI;5-O)'),
+                                                 html.P('Use only the following annotations:'),
+                                                 dcc.Markdown(nice_print_ann(ANN_DICT))])))
         app.add_component(gen_phylogic_app_component(), drivers_fn=drivers_fn)
         app.add_component(gen_cluster_metrics_component())
         app.add_component(gen_mutation_table_app_component(), custom_colors=custom_colors)
@@ -180,3 +194,36 @@ class PhylogicReviewer(ReviewerTemplate):
 
     def set_default_autofill(self):
         pass
+
+
+ANN_DICT = {'F': 'Flat cluster (and consistently in middle)',
+            'S': 'Small cluster (few mutations compared to other clusters)',
+            'W': 'very Wide confidence interval (especially given number of mutations)',
+            'ID': 'high InDel/snv ratio',
+            'SN': 'high Synonymous/Non-synonymous ratio',
+            'NC': 'high Non-Coding/coding ratio (only applies to wes)',
+            'G': 'mutations cluster on particular Genomic locations',
+            'C': 'probable Clonal/truncal mutations',
+            'BM': 'mutations have BiModal ccf pmf and are clustered incorrectly',
+            'T': 'breaks phylogenetic Tree',
+            'P': 'Purity related',
+            'CN': 'Copy Number related',
+            'OS': "OverSplitting (smaller cluster shouldn't have been split from other cluster)",
+            'O': 'Other (explain in notes)'}
+
+def nice_print_ann(ann_dict):
+    each_line = [' - '.join([k, v]) for k, v in ann_dict.items()]
+    full_text = '- ' + '\n- '.join(each_line)
+    return re.sub(r'[A-Z]+', r'**\g<0>**', full_text)
+
+
+def cluster_ann_validation(x):
+    try:
+        cluster_dict = {val.strip().split('-')[0]: [i.strip() for i in val.strip().split('-')[1].split(',')] for val in x.split(';')}
+    except IndexError:
+        print('Annotation not formatted correctly.')
+        return False
+    else:
+        all_annotations = [item for sublist in cluster_dict.values() for item in sublist]
+        return np.array([ann in ANN_DICT.keys() for ann in all_annotations]).all()
+
