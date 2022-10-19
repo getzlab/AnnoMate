@@ -23,6 +23,7 @@ import rpy2.robjects as robjects
 import os
 import pickle
 from typing import Union, List, Dict
+import sys
 
 
 csize = {'1': 249250621, '2': 243199373, '3': 198022430, '4': 191154276, '5': 180915260,
@@ -303,9 +304,14 @@ class MatchedPurityReviewer(ReviewerTemplate):
             df[f'{rdata_fn_col}_as_tsv'] = ''
             for i, r in df.iterrows():
                 output_fn = f'{rdata_dir}/{i}.rdata.tsv'
-
-                parse_absolute_soln(df.loc[i, rdata_fn_col]).to_csv(output_fn, sep='\t')
                 df.loc[i, f'{rdata_fn_col}_as_tsv'] = output_fn
+                try:
+                    parse_absolute_soln(df.loc[i, rdata_fn_col]).to_csv(output_fn, sep='\t')
+                    df.loc[i, f'{rdata_fn_col}_as_tsv_downloaded'] = True
+                except Exception:
+                    print(sys.exc_info()[2])
+                    warnings.warn(f'Failed to parse {df.loc[i, rdata_fn_col]}. No tsv available')
+                    df.loc[i, f'{rdata_fn_col}_as_tsv_downloaded'] = False
         else:
             print(f'rdata tsv directory already exists: {rdata_dir}')
             df[f'{rdata_fn_col}_as_tsv'] = ''
