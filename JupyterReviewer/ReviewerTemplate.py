@@ -1,4 +1,4 @@
-from .ReviewData import ReviewData, DataAnnotation, Data
+from .ReviewDataInterface import ReviewDataInterface, DataAnnotation, Data
 from .ReviewDataApp import ReviewDataApp, valid_annotation_app_display_types
 
 import pandas as pd
@@ -30,7 +30,7 @@ class ReviewerTemplate(ABC):
         type(self).add_review_data_annotation.__doc__ = \
             make_docstring(object_type_name="ReviewData",
                            func1_doc=type(self).add_review_data_annotation.__doc__,
-                           func2=ReviewData.add_annotation)
+                           func2=ReviewDataInterface.add_annotation)
 
         try:
             type(self).set_review_app.__doc__ = \
@@ -182,8 +182,8 @@ class ReviewerTemplate(ABC):
             annot_df = pd.read_csv(annot_df_fn, sep='\t')
             history_df = pd.read_csv(history_df_fn, sep='\t')
 
-        self.review_data = ReviewData(data_pkl_fn,
-                                      self.gen_data(description,
+        self.review_data = ReviewDataInterface(data_pkl_fn,
+                                               self.gen_data(description,
                                                     annot_df=annot_df,
                                                     annot_col_config_dict=annot_col_config_dict,
                                                     history_df=history_df,

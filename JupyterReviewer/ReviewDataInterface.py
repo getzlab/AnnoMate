@@ -9,7 +9,7 @@ from typing import List, Dict, Union
 from JupyterReviewer.Data import Data, DataAnnotation
 
 
-class ReviewData:
+class ReviewDataInterface:
     
     def __init__(self,
                  data_pkl_fn: Union[str, Path],
