@@ -1,4 +1,4 @@
-from .ReviewData import ReviewData, DataAnnotation, Data
+from .ReviewDataInterface import ReviewDataInterface, DataAnnotation, Data
 from .ReviewDataApp import ReviewDataApp, valid_annotation_app_display_types
 
 import pandas as pd
@@ -23,14 +23,14 @@ def make_docstring(object_type_name, func1_doc, func2):
 class ReviewerTemplate(ABC):
     
     def __init__(self):
-        self.review_data = None
+        self.review_data_interface = None
         self.app = None
         self.autofill_dict = {}
         self.annot_app_display_types_dict = {}
         type(self).add_review_data_annotation.__doc__ = \
-            make_docstring(object_type_name="ReviewData",
+            make_docstring(object_type_name="ReviewDataInterface",
                            func1_doc=type(self).add_review_data_annotation.__doc__,
-                           func2=ReviewData.add_annotation)
+                           func2=ReviewDataInterface.add_annotation)
 
         try:
             type(self).set_review_app.__doc__ = \
@@ -182,12 +182,16 @@ class ReviewerTemplate(ABC):
             annot_df = pd.read_csv(annot_df_fn, sep='\t')
             history_df = pd.read_csv(history_df_fn, sep='\t')
 
-        self.review_data = ReviewData(data_pkl_fn,
-                                      self.gen_data(description,
-                                                    annot_df=annot_df,
-                                                    annot_col_config_dict=annot_col_config_dict,
-                                                    history_df=history_df,
-                                                    **kwargs))
+        self.review_data_interface = ReviewDataInterface(
+            data_pkl_fn,
+            self.gen_data(
+                description,
+                annot_df=annot_df,
+                annot_col_config_dict=annot_col_config_dict,
+                history_df=history_df,
+                **kwargs
+            )
+        )
 
     def set_default_review_data_annotations_configuration(self):
         """
@@ -239,7 +243,7 @@ class ReviewerTemplate(ABC):
         See ReviewData.add_annotation
 
         """
-        self.review_data.add_annotation(annot_name, review_data_annotation)
+        self.review_data_interface.add_annotation(annot_name, review_data_annotation)
     
     def set_review_app(self, *args, **kwargs):
         """
@@ -270,7 +274,7 @@ class ReviewerTemplate(ABC):
             Type of input display for the annotation. See ReviewDataApp.valid_annotation_app_display_types
 
         """
-        if annot_name not in self.review_data.data.annot_col_config_dict.keys():
+        if annot_name not in self.review_data_interface.data.annot_col_config_dict.keys():
             raise ValueError(f"Invalid annotation name '{annot_name}'. "
                              f"Does not exist in review data object annotation table")
 
@@ -312,7 +316,7 @@ class ReviewerTemplate(ABC):
             self.autofill_dict[autofill_button_name][annot_col] = fill_value
 
         # verify 
-        self.app.gen_autofill_buttons_and_states(self.review_data, self.autofill_dict)
+        self.app.gen_autofill_buttons_and_states(self.review_data_interface, self.autofill_dict)
 
     def run(self, 
             mode='external', 
@@ -330,9 +334,21 @@ class ReviewerTemplate(ABC):
             Port number
 
         """
-        self.app.run(review_data=self.review_data, 
+        self.app.run(review_data=self.review_data_interface,
                      autofill_dict=self.autofill_dict,
                      annot_app_display_types_dict=self.annot_app_display_types_dict,
                      mode=mode,
                      host=host,
                      port=port)
+
+    def get_data_attribute(self, attribute: str):
+        return getattr(self.review_data_interface.data, attribute)
+
+    def list_data_attributes(self):
+        return vars(self.review_data_interface.data).keys()
+
+    def get_annot(self):
+        return self.get_data_attribute('annot_df')
+
+    def get_history(self):
+        return self.get_data_attribute('history_df')

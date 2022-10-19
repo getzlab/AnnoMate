@@ -14,7 +14,7 @@ import copy
 import warnings
 from typing import Union, List, Tuple
 
-from .ReviewData import ReviewData
+from .ReviewDataInterface import ReviewDataInterface
 
 valid_annotation_app_display_types = ['text',
                                       'textarea',
@@ -148,20 +148,20 @@ class ReviewDataApp:
         """
         self.more_components = OrderedDict()
             
-    def run(self, 
-            review_data: ReviewData,
+    def run(self,
+            review_data: ReviewDataInterface,
             annot_app_display_types_dict: Dict = None,
             autofill_dict: Dict = None,
-            mode='external', 
-            host='0.0.0.0', 
+            mode='external',
+            host='0.0.0.0',
             port=8050):
-        
+
         """
         Run the app
 
         Parameters
         ----------
-        review_data: ReviewData
+        review_data: ReviewDataInterface
             ReviewData object to review with the app
 
         mode: {'inline', 'external'}
@@ -307,8 +307,8 @@ class ReviewDataApp:
         
         app.run_server(mode=mode, host=host, port=port, debug=True) 
         
-    def gen_layout(self, 
-                   review_data: ReviewData, 
+    def gen_layout(self,
+                   review_data: ReviewDataInterface,
                    reviewed_data_df: pd.DataFrame,
                    annot_app_display_types_dict: Dict,
                    autofill_dict: Dict):
@@ -359,7 +359,7 @@ class ReviewDataApp:
 
         return layout, annotation_panel_component, autofill_buttons, autofill_states, autofill_literals
 
-    def gen_dropdown_labels(self, review_data: ReviewData, r: pd.Series):
+    def gen_dropdown_labels(self, review_data: ReviewDataInterface, r: pd.Series):
         data_history_df = review_data.data.history_df[review_data.data.history_df["index"] == r.name]
         if not data_history_df.empty:
             return str(r.name) + f' (Last update: {data_history_df["timestamp"].tolist()[-1]})'
@@ -426,8 +426,8 @@ class ReviewDataApp:
         return autofill_buttons, autofill_states, autofill_literals
 
 
-    def gen_annotation_panel_component(self, 
-                                       review_data: ReviewData,
+    def gen_annotation_panel_component(self,
+                                       review_data: ReviewDataInterface,
                                        autofill_buttons: [html.Button],
                                        annot_app_display_types_dict: Dict
                                        ):
