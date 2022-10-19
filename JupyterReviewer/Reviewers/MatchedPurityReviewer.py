@@ -304,14 +304,14 @@ class MatchedPurityReviewer(ReviewerTemplate):
             df[f'{rdata_fn_col}_as_tsv'] = ''
             for i, r in df.iterrows():
                 output_fn = f'{rdata_dir}/{i}.rdata.tsv'
-                df.loc[i, f'{rdata_fn_col}_as_tsv'] = output_fn
+                df.loc[i, f'local_absolute_rdata_as_tsv'] = output_fn
                 try:
                     parse_absolute_soln(df.loc[i, rdata_fn_col]).to_csv(output_fn, sep='\t')
-                    df.loc[i, f'{rdata_fn_col}_as_tsv_downloaded'] = True
+                    df.loc[i, f'local_absolute_rdata_as_tsv_downloaded'] = True
                 except Exception:
                     print(sys.exc_info()[2])
                     warnings.warn(f'Failed to parse {df.loc[i, rdata_fn_col]}. No tsv available')
-                    df.loc[i, f'{rdata_fn_col}_as_tsv_downloaded'] = False
+                    df.loc[i, f'local_absolute_rdata_as_tsv_downloaded'] = False
         else:
             print(f'rdata tsv directory already exists: {rdata_dir}')
             df[f'{rdata_fn_col}_as_tsv'] = ''
