@@ -318,7 +318,9 @@ class ReviewerTemplate(ABC):
         # verify 
         self.app.gen_autofill_buttons_and_states(self.review_data_interface, self.autofill_dict)
 
-    def run(self, 
+    def run(self,
+            review_data_table_df: pd.DataFrame = None,
+            review_data_table_page_size: int = 5,
             mode='external', 
             host='0.0.0.0', 
             port=8050):
@@ -327,6 +329,8 @@ class ReviewerTemplate(ABC):
 
         Parameters
         ----------
+        review_data_table_df: dataframe with index that matches the index of the reviewer data object's index
+        review_data_table_page_size: number of subjects to view
         mode: {'inline', 'external'}, default='external'
         host: str, default='0.0.0.0'
             Host address
@@ -337,6 +341,8 @@ class ReviewerTemplate(ABC):
         self.app.run(review_data=self.review_data_interface,
                      autofill_dict=self.autofill_dict,
                      annot_app_display_types_dict=self.annot_app_display_types_dict,
+                     review_data_table_df=review_data_table_df,
+                     review_data_table_page_size=review_data_table_page_size,
                      mode=mode,
                      host=host,
                      port=port)
