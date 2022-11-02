@@ -295,7 +295,6 @@ class ReviewDataApp:
                             review_data_table_derived_virtual_df['index'] == subject_index_value,
                         ]
                         if not index_relative_review_data_table_df.empty:
-                            display(index_relative_review_data_table_df)
                             output_dict['review_data_page_current'] = floor(index_relative_review_data_table_df.index[0] / review_data_table_page_size)
                 else:
                     subject_index_value = tmp_review_data_table_df.loc[review_data_selected_value[0], 'index'].item()
@@ -365,7 +364,7 @@ class ReviewDataApp:
         review_data_title = html.Div([html.H1(review_data.data_pkl_fn.split('/')[-1].split('.')[0])])
         review_data_path = html.Div([html.P(f'Path: {review_data.data_pkl_fn}')])
         review_data_description = html.Div([html.P(f'Description: {review_data.data.description}')])
-        dropdown = html.Div(dcc.Dropdown(options=reviewed_data_df.reset_index().to_dict('records'), 
+        dropdown = html.Div(dcc.Dropdown(options=reviewed_data_df.reset_index().to_dict('records'),
                                          value=None, 
                                          id='APP-dropdown-data-state'))
         
@@ -379,6 +378,8 @@ class ReviewDataApp:
                     f'{review_data_table_df.index} has missing or extra index values. '
                     f'Index values should look like: {reviewed_data_df.index.tolist()}'
                 )
+            new_review_data_table_df = review_data_table_df.copy()
+            new_review_data_table_df.index.name = 'index'
             review_data_table_data = review_data_table_df.reset_index().to_dict('records')
             review_data_table_columns = review_data_table_df.reset_index().columns.tolist()
             style = {'display': 'block'}
