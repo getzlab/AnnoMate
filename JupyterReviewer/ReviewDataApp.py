@@ -280,10 +280,12 @@ class ReviewDataApp:
                 review_data_table_df = pd.DataFrame.from_records(review_data_table_state)
                 if prop_id == 'APP-dropdown-data-state':
                     subject_index_value = dropdown_value
-                    output_dict['review_data_selected_value'] = review_data_table_df.loc[
-                        review_data_table_df['index'] == subject_index_value,
-                        ].index
-                    output_dict['review_data_page_current'] = floor(output_dict['review_data_selected_value'][0] / review_data_table_page_size)
+
+                    if 'index' in review_data_table_df.columns:
+                        output_dict['review_data_selected_value'] = review_data_table_df.loc[
+                            review_data_table_df['index'] == subject_index_value,
+                            ].index
+                        output_dict['review_data_page_current'] = floor(output_dict['review_data_selected_value'][0] / review_data_table_page_size)
                 else:
                     subject_index_value = review_data_table_df.loc[review_data_selected_value[0], 'index'].item()
                     output_dict['dropdown_value'] = subject_index_value
