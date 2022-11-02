@@ -241,7 +241,8 @@ class ReviewDataApp:
                                                           self.more_components.items()}),
                       inputs=dict(dropdown_value=Input('APP-dropdown-data-state', 'value'),
                                   review_data_selected_value=Input('APP-review-data-table', 'selected_rows'),
-                                  review_data_table_state=Input('APP-review-data-table', 'data'),
+                                  review_data_table_state=State('APP-review-data-table', 'data'),
+                                  review_data_table_derived_virtual_data_state=State('APP-review-data-table', 'derived_virtual_data'),
                                   autofill_buttons=[Input(b.id, 'n_clicks') for b in autofill_buttons],
                                   autofill_states=gen_autofill_states,
                                   submit_annot_button=Input('APP-submit-button-state', 'n_clicks'),
@@ -252,7 +253,8 @@ class ReviewDataApp:
                                       self.more_components.items()}))
         def component_callback(dropdown_value,
                                review_data_selected_value,
-                               review_data_table_state,
+                               review_data_table_state, # full data table
+                               review_data_table_derived_virtual_data_state,  # what is currently displayed
                                autofill_buttons,
                                autofill_states,
                                submit_annot_button, 
@@ -277,17 +279,26 @@ class ReviewDataApp:
                            }
 
             if (prop_id == 'APP-dropdown-data-state') or (prop_id == 'APP-review-data-table'):
-                review_data_table_df = pd.DataFrame.from_records(review_data_table_state)
+                tmp_review_data_table_df = pd.DataFrame.from_records(review_data_table_state)
                 if prop_id == 'APP-dropdown-data-state':
                     subject_index_value = dropdown_value
 
-                    if 'index' in review_data_table_df.columns:
-                        output_dict['review_data_selected_value'] = review_data_table_df.loc[
-                            review_data_table_df['index'] == subject_index_value,
-                            ].index
-                        output_dict['review_data_page_current'] = floor(output_dict['review_data_selected_value'][0] / review_data_table_page_size)
+                    if review_data_table_df is not None: # if the table is being used
+                        index_tmp_review_data_table_df = tmp_review_data_table_df.loc[
+                            tmp_review_data_table_df['index'] == subject_index_value
+                        ]
+                        output_dict['review_data_selected_value'] = index_tmp_review_data_table_df.index
+
+                        review_data_table_derived_virtual_df = pd.DataFrame.from_records(
+                            review_data_table_derived_virtual_data_state)
+                        index_relative_review_data_table_df = review_data_table_derived_virtual_df.loc[
+                            review_data_table_derived_virtual_df['index'] == subject_index_value,
+                        ]
+                        if not index_relative_review_data_table_df.empty:
+                            display(index_relative_review_data_table_df)
+                            output_dict['review_data_page_current'] = floor(index_relative_review_data_table_df.index[0] / review_data_table_page_size)
                 else:
-                    subject_index_value = review_data_table_df.loc[review_data_selected_value[0], 'index'].item()
+                    subject_index_value = tmp_review_data_table_df.loc[review_data_selected_value[0], 'index'].item()
                     output_dict['dropdown_value'] = subject_index_value
 
 
