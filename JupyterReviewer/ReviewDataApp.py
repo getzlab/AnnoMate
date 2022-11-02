@@ -327,12 +327,13 @@ class ReviewDataApp:
                                                                                              dropdown_value])
                 output_dict['dropdown_list_options'] = reviewed_data_df.reset_index().to_dict('records')
 
-                tmp_review_data_table_df = pd.DataFrame.from_records(review_data_table_state)
-                tmp_review_data_table_df.loc[
-                    tmp_review_data_table_df['index'] == dropdown_value,
-                    review_data.data.annot_df.columns
-                ] = review_data.data.annot_df.loc[dropdown_value].values
-                output_dict['review_data_table_data'] = tmp_review_data_table_df.to_dict('records')
+                if review_data_table_df is not None:
+                    tmp_review_data_table_df = pd.DataFrame.from_records(review_data_table_state)
+                    tmp_review_data_table_df.loc[
+                        tmp_review_data_table_df['index'] == dropdown_value,
+                        review_data.data.annot_df.columns
+                    ] = review_data.data.annot_df.loc[dropdown_value].values
+                    output_dict['review_data_table_data'] = tmp_review_data_table_df.to_dict('records')
             elif 'APP-autofill-' in prop_id:
                 component_name = prop_id.split('APP-autofill-')[-1]
                 for autofill_annot_col, value in autofill_states[prop_id].items():
@@ -367,7 +368,8 @@ class ReviewDataApp:
                    annot_app_display_types_dict: Dict,
                    autofill_dict: Dict,
                    review_data_table_df: pd.DataFrame=None,
-                   review_data_table_page_size: int = 10
+                   review_data_table_page_size: int = 10,
+                   view_only=False,
                    ):
         
         review_data_title = html.Div([html.H1(review_data.data_pkl_fn.split('/')[-1].split('.')[0])])
@@ -538,6 +540,10 @@ class ReviewDataApp:
                                        annot_app_display_types_dict: Dict
                                        ):
 
+        if len(annot_app_display_types_dict) == 0:
+            raise ValueError(f'annot_app_display_types_dict is empty. '
+                             f'Make sure to run reviewer.set_default_review_data_annotations_configuration(), '
+                             f'or manually set up your annotations')
         submit_annot_button = html.Button(id='APP-submit-button-state', 
                                           n_clicks=0, 
                                           children='Submit', 
