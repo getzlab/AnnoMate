@@ -237,11 +237,13 @@ class ReviewDataApp:
                                   dropdown_value=Output('APP-dropdown-data-state', 'value'),
                                   review_data_selected_value=Output('APP-review-data-table', 'selected_rows'),
                                   review_data_page_current=Output('APP-review-data-table', 'page_current'),
+                                  review_data_table_data=Output('APP-review-data-table', 'data'),
                                   more_component_outputs={c.name: c.callback_output for c_name, c in
                                                           self.more_components.items()}),
                       inputs=dict(dropdown_value=Input('APP-dropdown-data-state', 'value'),
                                   review_data_selected_value=Input('APP-review-data-table', 'selected_rows'),
-                                  review_data_table_state=Input('APP-review-data-table', 'data'),
+                                  review_data_table_state=State('APP-review-data-table', 'data'),
+                                  review_data_table_derived_virtual_data_state=State('APP-review-data-table', 'derived_virtual_data'),
                                   autofill_buttons=[Input(b.id, 'n_clicks') for b in autofill_buttons],
                                   autofill_states=gen_autofill_states,
                                   submit_annot_button=Input('APP-submit-button-state', 'n_clicks'),
@@ -252,7 +254,8 @@ class ReviewDataApp:
                                       self.more_components.items()}))
         def component_callback(dropdown_value,
                                review_data_selected_value,
-                               review_data_table_state,
+                               review_data_table_state, # full data table
+                               review_data_table_derived_virtual_data_state,  # what is currently displayed
                                autofill_buttons,
                                autofill_states,
                                submit_annot_button, 
@@ -272,20 +275,31 @@ class ReviewDataApp:
                            'dropdown_value': dash.no_update,
                            'review_data_selected_value': dash.no_update,
                            'review_data_page_current': dash.no_update,
+                           'review_data_table_data': dash.no_update,
                            'more_component_outputs': {c.name: list(np.full(len(c.callback_output), dash.no_update)) for
                                                       c_name, c in self.more_components.items()},
                            }
 
             if (prop_id == 'APP-dropdown-data-state') or (prop_id == 'APP-review-data-table'):
-                review_data_table_df = pd.DataFrame.from_records(review_data_table_state)
+                tmp_review_data_table_df = pd.DataFrame.from_records(review_data_table_state)
                 if prop_id == 'APP-dropdown-data-state':
                     subject_index_value = dropdown_value
-                    output_dict['review_data_selected_value'] = review_data_table_df.loc[
-                        review_data_table_df['index'] == subject_index_value,
-                        ].index
-                    output_dict['review_data_page_current'] = floor(output_dict['review_data_selected_value'][0] / review_data_table_page_size)
+
+                    if review_data_table_df is not None: # if the table is being used
+                        index_tmp_review_data_table_df = tmp_review_data_table_df.loc[
+                            tmp_review_data_table_df['index'] == subject_index_value
+                        ]
+                        output_dict['review_data_selected_value'] = index_tmp_review_data_table_df.index
+
+                        review_data_table_derived_virtual_df = pd.DataFrame.from_records(
+                            review_data_table_derived_virtual_data_state)
+                        index_relative_review_data_table_df = review_data_table_derived_virtual_df.loc[
+                            review_data_table_derived_virtual_df['index'] == subject_index_value,
+                        ]
+                        if not index_relative_review_data_table_df.empty:
+                            output_dict['review_data_page_current'] = floor(index_relative_review_data_table_df.index[0] / review_data_table_page_size)
                 else:
-                    subject_index_value = review_data_table_df.loc[review_data_selected_value[0], 'index'].item()
+                    subject_index_value = tmp_review_data_table_df.loc[review_data_selected_value[0], 'index'].item()
                     output_dict['dropdown_value'] = subject_index_value
 
 
@@ -312,6 +326,14 @@ class ReviewDataApp:
                                                                                          reviewed_data_df.loc[
                                                                                              dropdown_value])
                 output_dict['dropdown_list_options'] = reviewed_data_df.reset_index().to_dict('records')
+
+                if review_data_table_df is not None:
+                    tmp_review_data_table_df = pd.DataFrame.from_records(review_data_table_state)
+                    tmp_review_data_table_df.loc[
+                        tmp_review_data_table_df['index'] == dropdown_value,
+                        review_data.data.annot_df.columns
+                    ] = review_data.data.annot_df.loc[dropdown_value].values
+                    output_dict['review_data_table_data'] = tmp_review_data_table_df.to_dict('records')
             elif 'APP-autofill-' in prop_id:
                 component_name = prop_id.split('APP-autofill-')[-1]
                 for autofill_annot_col, value in autofill_states[prop_id].items():
@@ -346,13 +368,14 @@ class ReviewDataApp:
                    annot_app_display_types_dict: Dict,
                    autofill_dict: Dict,
                    review_data_table_df: pd.DataFrame=None,
-                   review_data_table_page_size: int = 10
+                   review_data_table_page_size: int = 10,
+                   view_only=False,
                    ):
         
         review_data_title = html.Div([html.H1(review_data.data_pkl_fn.split('/')[-1].split('.')[0])])
         review_data_path = html.Div([html.P(f'Path: {review_data.data_pkl_fn}')])
         review_data_description = html.Div([html.P(f'Description: {review_data.data.description}')])
-        dropdown = html.Div(dcc.Dropdown(options=reviewed_data_df.reset_index().to_dict('records'), 
+        dropdown = html.Div(dcc.Dropdown(options=reviewed_data_df.reset_index().to_dict('records'),
                                          value=None, 
                                          id='APP-dropdown-data-state'))
         
@@ -366,8 +389,11 @@ class ReviewDataApp:
                     f'{review_data_table_df.index} has missing or extra index values. '
                     f'Index values should look like: {reviewed_data_df.index.tolist()}'
                 )
-            review_data_table_data = review_data_table_df.reset_index().to_dict('records')
-            review_data_table_columns = review_data_table_df.reset_index().columns.tolist()
+            new_review_data_table_df = review_data_table_df.copy()
+            new_review_data_table_df.index.name = 'index'
+            new_review_data_table_df = pd.concat([new_review_data_table_df, review_data.data.annot_df], axis=1)
+            review_data_table_data = new_review_data_table_df.reset_index().to_dict('records')
+            review_data_table_columns = new_review_data_table_df.reset_index().columns.tolist()
             style = {'display': 'block'}
 
         else:
@@ -514,6 +540,10 @@ class ReviewDataApp:
                                        annot_app_display_types_dict: Dict
                                        ):
 
+        if len(annot_app_display_types_dict) == 0:
+            raise ValueError(f'annot_app_display_types_dict is empty. '
+                             f'Make sure to run reviewer.set_default_review_data_annotations_configuration(), '
+                             f'or manually set up your annotations')
         submit_annot_button = html.Button(id='APP-submit-button-state', 
                                           n_clicks=0, 
                                           children='Submit', 

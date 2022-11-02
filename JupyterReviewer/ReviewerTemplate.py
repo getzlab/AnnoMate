@@ -125,7 +125,7 @@ class ReviewerTemplate(ABC):
     # Public methods
     def set_review_data(self,
                         data_pkl_fn: pathlib.Path,
-                        description: str,
+                        description: str = None,
                         annot_df: pd.DataFrame = None,
                         annot_col_config_dict: pd.DataFrame = None,
                         history_df: pd.DataFrame = None,
@@ -163,34 +163,42 @@ class ReviewerTemplate(ABC):
 
         """
 
-        if (load_existing_data_pkl_fn is not None) and \
-                os.path.exists(load_existing_data_pkl_fn):
-            print("Loading data from previous review with pickle file")
-            f = open(load_existing_data_pkl_fn, 'rb')
-            existing_data = pickle.load(f)
-            f.close()
+        if os.path.exists(data_pkl_fn):
+            f = open(data_pkl_fn, 'rb')
+            data = pickle.load(f)
+        else:
+            if description is None:
+                raise ValueError(f'description is None. Provide a description if you are setting a new data object.')
+            if (load_existing_data_pkl_fn is not None) and \
+                    os.path.exists(load_existing_data_pkl_fn):
+                print("Loading data from previous review with pickle file")
+                f = open(load_existing_data_pkl_fn, 'rb')
+                existing_data = pickle.load(f)
+                f.close()
 
-            annot_df = existing_data.annot_df
-            annot_col_config_dict = existing_data.annot_col_config_dict
-            history_df = existing_data.history_df
+                annot_df = existing_data.annot_df
+                annot_col_config_dict = existing_data.annot_col_config_dict
+                history_df = existing_data.history_df
 
-        elif (load_existing_exported_data_dir is not None) and \
-                os.path.exists(load_existing_exported_data_dir):
-            print("Loading data from previous review with exported files")
-            annot_df_fn = f'{load_existing_exported_data_dir}/annot_df.tsv'
-            history_df_fn = f'{load_existing_exported_data_dir}/history_df.tsv'
-            annot_df = pd.read_csv(annot_df_fn, sep='\t')
-            history_df = pd.read_csv(history_df_fn, sep='\t')
+            elif (load_existing_exported_data_dir is not None) and \
+                    os.path.exists(load_existing_exported_data_dir):
+                print("Loading data from previous review with exported files")
+                annot_df_fn = f'{load_existing_exported_data_dir}/annot_df.tsv'
+                history_df_fn = f'{load_existing_exported_data_dir}/history_df.tsv'
+                annot_df = pd.read_csv(annot_df_fn, sep='\t')
+                history_df = pd.read_csv(history_df_fn, sep='\t')
 
-        self.review_data_interface = ReviewDataInterface(
-            data_pkl_fn,
-            self.gen_data(
+            data = self.gen_data(
                 description,
                 annot_df=annot_df,
                 annot_col_config_dict=annot_col_config_dict,
                 history_df=history_df,
                 **kwargs
             )
+
+        self.review_data_interface = ReviewDataInterface(
+            data_pkl_fn=data_pkl_fn,
+            data=data,
         )
 
     def set_default_review_data_annotations_configuration(self):
