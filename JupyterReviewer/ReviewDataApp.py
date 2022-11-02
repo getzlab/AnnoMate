@@ -237,6 +237,7 @@ class ReviewDataApp:
                                   dropdown_value=Output('APP-dropdown-data-state', 'value'),
                                   review_data_selected_value=Output('APP-review-data-table', 'selected_rows'),
                                   review_data_page_current=Output('APP-review-data-table', 'page_current'),
+                                  review_data_table_data=Output('APP-review-data-table', 'data'),
                                   more_component_outputs={c.name: c.callback_output for c_name, c in
                                                           self.more_components.items()}),
                       inputs=dict(dropdown_value=Input('APP-dropdown-data-state', 'value'),
@@ -274,6 +275,7 @@ class ReviewDataApp:
                            'dropdown_value': dash.no_update,
                            'review_data_selected_value': dash.no_update,
                            'review_data_page_current': dash.no_update,
+                           'review_data_table_data': dash.no_update,
                            'more_component_outputs': {c.name: list(np.full(len(c.callback_output), dash.no_update)) for
                                                       c_name, c in self.more_components.items()},
                            }
@@ -324,6 +326,13 @@ class ReviewDataApp:
                                                                                          reviewed_data_df.loc[
                                                                                              dropdown_value])
                 output_dict['dropdown_list_options'] = reviewed_data_df.reset_index().to_dict('records')
+
+                tmp_review_data_table_df = pd.DataFrame.from_records(review_data_table_state)
+                tmp_review_data_table_df.loc[
+                    tmp_review_data_table_df['index'] == dropdown_value,
+                    review_data.data.annot_df.columns
+                ] = review_data.data.annot_df.loc[dropdown_value].values
+                output_dict['review_data_table_data'] = tmp_review_data_table_df.to_dict('records')
             elif 'APP-autofill-' in prop_id:
                 component_name = prop_id.split('APP-autofill-')[-1]
                 for autofill_annot_col, value in autofill_states[prop_id].items():
@@ -380,8 +389,9 @@ class ReviewDataApp:
                 )
             new_review_data_table_df = review_data_table_df.copy()
             new_review_data_table_df.index.name = 'index'
-            review_data_table_data = review_data_table_df.reset_index().to_dict('records')
-            review_data_table_columns = review_data_table_df.reset_index().columns.tolist()
+            new_review_data_table_df = pd.concat([new_review_data_table_df, review_data.data.annot_df], axis=1)
+            review_data_table_data = new_review_data_table_df.reset_index().to_dict('records')
+            review_data_table_columns = new_review_data_table_df.reset_index().columns.tolist()
             style = {'display': 'block'}
 
         else:
