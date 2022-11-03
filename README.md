@@ -8,6 +8,20 @@ A package for using and creating interactive dashboards for manual review.
 
 ### Install
 
+**Reviewer Suites**
+
+Select a purity reviewer you want to use and follow their installation instructions. List of existing reviewer suites:
+
+- [PurityReviewers](https://github.com/getzlab/PurityReviewers)
+- More to come!
+
+
+**Pip Install**
+
+`pip install JupyterReviewer`
+
+**Git**
+
 1. Download the repository: `git clone git@github.com:getzlab/JupyterReviewer.git` 
 1. `cd JupyterReviewer`
 1. Create an environment: `conda create --name <my-env> --file requirements.txt`
