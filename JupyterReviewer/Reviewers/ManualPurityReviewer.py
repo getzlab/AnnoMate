@@ -385,3 +385,6 @@ class ManualPurityReviewer(ReviewerTemplate):
     def set_default_review_data_annotations_app_display(self):
         self.add_review_data_annotations_app_display(annot_name='Purity', app_display_type='number')
         self.add_review_data_annotations_app_display(annot_name='Ploidy', app_display_type='number')
+
+        
+        

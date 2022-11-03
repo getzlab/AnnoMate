@@ -299,7 +299,7 @@ class ReviewDataApp:
                         if not index_relative_review_data_table_df.empty:
                             output_dict['review_data_page_current'] = floor(index_relative_review_data_table_df.index[0] / review_data_table_page_size)
                 else:
-                    subject_index_value = tmp_review_data_table_df.loc[review_data_selected_value[0], 'index'].item()
+                    subject_index_value = tmp_review_data_table_df.loc[review_data_selected_value[0], 'index'] 
                     output_dict['dropdown_value'] = subject_index_value
 
 
