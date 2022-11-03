@@ -1,3 +1,6 @@
+"""
+For maintained purity reviewers, see https://github.com/getzlab/PurityReviewers
+"""
 from JupyterReviewer.Data import Data, DataAnnotation
 from JupyterReviewer.ReviewDataApp import ReviewDataApp, AppComponent
 from JupyterReviewer.DataTypes.GenericData import GenericData
