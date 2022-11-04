@@ -161,7 +161,8 @@ def gen_mut_scatter(maf_df, mut_sigma, sample):
                      'Protein Change: %{customdata[7]} <br>' +
                      'Multiplicity: %{y:.3f} <br>' +
                      'VAF: %{customdata[3]:.3f} <br>' +
-                     'Cluster: %{customdata[4]:d}'
+                     'Cluster: %{customdata[4]:d}',
+        showlegend=False
     )
 
     return mut_scatter
@@ -294,9 +295,10 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     -----
     No mutation scatter plot if no purity and ploidy in data
     """
-    sample_list = samples_df[samples_df['participant_id'] == idx].index.tolist()
-    # restrict sample selection to only two samples at a time
-    sample_selection_corrected = [sample_list[0]] if sample_selection == [] else sample_selection[:2]
+    sample_list = samples_df[samples_df['participant_id'] == idx].sort_values('collection_date_dfd').index.tolist()
+    # start with only first sample selected
+    sample_selection_corrected = [sample_list[0]] if sample_selection == [] else \
+        [s for s in sample_list if s in sample_selection]  # get correct order
 
     sigmas_val = 'Show CNV Sigmas' in sigmas
     absolute_val = 'Display Absolute CN' in absolute
