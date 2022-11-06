@@ -36,7 +36,7 @@ class AppComponent:
                  callback_state_external: [State] = [],
                  new_data_callback=None,
                  internal_callback=None,
-                 use_name_as_title=True):
+                 use_name_as_title=False):
         
         """
         Component in the plotly dashboard app. Each component is made up of a layout and callback functions
@@ -448,19 +448,30 @@ class ReviewDataApp:
         annotation_panel_component = self.gen_annotation_panel_component(review_data, autofill_buttons,
                                                                          annot_app_display_types_dict)
         
-        # TODO: save current view as html
-        layout = html.Div([dbc.Row([review_data_title], style={"marginBottom": "15px"}),
-                           dbc.Row([review_data_path], style={"marginBottom": "15px"}),
-                           dbc.Row([review_data_description], style={"marginBottom": "15px"}),
-                           dbc.Row([dropdown_component.layout], style={"marginBottom": "15px"}),
-                           dbc.Row([review_data_table_component.layout], style={"marginBottom": "15px"}),
-                           dbc.Row([dbc.Col(annotation_panel_component.layout, width=5),
-                                    dbc.Col(html.Div(history_component.layout), width=7)], 
-                                   style={"marginBottom": "15px"}),
-                           dbc.Row([dbc.Row(c.layout,
-                                            style={"marginBottom": "15px"}) for c_name, c in
-                                    self.more_components.items()])],
-                          style={'marginBottom': 50, 'marginTop': 25, 'marginRight': 25, 'marginLeft': 25})
+        
+        collapsable_components = dbc.Accordion(
+            [dbc.AccordionItem(c.layout, title=c_name) for c_name, c in self.more_components.items()], 
+            always_open=True, 
+            start_collapsed=False,
+            active_item=[f'item-{i}' for i in range(len(self.more_components.keys()))],
+            style={'.accordion-button': {'font-size': 'xx-large'}}
+        )
+
+        
+        layout = html.Div(
+            [
+                dbc.Row([review_data_title], style={"marginBottom": "15px"}),
+                dbc.Row([review_data_path], style={"marginBottom": "15px"}),
+                dbc.Row([review_data_description], style={"marginBottom": "15px"}),
+                dbc.Row([dropdown_component.layout], style={"marginBottom": "15px"}),
+                dbc.Row([review_data_table_component.layout], style={"marginBottom": "15px"}),
+                dbc.Row([dbc.Col(annotation_panel_component.layout, width=5),
+                        dbc.Col(html.Div(history_component.layout), width=7)], 
+                       style={"marginBottom": "15px"}),
+                dbc.Row(collapsable_components)
+            ],
+             style={'marginBottom': 50, 'marginTop': 25, 'marginRight': 25, 'marginLeft': 25})
+        
         
         all_ids = np.array(get_component_ids(layout))
         check_duplicates(all_ids, 'full component')
