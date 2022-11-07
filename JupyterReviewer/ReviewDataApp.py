@@ -261,13 +261,13 @@ class ReviewDataApp:
                                submit_annot_button, 
                                annot_input_state, 
                                more_component_inputs):
-            
+
             ctx = dash.callback_context
             if not ctx.triggered:
                 raise PreventUpdate
             else:
                 prop_id = ctx.triggered[0]['prop_id'].split('.')[0]
-            
+
             output_dict = {'history_table': dash.no_update,
                            'annot_panel': {annot_col: dash.no_update for annot_col in
                                            review_data.data.annot_df.columns},
@@ -279,6 +279,10 @@ class ReviewDataApp:
                            'more_component_outputs': {c.name: list(np.full(len(c.callback_output), dash.no_update)) for
                                                       c_name, c in self.more_components.items()},
                            }
+
+            # don't load components if no index is selected from table/dropdown
+            if dropdown_value is None:
+                return output_dict
 
             if (prop_id == 'APP-dropdown-data-state') or (prop_id == 'APP-review-data-table'):
                 tmp_review_data_table_df = pd.DataFrame.from_records(review_data_table_state)
@@ -301,7 +305,6 @@ class ReviewDataApp:
                 else:
                     subject_index_value = tmp_review_data_table_df.loc[review_data_selected_value[0], 'index'].item()
                     output_dict['dropdown_value'] = subject_index_value
-
 
                 for c_name, component in self.more_components.items():
                     if component.new_data_callback is not None:
@@ -371,7 +374,7 @@ class ReviewDataApp:
                    review_data_table_page_size: int = 10,
                    view_only=False,
                    ):
-        
+
         review_data_title = html.Div([html.H1(review_data.data_pkl_fn.split('/')[-1].split('.')[0])])
         review_data_path = html.Div([html.P(f'Path: {review_data.data_pkl_fn}')])
         review_data_description = html.Div([html.P(f'Description: {review_data.data.description}')])
@@ -441,7 +444,7 @@ class ReviewDataApp:
         history_component = AppComponent(name='APP-history-component',
                                          layout=[history_table], 
                                          use_name_as_title=False)
-        
+
         autofill_buttons, autofill_states, autofill_literals = self.gen_autofill_buttons_and_states(review_data,
                                                                                                     autofill_dict)
 
