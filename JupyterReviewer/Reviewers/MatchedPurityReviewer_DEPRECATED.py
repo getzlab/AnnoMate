@@ -1,3 +1,6 @@
+"""
+For maintained purity reviewers, see https://github.com/getzlab/PurityReviewers
+"""
 from JupyterReviewer.Data import Data, DataAnnotation
 from JupyterReviewer.ReviewDataApp import ReviewDataApp, AppComponent
 from JupyterReviewer.DataTypes.GenericData import GenericData
@@ -17,6 +20,7 @@ import dash_bootstrap_components as dbc
 
 from JupyterReviewer.ReviewerTemplate import ReviewerTemplate
 from JupyterReviewer.lib.plot_cnp import plot_acr_interactive
+from JupyterReviewer.AppComponents.DataTableComponents import gen_annotated_data_info_table_component
 
 from rpy2.robjects import r, pandas2ri
 import rpy2.robjects as robjects
@@ -434,15 +438,10 @@ class MatchedPurityReviewer(ReviewerTemplate):
             mut_fig_pkl_fn_col=mut_fig_pkl_fn_col)
 
         app.add_component(
-            AppComponent(
-                'Sample Data',
-                [html.Div(children=[html.H2('Data Summary'),
-                                   dbc.Table.from_dataframe(df=pd.DataFrame())],
-                         id='sample-info-component'
-                         )],
-                callback_output=[Output('sample-info-component', 'children')],
-                new_data_callback=gen_data_summary_table),
-            cols=sample_info_cols)
+            gen_annotated_data_info_table_component(), 
+            cols=sample_info_cols, 
+            data_attribute='df'
+        )
 
         # Add a custom component: below, I add a component that allows you to manually set the 0 and 1 line combs (cgaitools)
         # NOTE: the purity calculated is tau, NOT tau_g. 
@@ -564,3 +563,5 @@ class MatchedPurityReviewer(ReviewerTemplate):
         self.add_review_data_annotations_app_display(annot_name='Ploidy', app_display_type='number')
         self.add_review_data_annotations_app_display(annot_name='Method', app_display_type='select')
         self.add_review_data_annotations_app_display(annot_name='Notes', app_display_type='textarea')
+
+        

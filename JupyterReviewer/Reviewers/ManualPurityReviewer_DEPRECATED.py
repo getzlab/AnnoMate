@@ -1,3 +1,6 @@
+"""
+For maintained purity reviewers, see https://github.com/getzlab/PurityReviewers
+"""
 from JupyterReviewer.Data import Data, DataAnnotation
 from JupyterReviewer.ReviewDataApp import ReviewDataApp, AppComponent
 from JupyterReviewer.DataTypes.GenericData import GenericData
@@ -385,3 +388,6 @@ class ManualPurityReviewer(ReviewerTemplate):
     def set_default_review_data_annotations_app_display(self):
         self.add_review_data_annotations_app_display(annot_name='Purity', app_display_type='number')
         self.add_review_data_annotations_app_display(annot_name='Ploidy', app_display_type='number')
+
+        
+        
