@@ -329,6 +329,7 @@ class ReviewerTemplate(ABC):
     def run(self,
             review_data_table_df: pd.DataFrame = None,
             review_data_table_page_size: int = 5,
+            collapsable=True,
             mode='external', 
             host='0.0.0.0', 
             port=8050):
@@ -351,6 +352,7 @@ class ReviewerTemplate(ABC):
                      annot_app_display_types_dict=self.annot_app_display_types_dict,
                      review_data_table_df=review_data_table_df,
                      review_data_table_page_size=review_data_table_page_size,
+                     collapsable=collapsable,
                      mode=mode,
                      host=host,
                      port=port)
