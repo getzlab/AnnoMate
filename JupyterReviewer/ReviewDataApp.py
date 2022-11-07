@@ -312,10 +312,14 @@ class ReviewDataApp:
                                                                        *more_component_inputs[component.name])
                         validate_callback_outputs(component_output, component, which_callback='new_data_callback')
                         output_dict['more_component_outputs'][component.name] = component_output
-
-                output_dict['history_table'] = dbc.Table.from_dataframe(
-                    review_data.data.history_df.loc[review_data.data.history_df['index'] == subject_index_value].loc[::-1])
-                output_dict['annot_panel'] = {annot_col: '' for annot_col in review_data.data.annot_df.columns}
+                
+                history_df = review_data.data.history_df.loc[review_data.data.history_df['index'] == subject_index_value].loc[::-1]
+                output_dict['history_table'] = dbc.Table.from_dataframe(history_df)
+                
+                if history_df.empty:
+                    output_dict['annot_panel'] = {annot_col: '' for annot_col in review_data.data.annot_df.columns}
+                else:
+                    output_dict['annot_panel'] = review_data.data.annot_df.loc[subject_index_value].to_dict()
                             
             elif (prop_id == 'APP-submit-button-state') & (submit_annot_button > 0):
                 for annot_name in annot_app_display_types_dict.keys():
