@@ -253,6 +253,7 @@ class ReviewDataApp:
                                   annot_input_state=annotation_panel_component.callback_state,
                                   revert_annot_button=Input('APP-revert-annot-button', 'n_clicks'),
                                   history_table_selected_row_state=State('APP-history-table', 'selected_rows'),
+                                  clear_annot_button=Input('APP-clear-annot-button', 'n_clicks'),
                                   more_component_inputs={
                                       c.name: c.callback_input + c.callback_state + c.callback_state_external for
                                       c_name, c in
@@ -267,6 +268,7 @@ class ReviewDataApp:
                                annot_input_state, 
                                revert_annot_button,
                                history_table_selected_row_state,
+                               clear_annot_button,
                                more_component_inputs):
             
             ctx = dash.callback_context
@@ -358,7 +360,8 @@ class ReviewDataApp:
                 if len(history_table_selected_row_state) > 0:
                     history_df = review_data.data.history_df.loc[review_data.data.history_df['index'] == dropdown_value].loc[::-1].reset_index()
                     output_dict['annot_panel'] = history_df.iloc[history_table_selected_row_state[0]][review_data.data.annot_df.columns].to_dict()
-                    
+            elif prop_id == 'APP-clear-annot-button':
+                output_dict['annot_panel'] = {annot_col: '' for annot_col in review_data.data.annot_df.columns}
             else:
                 for c_name, component in self.more_components.items():
                     if sum([ci.component_id == prop_id for ci in component.callback_input]) > 0:
@@ -441,7 +444,7 @@ class ReviewDataApp:
                 style_data={
                         'whiteSpace': 'normal',
                         'height': 'auto',
-                    }
+                },
             ),
             style=style,
         )
@@ -458,6 +461,11 @@ class ReviewDataApp:
             html.Button(
                 'Revert to selected annotation',
                 id=f'APP-revert-annot-button',
+                n_clicks=0,
+                style={"marginBottom": "15px"}),
+            html.Button(
+                'Clear annotation inputs',
+                id=f'APP-clear-annot-button',
                 n_clicks=0,
                 style={"marginBottom": "15px"}),
             html.Div(
