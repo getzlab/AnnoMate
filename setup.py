@@ -23,8 +23,11 @@ setuptools.setup(
     package_dir={"": "."},
     packages=setuptools.find_packages(where=".", exclude=['zeption.examples', '']),
     python_requires=">=3.6",
-    install_requires = ['dash',
+    install_requires = ['cnv-suite',
+                        'dash',
                         'dash-bootstrap-components',
+                        'dash-cytoscape',
+                        'dash-daq',
                         'fsspec',
                         'gcsfs',
                         'google-auth',
@@ -40,6 +43,7 @@ setuptools.setup(
                         'pillow',
                         'pip',
                         'plotly',
+                        'scipy',
                         'setuptools']
 )   
 
