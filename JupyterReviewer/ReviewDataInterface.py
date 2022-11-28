@@ -73,10 +73,8 @@ class ReviewDataInterface:
         annot_col_config_dict: Dict
             A dictionary where the key is the name of the annotation (column) and the value is a DataAnnotation object
         """
-
         new_annot_data = {annot_name: ann for annot_name, ann in annot_col_config_dict.items() if
                           annot_name not in self.data.annot_col_config_dict.keys()}
-        
         for name, ann in new_annot_data.items():
             if not isinstance(ann, DataAnnotation):
                 raise ValueError(f'Annotation name {ann} has invalid value {ann}. '
@@ -88,11 +86,11 @@ class ReviewDataInterface:
         
         for name, annot_data in new_annot_data.items():
             if annot_data.annot_value_type == 'multi':
-                self.data.annot_df[name] = self.data.annot_df[name].astype(object)
+                self.data.annot_df[name] = self.data.annot_df[name].fillna('').astype(object)
             elif annot_data.annot_value_type == 'float':
                 self.data.annot_df[name] = self.data.annot_df[name].astype(float)
             elif annot_data.annot_value_type == 'string':
-                self.data.annot_df[name] = self.data.annot_df[name].astype(str)
+                self.data.annot_df[name] = self.data.annot_df[name].fillna('').astype(str)
 
         self.save_data()
         

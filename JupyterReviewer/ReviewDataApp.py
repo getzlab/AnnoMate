@@ -233,6 +233,18 @@ class ReviewDataApp:
                                  f'Runtime callback output: {component_output}\n')
             return
         
+        multi_type_columns = [c for c, data_annotation in review_data.data.annot_col_config_dict.items() if data_annotation.annot_value_type == 'multi']
+        def get_history_display_table(subject_index_value):
+            filtered_history_df = review_data.data.history_df.loc[
+                review_data.data.history_df['index'] == subject_index_value
+            ].loc[::-1]
+            
+            # get multi type annotations
+            for c in multi_type_columns:
+                filtered_history_df[c] = filtered_history_df[c].astype(str)
+            
+            return filtered_history_df
+        
         @app.callback(output=dict(history_table=Output(f'APP-history-table', 'data'),
                                   annot_panel=annotation_panel_component.callback_output,
                                   dropdown_list_options=Output(f'APP-dropdown-data-state', 'options'),
@@ -291,7 +303,7 @@ class ReviewDataApp:
                            }
             
             # don't load components if no index is selected from table/dropdown
-            if dropdown_value is None:
+            if (dropdown_value is None) and (len(review_data_selected_value) == 0):
                 return output_dict
 
             if (prop_id == 'APP-dropdown-data-state') or (prop_id == 'APP-review-data-table'):
@@ -325,21 +337,32 @@ class ReviewDataApp:
                         validate_callback_outputs(component_output, component, which_callback='new_data_callback')
                         output_dict['more_component_outputs'][component.name] = component_output
                 
-                history_df = review_data.data.history_df.loc[review_data.data.history_df['index'] == subject_index_value].loc[::-1]
-                output_dict['history_table'] = history_df.to_dict('records') #dbc.Table.from_dataframe(history_df)
+                history_df = get_history_display_table(subject_index_value)
+                output_dict['history_table'] = history_df.to_dict('records')
                 output_dict['history_table_selected_row_state'] = []
                 
                 if history_df.empty:
                     output_dict['annot_panel'] = {annot_col: '' for annot_col in review_data.data.annot_df.columns}
                 else:
-                    output_dict['annot_panel'] = review_data.data.annot_df.loc[subject_index_value].to_dict()
+                    current_annotations = review_data.data.annot_df.loc[subject_index_value].to_dict()
+                    for c in multi_type_columns:
+                        current_annotations[c] = current_annotations[c].split(',')
+                        
+                    output_dict['annot_panel'] = current_annotations
                             
             elif (prop_id == 'APP-submit-button-state') & (submit_annot_button > 0):
                 for annot_name in annot_app_display_types_dict.keys():
                     annot_type = review_data.data.annot_col_config_dict[annot_name]
                     annot_type.validate(annot_input_state[annot_name])
-                review_data._update(dropdown_value, annot_input_state)
-                output_dict['history_table'] = review_data.data.history_df.loc[review_data.data.history_df['index'] == dropdown_value].loc[::-1].to_dict('records')
+                    
+                new_annot_input_state = dict(annot_input_state)
+                for c in multi_type_columns:
+                    new_annot_input_state[c] = ','.join([s for s in new_annot_input_state[c] if s != ''])
+                    
+                review_data._update(dropdown_value, new_annot_input_state)
+                # output_dict['history_table'] = review_data.data.history_df.loc[review_data.data.history_df['index'] == dropdown_value].loc[::-1].to_dict('records')
+                output_dict['history_table'] = get_history_display_table(dropdown_value).to_dict('records')
+                
                 reviewed_data_df.loc[dropdown_value, 'label'] = self.gen_dropdown_labels(review_data,
                                                                                          reviewed_data_df.loc[
                                                                                              dropdown_value])
@@ -655,11 +678,17 @@ class ReviewDataApp:
                                                 id=input_component_id,
                                             )
             elif annot_app_display_type == 'select':
-                input_component = dbc.Select(
-                                            options=[{"label": f, "value": f} for f in annot.options],
-                                            value=annot.default,
-                                            id=input_component_id,
-                                            ),
+                if annot.default is not None:
+                    input_component = dbc.Select(
+                                                options=[{"label": f, "value": f} for f in annot.options],
+                                                id=input_component_id,
+                                                ),
+                else:
+                    input_component = dbc.Select(
+                                                options=[{"label": f, "value": f} for f in annot.options],
+                                                value=annot.default,
+                                                id=input_component_id,
+                                                ),
             else:
                 raise ValueError(f'Invalid annotation type "{annot.annot_type}"')
                 
