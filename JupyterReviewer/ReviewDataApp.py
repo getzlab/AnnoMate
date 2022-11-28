@@ -363,7 +363,7 @@ class ReviewDataApp:
                 new_annot_input_state = dict(annot_input_state)
                 for c in multi_type_columns:
                     new_annot_input_state[c] = multi_annotation_delimeter.join([s for s in new_annot_input_state[c] if s != '']) # ignore empty options
-                    
+                
                 review_data._update(dropdown_value, new_annot_input_state)
                 # output_dict['history_table'] = review_data.data.history_df.loc[review_data.data.history_df['index'] == dropdown_value].loc[::-1].to_dict('records')
                 output_dict['history_table'] = get_history_display_table(dropdown_value).to_dict('records')
