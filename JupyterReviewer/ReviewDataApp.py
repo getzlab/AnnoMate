@@ -158,7 +158,9 @@ class ReviewDataApp:
             collapsable=True,
             mode='external',
             host='0.0.0.0',
-            port=8050):
+            port=8050,
+            multi_annotation_delimeter=','
+           ):
 
         """
         Run the app
@@ -176,6 +178,9 @@ class ReviewDataApp:
 
         port: int
             Port access number
+            
+        multi_annotation_delimeter: str
+            str to separate and split annotations that may have multiple values. 
 
         annot_app_display_types_dict: Dict
             at run time, determines how the inputs for annotations will be displayed
@@ -346,7 +351,7 @@ class ReviewDataApp:
                 else:
                     current_annotations = review_data.data.annot_df.loc[subject_index_value].to_dict()
                     for c in multi_type_columns:
-                        current_annotations[c] = current_annotations[c].split(',')
+                        current_annotations[c] = current_annotations[c].split(multi_annotation_delimeter)
                         
                     output_dict['annot_panel'] = current_annotations
                             
@@ -357,7 +362,7 @@ class ReviewDataApp:
                     
                 new_annot_input_state = dict(annot_input_state)
                 for c in multi_type_columns:
-                    new_annot_input_state[c] = ','.join([s for s in new_annot_input_state[c] if s != ''])
+                    new_annot_input_state[c] = multi_annotation_delimeter.join([s for s in new_annot_input_state[c] if s != '']) # ignore empty options
                     
                 review_data._update(dropdown_value, new_annot_input_state)
                 # output_dict['history_table'] = review_data.data.history_df.loc[review_data.data.history_df['index'] == dropdown_value].loc[::-1].to_dict('records')
