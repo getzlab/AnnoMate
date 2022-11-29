@@ -348,9 +348,20 @@ class ReviewDataApp:
                 output_dict['history_table_selected_row_state'] = []
                 
                 if history_df.empty:
-                    output_dict['annot_panel'] = {annot_col: '' for annot_col in review_data.data.annot_df.columns}
+                    output_dict['annot_panel'] = {
+                        annot_name: review_data.data.annot_col_config_dict[annot_name].default if \
+                        review_data.data.annot_col_config_dict[annot_name].default is not None else '' \
+                        for annot_name in review_data.data.annot_df.columns
+                    }
                 else:
                     current_annotations = review_data.data.annot_df.loc[subject_index_value].to_dict()
+                    for annot_name, v in current_annotations.items():
+                        
+                        if type(v) == list:
+                            continue
+                        
+                        if (pd.isna(v) or (v == '') or (v is None)) and (review_data.data.annot_col_config_dict[annot_name].default is not None):
+                            current_annotations[annot_name] = review_data.data.annot_col_config_dict[annot_name].default
                         
                     output_dict['annot_panel'] = current_annotations
                             

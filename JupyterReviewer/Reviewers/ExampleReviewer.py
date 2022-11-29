@@ -52,7 +52,7 @@ class ExampleReviewer(ReviewerTemplate):
 
     def set_default_review_data_annotations(self):
         self.add_review_data_annotation('Notes', DataAnnotation('string'))
-        self.add_review_data_annotation('Flag', DataAnnotation('string', options=['Keep', 'Remove']))
+        self.add_review_data_annotation('Flag', DataAnnotation('string', options=['Keep', 'Remove'], default='Keep'))
 
     def gen_review_app(self, mut_file_col: str, sample_cols: List[str]) -> ReviewDataApp:
         """
