@@ -148,7 +148,13 @@ class ReviewDataApp:
 
         """
         self.more_components = OrderedDict()
-            
+        
+    def columns_to_string(self, df, columns):
+        for c in columns:
+            df[c] = df[c].astype(str)
+
+        return df
+        
     def run(self,
             review_data: ReviewDataInterface,
             annot_app_display_types_dict: Dict = None,
@@ -159,7 +165,6 @@ class ReviewDataApp:
             mode='external',
             host='0.0.0.0',
             port=8050,
-            multi_annotation_delimeter=','
            ):
 
         """
@@ -178,9 +183,6 @@ class ReviewDataApp:
 
         port: int
             Port access number
-            
-        multi_annotation_delimeter: str
-            str to separate and split annotations that may have multiple values. 
 
         annot_app_display_types_dict: Dict
             at run time, determines how the inputs for annotations will be displayed
@@ -206,6 +208,15 @@ class ReviewDataApp:
                                    valid literal value according to the DataAnnotation object's validation method.
 
         """
+        multi_type_columns = [c for c in annot_app_display_types_dict.keys() if review_data.data.annot_col_config_dict[c].annot_value_type == 'multi']
+        
+        def get_history_display_table(subject_index_value):
+            filtered_history_df = review_data.data.history_df.loc[
+                review_data.data.history_df['index'] == subject_index_value
+            ].loc[::-1]
+            
+            return self.columns_to_string(filtered_history_df, multi_type_columns)
+        
         
         app = JupyterDash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
         
@@ -222,8 +233,10 @@ class ReviewDataApp:
                 autofill_dict,
                 review_data_table_df=review_data_table_df,
                 review_data_table_page_size=review_data_table_page_size,
-                collapsable=collapsable
+                collapsable=collapsable,
+                multi_type_columns=multi_type_columns
             )
+        
         app.title = review_data.data_pkl_fn.split('/')[-1].split('.')[0]
         
         def validate_callback_outputs(component_output, 
@@ -237,19 +250,6 @@ class ReviewDataApp:
                                  f'Expected output: {component.callback_output}\n'
                                  f'Runtime callback output: {component_output}\n')
             return
-        
-        multi_type_columns = [c for c, data_annotation in review_data.data.annot_col_config_dict.items() if data_annotation.annot_value_type == 'multi']
-        
-        def get_history_display_table(subject_index_value):
-            filtered_history_df = review_data.data.history_df.loc[
-                review_data.data.history_df['index'] == subject_index_value
-            ].loc[::-1]
-            
-            # get multi type annotations
-            for c in multi_type_columns:
-                filtered_history_df[c] = filtered_history_df[c].astype(str)
-            
-            return filtered_history_df
         
         @app.callback(output=dict(history_table=Output(f'APP-history-table', 'data'),
                                   annot_panel=annotation_panel_component.callback_output,
@@ -351,8 +351,6 @@ class ReviewDataApp:
                     output_dict['annot_panel'] = {annot_col: '' for annot_col in review_data.data.annot_df.columns}
                 else:
                     current_annotations = review_data.data.annot_df.loc[subject_index_value].to_dict()
-                    # for c in multi_type_columns:
-                    #     current_annotations[c] = current_annotations[c].split(multi_annotation_delimeter)
                         
                     output_dict['annot_panel'] = current_annotations
                             
@@ -362,8 +360,6 @@ class ReviewDataApp:
                     review_data.validate_annot_data(annot_type, annot_input_state[annot_name])
                     
                 new_annot_input_state = dict(annot_input_state)
-                # for c in multi_type_columns:
-                #     new_annot_input_state[c] = multi_annotation_delimeter.join([s for s in new_annot_input_state[c] if s != '']) # ignore empty options
                 
                 review_data._update(dropdown_value, new_annot_input_state)
 
@@ -375,12 +371,12 @@ class ReviewDataApp:
                 output_dict['dropdown_list_options'] = reviewed_data_df.reset_index().to_dict('records')
 
                 if review_data_table_df is not None:
-                    tmp_review_data_table_df = pd.DataFrame.from_records(review_data_table_state)
+                    tmp_review_data_table_df = pd.DataFrame.from_records(review_data_table_state).set_index('index')
                     tmp_review_data_table_df.loc[
-                        tmp_review_data_table_df['index'] == dropdown_value,
+                        dropdown_value,
                         review_data.data.annot_df.columns
                     ] = review_data.data.annot_df.loc[dropdown_value].values
-                    output_dict['review_data_table_data'] = tmp_review_data_table_df.to_dict('records')
+                    output_dict['review_data_table_data'] = self.columns_to_string(tmp_review_data_table_df, multi_type_columns).reset_index().to_dict('records')
                     
             elif 'APP-autofill-' in prop_id:
                 component_name = prop_id.split('APP-autofill-')[-1]
@@ -425,6 +421,7 @@ class ReviewDataApp:
                    review_data_table_df: pd.DataFrame=None,
                    review_data_table_page_size: int = 10,
                    collapsable=True,
+                   multi_type_columns=[]
                    ):
         
         review_data_title = html.Div([html.H1(review_data.data_pkl_fn.split('/')[-1].split('.')[0])])
@@ -446,7 +443,13 @@ class ReviewDataApp:
                 )
             new_review_data_table_df = review_data_table_df.copy()
             new_review_data_table_df.index.name = 'index'
-            new_review_data_table_df = pd.concat([new_review_data_table_df, review_data.data.annot_df], axis=1)
+            new_review_data_table_df = pd.concat(
+                [
+                    new_review_data_table_df, 
+                    self.columns_to_string(review_data.data.annot_df, multi_type_columns)
+                ], 
+                axis=1
+            )
             review_data_table_data = new_review_data_table_df.reset_index().to_dict('records')
             review_data_table_columns = new_review_data_table_df.reset_index().columns.tolist()
             style = {'display': 'block'}
