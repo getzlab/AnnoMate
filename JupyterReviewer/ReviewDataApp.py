@@ -150,10 +150,11 @@ class ReviewDataApp:
         self.more_components = OrderedDict()
         
     def columns_to_string(self, df, columns):
+        new_df = df.copy()
         for c in columns:
-            df[c] = df[c].astype(str)
+            new_df[c] = new_df[c].astype(str)
 
-        return df
+        return new_df
         
     def run(self,
             review_data: ReviewDataInterface,
@@ -371,7 +372,6 @@ class ReviewDataApp:
                     review_data.validate_annot_data(annot_type, annot_input_state[annot_name])
                     
                 new_annot_input_state = dict(annot_input_state)
-                
                 review_data._update(dropdown_value, new_annot_input_state)
 
                 output_dict['history_table'] = get_history_display_table(dropdown_value).to_dict('records')
@@ -400,7 +400,8 @@ class ReviewDataApp:
             elif (prop_id == 'APP-revert-annot-button'):
                 if len(history_table_selected_row_state) > 0:
                     history_df = review_data.data.history_df.loc[review_data.data.history_df['index'] == dropdown_value].loc[::-1].reset_index()
-                    output_dict['annot_panel'] = history_df.iloc[history_table_selected_row_state[0]][review_data.data.annot_df.columns].to_dict()
+                    output_dict['annot_panel'] = history_df.iloc[history_table_selected_row_state[0]][review_data.data.annot_df.columns].fillna('').to_dict()
+                    
             elif prop_id == 'APP-clear-annot-button':
                 output_dict['annot_panel'] = {annot_col: '' for annot_col in review_data.data.annot_df.columns}
             else:

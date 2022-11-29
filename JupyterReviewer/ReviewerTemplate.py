@@ -303,6 +303,12 @@ class ReviewerTemplate(ABC):
                 'The only compatible app_display_type is "number". '
                 f'Input app_display_type was "{app_display_type}".'
             )
+            
+        if (data_annot.annot_value_type == 'string') & (app_display_type == 'number'):
+            raise ValueError(
+                f'Annotation named "{annot_name}" is a string type. '
+                f'This is not compatible with an input app_display_type of "{app_display_type}".'
+            )
 
         self.annot_app_display_types_dict[annot_name] = app_display_type
         

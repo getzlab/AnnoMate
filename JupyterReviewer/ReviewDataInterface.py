@@ -77,17 +77,22 @@ class ReviewDataInterface:
         new_annot_names = [annot_name for annot_name, ann in annot_col_config_dict.items() if annot_name not in self.data.annot_col_config_dict.keys()]
         existing_annot_names = [annot_name for annot_name, ann in annot_col_config_dict.items() if annot_name in self.data.annot_col_config_dict.keys()]
         
-        new_annot_data = {annot_name: annot_col_config_dict[annot_name] for annot_name in new_annot_names}
-        for annot_name, ann in new_annot_data.items():
-            if not isinstance(ann, DataAnnotation):
-                raise ValueError(f'Annotation name {annot_name} has invalid value {ann} of type {type(ann)}. '
+        # Check new annotations
+        new_data_annot = {annot_name: annot_col_config_dict[annot_name] for annot_name in new_annot_names}
+        for annot_name, data_annot in new_data_annot.items():
+            if not isinstance(data_annot, DataAnnotation):
+                raise ValueError(f'Annotation name {annot_name} has invalid value {data_annot} of type {type(data_annot)}. '
                                  f'Value in dictionary must be a DataAnnotation object')
-            self.data.annot_col_config_dict[annot_name] = ann
+            self.data.annot_col_config_dict[annot_name] = data_annot
             
+        # update existing annotations
         for existing_annot_name in existing_annot_names:
             try:
+                existing_annot_data = annot_col_config_dict[existing_annot_name]
+                    
                 for idx, r in self.data.annot_df.iterrows():
                     self.validate_annot_data(annot_col_config_dict[existing_annot_name], r[existing_annot_name])
+                    
             except ValueError as e:
                 raise ValueError(
                     f'Existing data in annotation table (annot_df) column "{existing_annot_name}" are not compatible with new DataAnnotation configuration. '
@@ -97,31 +102,41 @@ class ReviewDataInterface:
             # Replace    
             self.data.annot_col_config_dict[existing_annot_name] = annot_col_config_dict[existing_annot_name]
             
-
-        self.data.annot_df[list(new_annot_data.keys())] = np.nan
-        self.data.history_df[list(new_annot_data.keys())] = np.nan
+            
+        self.data.annot_df[list(new_data_annot.keys())] = np.nan
+        self.data.history_df[list(new_data_annot.keys())] = np.nan
         
-        for name, annot_data in new_annot_data.items():
-            if annot_data.annot_value_type == 'multi':
-                self.data.annot_df[name] = self.data.annot_df[name].fillna('').astype(object)
-            elif annot_data.annot_value_type == 'float':
-                self.data.annot_df[name] = self.data.annot_df[name].astype(float)
-            elif annot_data.annot_value_type == 'string':
-                self.data.annot_df[name] = self.data.annot_df[name].fillna('').astype(str)
+        # Set types
+        try:
+            for name, data_annot in annot_col_config_dict.items():
+                if data_annot.annot_value_type == 'multi':
+                    self.data.annot_df[name] = self.data.annot_df[name].fillna('').astype(object)
+                elif data_annot.annot_value_type == 'float':
+                    self.data.annot_df[name] = self.data.annot_df[name].astype(float)
+                elif data_annot.annot_value_type == 'string':
+                    self.data.annot_df[name] = self.data.annot_df[name].fillna('').astype(str)
+        except ValueError as e:
+            raise ValueError(
+                f'Annotation "{name}" has values that are not compatible with new annot_value_type {data_annot.annot_value_type}. '
+                f'Full error: {e}'
+            )
 
         self.save_data()
         
         
     def validate_annot_data(self, data_annot: DataAnnotation, x):
         
-        if data_annot.options is not None:
-            for item in np.array(x).flatten():
-                if (item not in data_annot.options) and (item != '') and (not pd.isna(item)) and (item is not None):
-                    raise ValueError(f'Input "{item}" is not in the specified options {data_annot.options}')
+        if (x != '') and (not pd.isna([x]).all()) and (x is not None):
+        
+            if data_annot.options is not None:
+                x = x if data_annot.annot_value_type == 'multi' else [x]
+                for item in x:
+                    if (item not in data_annot.options): # and (item != '') and (not pd.isna(item)) and (item is not None):
+                        raise ValueError(f'Input "{item}" is not in the specified options {data_annot.options}')
 
-        if data_annot.validate_input is not None:
-            if not data_annot.validate_input(x):
-                raise ValueError(f'Input "{x}" is invalid')
+            if data_annot.validate_input is not None:
+                if not data_annot.validate_input(x):
+                    raise ValueError(f'Input "{x}" is invalid')
         
     def _update(self, data_idx, dictionary: Dict):
         """
