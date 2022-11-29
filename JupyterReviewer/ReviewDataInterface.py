@@ -73,13 +73,30 @@ class ReviewDataInterface:
         annot_col_config_dict: Dict
             A dictionary where the key is the name of the annotation (column) and the value is a DataAnnotation object
         """
-        new_annot_data = {annot_name: ann for annot_name, ann in annot_col_config_dict.items() if
-                          annot_name not in self.data.annot_col_config_dict.keys()}
-        for name, ann in new_annot_data.items():
+        
+        new_annot_names = [annot_name for annot_name, ann in annot_col_config_dict.items() if annot_name not in self.data.annot_col_config_dict.keys()]
+        existing_annot_names = [annot_name for annot_name, ann in annot_col_config_dict.items() if annot_name in self.data.annot_col_config_dict.keys()]
+        
+        new_annot_data = {annot_name: annot_col_config_dict[annot_name] for annot_name in new_annot_names}
+        for annot_name, ann in new_annot_data.items():
             if not isinstance(ann, DataAnnotation):
-                raise ValueError(f'Annotation name {ann} has invalid value {ann}. '
+                raise ValueError(f'Annotation name {annot_name} has invalid value {ann} of type {type(ann)}. '
                                  f'Value in dictionary must be a DataAnnotation object')
-            self.data.annot_col_config_dict[name] = ann
+            self.data.annot_col_config_dict[annot_name] = ann
+            
+        for existing_annot_name in existing_annot_names:
+            try:
+                for idx, r in self.data.annot_df.iterrows():
+                    self.validate_annot_data(annot_col_config_dict[existing_annot_name], r[existing_annot_name])
+            except ValueError as e:
+                raise ValueError(
+                    f'Existing data in annotation table (annot_df) column "{existing_annot_name}" are not compatible with new DataAnnotation configuration. '
+                    f'Original message: {e}'
+                )
+                
+            # Replace    
+            self.data.annot_col_config_dict[existing_annot_name] = annot_col_config_dict[existing_annot_name]
+            
 
         self.data.annot_df[list(new_annot_data.keys())] = np.nan
         self.data.history_df[list(new_annot_data.keys())] = np.nan
@@ -93,6 +110,18 @@ class ReviewDataInterface:
                 self.data.annot_df[name] = self.data.annot_df[name].fillna('').astype(str)
 
         self.save_data()
+        
+        
+    def validate_annot_data(self, data_annot: DataAnnotation, x):
+        
+        if data_annot.options is not None:
+            for item in np.array(x).flatten():
+                if (item not in data_annot.options) and (item != '') and (not pd.isna(item)) and (item is not None):
+                    raise ValueError(f'Input "{item}" is not in the specified options {data_annot.options}')
+
+        if data_annot.validate_input is not None:
+            if not data_annot.validate_input(x):
+                raise ValueError(f'Input "{x}" is invalid')
         
     def _update(self, data_idx, dictionary: Dict):
         """

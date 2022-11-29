@@ -239,6 +239,7 @@ class ReviewDataApp:
             return
         
         multi_type_columns = [c for c, data_annotation in review_data.data.annot_col_config_dict.items() if data_annotation.annot_value_type == 'multi']
+        
         def get_history_display_table(subject_index_value):
             filtered_history_df = review_data.data.history_df.loc[
                 review_data.data.history_df['index'] == subject_index_value
@@ -350,22 +351,22 @@ class ReviewDataApp:
                     output_dict['annot_panel'] = {annot_col: '' for annot_col in review_data.data.annot_df.columns}
                 else:
                     current_annotations = review_data.data.annot_df.loc[subject_index_value].to_dict()
-                    for c in multi_type_columns:
-                        current_annotations[c] = current_annotations[c].split(multi_annotation_delimeter)
+                    # for c in multi_type_columns:
+                    #     current_annotations[c] = current_annotations[c].split(multi_annotation_delimeter)
                         
                     output_dict['annot_panel'] = current_annotations
                             
             elif (prop_id == 'APP-submit-button-state') & (submit_annot_button > 0):
                 for annot_name in annot_app_display_types_dict.keys():
                     annot_type = review_data.data.annot_col_config_dict[annot_name]
-                    annot_type.validate(annot_input_state[annot_name])
+                    review_data.validate_annot_data(annot_type, annot_input_state[annot_name])
                     
                 new_annot_input_state = dict(annot_input_state)
-                for c in multi_type_columns:
-                    new_annot_input_state[c] = multi_annotation_delimeter.join([s for s in new_annot_input_state[c] if s != '']) # ignore empty options
+                # for c in multi_type_columns:
+                #     new_annot_input_state[c] = multi_annotation_delimeter.join([s for s in new_annot_input_state[c] if s != '']) # ignore empty options
                 
                 review_data._update(dropdown_value, new_annot_input_state)
-                # output_dict['history_table'] = review_data.data.history_df.loc[review_data.data.history_df['index'] == dropdown_value].loc[::-1].to_dict('records')
+
                 output_dict['history_table'] = get_history_display_table(dropdown_value).to_dict('records')
                 
                 reviewed_data_df.loc[dropdown_value, 'label'] = self.gen_dropdown_labels(review_data,
@@ -380,6 +381,7 @@ class ReviewDataApp:
                         review_data.data.annot_df.columns
                     ] = review_data.data.annot_df.loc[dropdown_value].values
                     output_dict['review_data_table_data'] = tmp_review_data_table_df.to_dict('records')
+                    
             elif 'APP-autofill-' in prop_id:
                 component_name = prop_id.split('APP-autofill-')[-1]
                 for autofill_annot_col, value in autofill_states[prop_id].items():
