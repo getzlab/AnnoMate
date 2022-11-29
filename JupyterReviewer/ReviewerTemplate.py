@@ -10,6 +10,7 @@ import pathlib
 import pickle
 import inspect
 import traceback
+import warnings
 
 
 def make_docstring(object_type_name, func1_doc, func2):
@@ -284,13 +285,24 @@ class ReviewerTemplate(ABC):
         """
         if annot_name not in self.review_data_interface.data.annot_col_config_dict.keys():
             raise ValueError(f"Invalid annotation name '{annot_name}'. "
-                             f"Does not exist in review data object annotation table")
+                             f"Does not exist in review data object annotation table"
+                             "Make sure to add '{annot_name}' as an annotation with self.add_review_data_annotation()"
+                            )
 
         if app_display_type not in valid_annotation_app_display_types:
             raise ValueError(f"Invalid app display type {app_display_type}. "
                              f"Valid options are {valid_annotation_app_display_types}")
 
         # TODO: check if display type matches annotation type (list vs single value)
+        
+        data_annot = self.review_data_interface.data.annot_col_config_dict[annot_name]
+        
+        if (data_annot.annot_value_type == 'float') & (app_display_type != 'number'):
+            raise ValueError(
+                f'Annotation named "{annot_name}" is a float type. '
+                'The only compatible app_display_type is "number". '
+                f'Input app_display_type was "{app_display_type}".'
+            )
 
         self.annot_app_display_types_dict[annot_name] = app_display_type
         
