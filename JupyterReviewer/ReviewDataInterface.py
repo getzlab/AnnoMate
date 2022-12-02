@@ -151,12 +151,18 @@ class ReviewDataInterface:
             at data_idx
         """
         if list(self.data.annot_df.loc[data_idx, list(dictionary.keys())].values) != list(dictionary.values()):
-            self.data.annot_df.loc[data_idx, list(dictionary.keys())] = list(dictionary.values())
-            dictionary['timestamp'] = datetime.today()
-            dictionary['index'] = data_idx
-            dictionary['source_data_fn'] = self.data_pkl_fn
-            self.data.history_df = pd.concat([self.data.history_df, pd.Series(dictionary).to_frame().T])
-            self.save_data()
+            
+            with warnings.catch_warnings():
+                
+                # Catching warning where the annotation value is "multi" (a list type)
+                warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning) 
+                
+                self.data.annot_df.loc[data_idx, list(dictionary.keys())] = list(dictionary.values())
+                dictionary['timestamp'] = datetime.today()
+                dictionary['index'] = data_idx
+                dictionary['source_data_fn'] = self.data_pkl_fn
+                self.data.history_df = pd.concat([self.data.history_df, pd.Series(dictionary).to_frame().T])
+                self.save_data()
         else:
             pass
             
