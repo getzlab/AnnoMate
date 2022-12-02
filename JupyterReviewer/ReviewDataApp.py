@@ -690,6 +690,8 @@ class ReviewDataApp:
                                             value=annot.default)
             elif annot_app_display_type == 'checklist':
                 default = [] if annot.default is None else annot.default
+                if type(default) != list:
+                    raise ValueError(f'Default for {input_component_id} must be given as a list for checklist annotations, not as a {type(default)}. Perhaps change default to [{default}]?')
                 input_component = dbc.Checklist(options=[{"label": f, "value": f} for f in annot.options],
                                                 id=input_component_id, 
                                                 value=default),
