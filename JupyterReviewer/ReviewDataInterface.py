@@ -6,7 +6,7 @@ import warnings
 import pickle
 from pathlib import Path
 from typing import List, Dict, Union
-from JupyterReviewer.Data import Data, DataAnnotation
+from JupyterReviewer.Data import Data, DataAnnotation, validate_annot_data
 
 
 class ReviewDataInterface:
@@ -91,7 +91,7 @@ class ReviewDataInterface:
                 existing_annot_data = annot_col_config_dict[existing_annot_name]
                     
                 for idx, r in self.data.annot_df.iterrows():
-                    self.validate_annot_data(annot_col_config_dict[existing_annot_name], r[existing_annot_name])
+                    validate_annot_data(annot_col_config_dict[existing_annot_name], r[existing_annot_name])
                     
             except ValueError as e:
                 raise ValueError(
@@ -122,21 +122,6 @@ class ReviewDataInterface:
             )
 
         self.save_data()
-        
-        
-    def validate_annot_data(self, data_annot: DataAnnotation, x):
-        
-        if (x != '') and (not pd.isna([x]).all()) and (x is not None):
-        
-            if data_annot.options is not None:
-                x = x if data_annot.annot_value_type == 'multi' else [x]
-                for item in x:
-                    if (item not in data_annot.options): # and (item != '') and (not pd.isna(item)) and (item is not None):
-                        raise ValueError(f'Input "{item}" is not in the specified options {data_annot.options}')
-
-            if data_annot.validate_input is not None:
-                if not data_annot.validate_input(x):
-                    raise ValueError(f'Input "{x}" is invalid')
         
     def _update(self, data_idx, dictionary: Dict):
         """

@@ -16,6 +16,8 @@ from typing import Union, List, Tuple
 from math import floor
 
 from .ReviewDataInterface import ReviewDataInterface
+from .Data import DataAnnotation, validate_annot_data
+from .AnnotationDisplayComponent import AnnotationDisplayComponent
 
 valid_annotation_app_display_types = ['text',
                                       'textarea',
@@ -23,7 +25,6 @@ valid_annotation_app_display_types = ['text',
                                       'checklist',
                                       'radioitem',
                                       'select']
-
 
 class AppComponent:
     
@@ -361,15 +362,21 @@ class ReviewDataApp:
                         if type(v) == list:
                             continue
                         
-                        if (pd.isna(v) or (v == '') or (v is None)) and (review_data.data.annot_col_config_dict[annot_name].default is not None):
-                            current_annotations[annot_name] = review_data.data.annot_col_config_dict[annot_name].default
+                        if (pd.isna(v) or (v == '') or (v is None)) and (annot_app_display_types_dict[annot_name].default_display_value is not None):
+                            current_annotations[annot_name] = annot_app_display_types_dict[annot_name].default_display_value
                         
                     output_dict['annot_panel'] = current_annotations
                             
             elif (prop_id == 'APP-submit-button-state') & (submit_annot_button > 0):
                 for annot_name in annot_app_display_types_dict.keys():
                     annot_type = review_data.data.annot_col_config_dict[annot_name]
-                    review_data.validate_annot_data(annot_type, annot_input_state[annot_name])
+                    # Convert type
+                    if annot_app_display_types_dict[annot_name].display_output_format is not None:
+                        annot_input_state[annot_name] = annot_app_display_types_dict[annot_name].display_output_format(
+                            annot_input_state[annot_name]
+                        )
+                    
+                    validate_annot_data(annot_type, annot_input_state[annot_name])
                     
                 new_annot_input_state = dict(annot_input_state)
                 review_data._update(dropdown_value, new_annot_input_state)
@@ -670,51 +677,12 @@ class ReviewDataApp:
                                           style={"marginBottom": "15px"})
         
         def annotation_input(annot_name, annot, annot_app_display_type):
-            
             input_component_id = f"APP-{annot_name}-{annot_app_display_type}-input-state"
             
-            if annot_app_display_type == 'textarea':
-                input_component = dbc.Textarea(size="lg", 
-                                               id=input_component_id,
-                                               value=annot.default),
-            elif annot_app_display_type == 'text':
-                input_component = dbc.Input(type="text",
-                                            id=input_component_id,
-                                            placeholder=f"Enter {annot_name}",
-                                            value=annot.default,
-                                            )
-            elif annot_app_display_type == 'number':
-                input_component = dbc.Input(type="number", 
-                                            id=input_component_id, 
-                                            placeholder=f"Enter {annot_name}",
-                                            value=annot.default)
-            elif annot_app_display_type == 'checklist':
-                default = [] if annot.default is None else annot.default
-                if type(default) != list:
-                    raise ValueError(f'Default for {input_component_id} must be given as a list for checklist annotations, not as a {type(default)}. Perhaps change default to [{default}]?')
-                input_component = dbc.Checklist(options=[{"label": f, "value": f} for f in annot.options],
-                                                id=input_component_id, 
-                                                value=default),
-            elif annot_app_display_type == 'radioitem':
-                input_component = dbc.RadioItems(
-                                                options=[{"label": f, "value": f} for f in annot.options],
-                                                value=annot.default,
-                                                id=input_component_id,
-                                            )
-            elif annot_app_display_type == 'select':
-                if annot.default is not None:
-                    input_component = dbc.Select(
-                                                options=[{"label": f, "value": f} for f in annot.options],
-                                                id=input_component_id,
-                                                ),
-                else:
-                    input_component = dbc.Select(
-                                                options=[{"label": f, "value": f} for f in annot.options],
-                                                value=annot.default,
-                                                id=input_component_id,
-                                                ),
-            else:
-                raise ValueError(f'Invalid annotation type "{annot.annot_type}"')
+            input_component = annot_app_display_type.gen_input_component(
+                annot, 
+                component_id=input_component_id, 
+            )
                 
             return dbc.Row([dbc.Label(annot_name, html_for=input_component_id, width=2),
                             dbc.Col(input_component)],
@@ -739,7 +707,56 @@ class ReviewDataApp:
                     annot_name, display_type in annot_app_display_types_dict.items()},
             use_name_as_title=False
         )
+    
+#     def _gen_annotation_input_DEPRECATED(self, annot_name, annot, annot_app_display_type: str, input_component_id):
         
+#         warnings.warn(f'DEPRECATION WARNING: Annot app display type is string.')
+#         if annot_app_display_type == 'textarea':
+#             input_component = dbc.Textarea(size="lg", 
+#                                            id=input_component_id,
+#                                            value=annot.default),
+#         elif annot_app_display_type == 'text':
+#             input_component = dbc.Input(type="text",
+#                                         id=input_component_id,
+#                                         placeholder=f"Enter {annot_name}",
+#                                         value=annot.default,
+#                                         )
+#         elif annot_app_display_type == 'number':
+#             input_component = dbc.Input(type="number", 
+#                                         id=input_component_id, 
+#                                         placeholder=f"Enter {annot_name}",
+#                                         value=annot.default)
+#         elif annot_app_display_type == 'checklist':
+#             default = [] if annot.default is None else annot.default
+#             if type(default) != list:
+#                 raise ValueError(f'Default for {input_component_id} must be given as a list for checklist annotations, not as a {type(default)}. Perhaps change default to [{default}]?')
+#             input_component = dbc.Checklist(options=[{"label": f, "value": f} for f in annot.options],
+#                                             id=input_component_id, 
+#                                             value=default),
+#         elif annot_app_display_type == 'radioitem':
+#             input_component = dbc.RadioItems(
+#                                             options=[{"label": f, "value": f} for f in annot.options],
+#                                             value=annot.default,
+#                                             id=input_component_id,
+#                                         )
+#         elif annot_app_display_type == 'select':
+#             if annot.default is not None:
+#                 input_component = dbc.Select(
+#                                             options=[{"label": f, "value": f} for f in annot.options],
+#                                             id=input_component_id,
+#                                             ),
+#             else:
+#                 input_component = dbc.Select(
+#                                             options=[{"label": f, "value": f} for f in annot.options],
+#                                             value=annot.default,
+#                                             id=input_component_id,
+#                                             ),
+#         else:
+#             raise ValueError(f'Invalid annotation display type "{annot_app_display_type}"')
+            
+#         return input_component
+    
+    
     def add_component(self, 
                       component: AppComponent, 
                       **kwargs):

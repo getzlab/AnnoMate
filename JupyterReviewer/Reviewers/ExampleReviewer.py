@@ -1,6 +1,7 @@
 from JupyterReviewer.Data import DataAnnotation
 from JupyterReviewer.DataTypes.GenericData import GenericData
 from JupyterReviewer.ReviewDataApp import ReviewDataApp, AppComponent
+from JupyterReviewer.AnnotationDisplayComponent import *
 from JupyterReviewer.ReviewerTemplate import ReviewerTemplate
 
 import pandas as pd
@@ -118,7 +119,8 @@ class ExampleReviewer(ReviewerTemplate):
 
     def set_default_review_data_annotations_app_display(self):
         self.add_review_data_annotations_app_display('Notes', 'textarea')
-        self.add_review_data_annotations_app_display('Flag', 'radioitem')
+        # self.add_review_data_annotations_app_display('Flag', 'radioitem')
+        self.add_annotation_display_component('Flag', RadioitemAnnotationDisplay())
 
     def set_default_autofill(self):
         self.add_autofill('example-autofill-button', 'Nothing to say', 'Notes')

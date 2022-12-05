@@ -1,6 +1,7 @@
 from .ReviewDataInterface import ReviewDataInterface, DataAnnotation, Data
-from .ReviewDataApp import ReviewDataApp, valid_annotation_app_display_types
-
+from .Data import validate_annot_data
+from .ReviewDataApp import ReviewDataApp, valid_annotation_app_display_types, AnnotationDisplayComponent
+from JupyterReviewer.AnnotationDisplayComponent import *
 import pandas as pd
 import os
 from dash.dependencies import State
@@ -267,7 +268,37 @@ class ReviewerTemplate(ABC):
 
         """
         self.app = self.gen_review_app(*args, **kwargs)
-
+        
+    def add_annotation_display_component(
+        self,
+        annot_name,
+        annot_display_component: AnnotationDisplayComponent
+    ):
+        
+        if annot_name not in self.review_data_interface.data.annot_col_config_dict.keys():
+            raise ValueError(f"Invalid annotation name '{annot_name}'. "
+                             f"Does not exist in review data object annotation table"
+                             "Make sure to add '{annot_name}' as an annotation with self.add_review_data_annotation()"
+                            )
+            
+        data_annot = self.review_data_interface.data.annot_col_config_dict[annot_name]
+        if annot_display_component.default_display_value is not None:
+            validate_annot_data(data_annot, annot_display_component.default_display_value)
+            
+        if (
+            (data_annot.annot_value_type not in annot_display_component.default_compatible_types) and 
+            (annot_display_component.display_output_format is None)
+        ):
+            raise ValueError(
+                f'{annot_display_component} only takes types {annot_display_component.default_compatible_types}. '
+                f'data annotation {annot_name} is type {data_annot.annot_value_type}. '
+                'Change app display type or set a display_output_format function.'
+            )
+        
+        self.annot_app_display_types_dict[annot_name] = annot_display_component
+        
+    
+    # DEPRECATED
     def add_review_data_annotations_app_display(self,
                                                 annot_name: str,
                                                 app_display_type: str):
@@ -310,7 +341,17 @@ class ReviewerTemplate(ABC):
                 f'This is not compatible with an input app_display_type of "{app_display_type}".'
             )
 
-        self.annot_app_display_types_dict[annot_name] = app_display_type
+        conversion = {
+            'text': TextAnnotationDisplay(),
+            'textarea': TextAreaAnnotationDisplay(),
+            'number': NumberAnnotationDisplay(),
+            'checklist': ChecklistAnnotationDisplay(),
+            'radioitem': RadioitemAnnotationDisplay(),
+            'select': SelectAnnotationDisplay()
+        }
+
+        # self.annot_app_display_types_dict[annot_name] = conversion[app_display_type]
+        self.add_annotation_display_component(annot_name, conversion[app_display_type])
         
     def add_autofill(self, autofill_button_name: str, fill_value: Union[State, str, float], annot_col: str):
         """

@@ -101,3 +101,18 @@ class DataAnnotation:
 
     def __str__(self):
         return str(self.__dict__)
+
+
+def validate_annot_data(data_annot: DataAnnotation, x):
+        
+    if (x != '') and (not pd.isna([x]).all()) and (x is not None):
+
+        if data_annot.options is not None:
+            x = x if data_annot.annot_value_type == 'multi' else [x]
+            for item in x:
+                if (item not in data_annot.options): # and (item != '') and (not pd.isna(item)) and (item is not None):
+                    raise ValueError(f'Input "{item}" is not in the specified options {data_annot.options}')
+
+        if data_annot.validate_input is not None:
+            if not data_annot.validate_input(x):
+                raise ValueError(f'Input "{x}" is invalid')
