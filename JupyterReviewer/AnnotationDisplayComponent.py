@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from .Data import DataAnnotation, valid_annotation_types
 import dash_bootstrap_components as dbc
+from dash import dcc
 
 class AnnotationDisplayComponent(ABC):
     
@@ -15,6 +16,16 @@ class AnnotationDisplayComponent(ABC):
     
     def __str__(self):
         return self.__class__.__name__
+    
+class MultiValueAnnotationDisplayComponent(AnnotationDisplayComponent):
+    
+    def __init__(self, default_display_value=None, display_output_format=None):
+        super().__init__(default_display_value=default_display_value, display_output_format=display_output_format)
+        self.default_compatible_types = ['multi']
+        
+    @abstractmethod
+    def gen_input_component(self, data_annot: DataAnnotation, component_id: str):
+        pass
     
     
 class TextAnnotationDisplay(AnnotationDisplayComponent):
@@ -39,7 +50,7 @@ class NumberAnnotationDisplay(AnnotationDisplayComponent):
     
     def __init__(self, default_display_value=None, display_output_format=None):
         super().__init__(default_display_value=default_display_value, display_output_format=display_output_format)
-        self.default_compatible_types = ['number']
+        self.default_compatible_types = ['float', 'int']
     
     def gen_input_component(self, data_annot: DataAnnotation, component_id: str):
         return dbc.Input(
@@ -48,7 +59,7 @@ class NumberAnnotationDisplay(AnnotationDisplayComponent):
             value=self.default_display_value,
         )
     
-class ChecklistAnnotationDisplay(AnnotationDisplayComponent):
+class ChecklistAnnotationDisplay(MultiValueAnnotationDisplayComponent):
     
     def gen_input_component(self, data_annot: DataAnnotation, component_id: str):
         return dbc.Checklist(
@@ -78,3 +89,16 @@ class SelectAnnotationDisplay(AnnotationDisplayComponent):
             value=self.default_display_value,
             id=component_id,
         )
+
+
+class MultiValueSelectAnnotationDisplay(MultiValueAnnotationDisplayComponent):
+    
+    def gen_input_component(self, data_annot: DataAnnotation, component_id: str):
+        
+        return dcc.Dropdown(
+            options=[{"label": f, "value": f} for f in data_annot.options],
+            multi=True,
+            id=component_id,
+            value=self.default_display_value 
+        )
+        
