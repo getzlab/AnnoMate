@@ -16,6 +16,8 @@ from typing import Union, List, Tuple
 from math import floor
 
 from .ReviewDataInterface import ReviewDataInterface
+from .Data import DataAnnotation, validate_annot_data
+from .AnnotationDisplayComponent import AnnotationDisplayComponent
 
 valid_annotation_app_display_types = ['text',
                                       'textarea',
@@ -23,7 +25,6 @@ valid_annotation_app_display_types = ['text',
                                       'checklist',
                                       'radioitem',
                                       'select']
-
 
 class AppComponent:
     
@@ -148,7 +149,14 @@ class ReviewDataApp:
 
         """
         self.more_components = OrderedDict()
-            
+        
+    def columns_to_string(self, df, columns):
+        new_df = df.copy()
+        for c in columns:
+            new_df[c] = new_df[c].astype(str)
+
+        return new_df
+        
     def run(self,
             review_data: ReviewDataInterface,
             annot_app_display_types_dict: Dict = None,
@@ -158,7 +166,8 @@ class ReviewDataApp:
             collapsable=True,
             mode='external',
             host='0.0.0.0',
-            port=8050):
+            port=8050,
+           ):
 
         """
         Run the app
@@ -201,6 +210,15 @@ class ReviewDataApp:
                                    valid literal value according to the DataAnnotation object's validation method.
 
         """
+        multi_type_columns = [c for c in annot_app_display_types_dict.keys() if review_data.data.annot_col_config_dict[c].annot_value_type == 'multi']
+        
+        def get_history_display_table(subject_index_value):
+            filtered_history_df = review_data.data.history_df.loc[
+                review_data.data.history_df['index'] == subject_index_value
+            ].loc[::-1]
+            
+            return self.columns_to_string(filtered_history_df, multi_type_columns)
+        
         
         app = JupyterDash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
         
@@ -217,8 +235,10 @@ class ReviewDataApp:
                 autofill_dict,
                 review_data_table_df=review_data_table_df,
                 review_data_table_page_size=review_data_table_page_size,
-                collapsable=collapsable
+                collapsable=collapsable,
+                multi_type_columns=multi_type_columns
             )
+        
         app.title = review_data.data_pkl_fn.split('/')[-1].split('.')[0]
         
         def validate_callback_outputs(component_output, 
@@ -279,7 +299,7 @@ class ReviewDataApp:
             
             output_dict = {'history_table': dash.no_update,
                            'annot_panel': {annot_col: dash.no_update for annot_col in
-                                           review_data.data.annot_df.columns},
+                                           annot_app_display_types_dict.keys()},
                            'dropdown_list_options': dash.no_update,
                            'dropdown_value': dash.no_update,
                            'review_data_selected_value': dash.no_update,
@@ -291,7 +311,7 @@ class ReviewDataApp:
                            }
             
             # don't load components if no index is selected from table/dropdown
-            if dropdown_value is None:
+            if (dropdown_value is None) and (len(review_data_selected_value) == 0):
                 return output_dict
 
             if (prop_id == 'APP-dropdown-data-state') or (prop_id == 'APP-review-data-table'):
@@ -325,33 +345,59 @@ class ReviewDataApp:
                         validate_callback_outputs(component_output, component, which_callback='new_data_callback')
                         output_dict['more_component_outputs'][component.name] = component_output
                 
-                history_df = review_data.data.history_df.loc[review_data.data.history_df['index'] == subject_index_value].loc[::-1]
-                output_dict['history_table'] = history_df.to_dict('records') #dbc.Table.from_dataframe(history_df)
+                history_df = get_history_display_table(subject_index_value)
+                output_dict['history_table'] = history_df.to_dict('records')
                 output_dict['history_table_selected_row_state'] = []
                 
                 if history_df.empty:
-                    output_dict['annot_panel'] = {annot_col: '' for annot_col in review_data.data.annot_df.columns}
+                    output_dict['annot_panel'] = {
+                        annot_name: annot_display_component.default_display_value if \
+                        annot_display_component.default_display_value is not None else '' \
+                        for annot_name, annot_display_component in annot_app_display_types_dict.items() 
+                    }
                 else:
-                    output_dict['annot_panel'] = review_data.data.annot_df.loc[subject_index_value].to_dict()
+                    current_annotations = review_data.data.annot_df.loc[subject_index_value, list(annot_app_display_types_dict.keys())].to_dict()
+                    for annot_name, v in current_annotations.items():
+                        if isinstance(v, list):
+                            continue
+                        
+                        if (
+                            (pd.isna(v) or (v == '') or (v is None)) and 
+                            (annot_app_display_types_dict[annot_name].default_display_value is not None)
+                        ):
+                            current_annotations[annot_name] = annot_app_display_types_dict[annot_name].default_display_value
+                        
+                    output_dict['annot_panel'] = current_annotations
                             
             elif (prop_id == 'APP-submit-button-state') & (submit_annot_button > 0):
                 for annot_name in annot_app_display_types_dict.keys():
                     annot_type = review_data.data.annot_col_config_dict[annot_name]
-                    annot_type.validate(annot_input_state[annot_name])
-                review_data._update(dropdown_value, annot_input_state)
-                output_dict['history_table'] = review_data.data.history_df.loc[review_data.data.history_df['index'] == dropdown_value].loc[::-1].to_dict('records')
+                    # Convert type
+                    if annot_app_display_types_dict[annot_name].display_output_format is not None:
+                        annot_input_state[annot_name] = annot_app_display_types_dict[annot_name].display_output_format(
+                            annot_input_state[annot_name]
+                        )
+                    
+                    validate_annot_data(annot_type, annot_input_state[annot_name])
+                    
+                new_annot_input_state = dict(annot_input_state)
+                review_data._update(dropdown_value, new_annot_input_state)
+
+                output_dict['history_table'] = get_history_display_table(dropdown_value).to_dict('records')
+                
                 reviewed_data_df.loc[dropdown_value, 'label'] = self.gen_dropdown_labels(review_data,
                                                                                          reviewed_data_df.loc[
                                                                                              dropdown_value])
                 output_dict['dropdown_list_options'] = reviewed_data_df.reset_index().to_dict('records')
 
                 if review_data_table_df is not None:
-                    tmp_review_data_table_df = pd.DataFrame.from_records(review_data_table_state)
+                    tmp_review_data_table_df = pd.DataFrame.from_records(review_data_table_state).set_index('index')
                     tmp_review_data_table_df.loc[
-                        tmp_review_data_table_df['index'] == dropdown_value,
+                        dropdown_value,
                         review_data.data.annot_df.columns
                     ] = review_data.data.annot_df.loc[dropdown_value].values
-                    output_dict['review_data_table_data'] = tmp_review_data_table_df.to_dict('records')
+                    output_dict['review_data_table_data'] = self.columns_to_string(tmp_review_data_table_df, multi_type_columns).reset_index().to_dict('records')
+                    
             elif 'APP-autofill-' in prop_id:
                 component_name = prop_id.split('APP-autofill-')[-1]
                 for autofill_annot_col, value in autofill_states[prop_id].items():
@@ -363,7 +409,8 @@ class ReviewDataApp:
             elif (prop_id == 'APP-revert-annot-button'):
                 if len(history_table_selected_row_state) > 0:
                     history_df = review_data.data.history_df.loc[review_data.data.history_df['index'] == dropdown_value].loc[::-1].reset_index()
-                    output_dict['annot_panel'] = history_df.iloc[history_table_selected_row_state[0]][review_data.data.annot_df.columns].to_dict()
+                    output_dict['annot_panel'] = history_df.iloc[history_table_selected_row_state[0]][review_data.data.annot_df.columns].fillna('').to_dict()
+                    
             elif prop_id == 'APP-clear-annot-button':
                 output_dict['annot_panel'] = {annot_col: '' for annot_col in review_data.data.annot_df.columns}
             else:
@@ -395,6 +442,7 @@ class ReviewDataApp:
                    review_data_table_df: pd.DataFrame=None,
                    review_data_table_page_size: int = 10,
                    collapsable=True,
+                   multi_type_columns=[]
                    ):
         
         review_data_title = html.Div([html.H1(review_data.data_pkl_fn.split('/')[-1].split('.')[0])])
@@ -416,7 +464,13 @@ class ReviewDataApp:
                 )
             new_review_data_table_df = review_data_table_df.copy()
             new_review_data_table_df.index.name = 'index'
-            new_review_data_table_df = pd.concat([new_review_data_table_df, review_data.data.annot_df], axis=1)
+            new_review_data_table_df = pd.concat(
+                [
+                    new_review_data_table_df, 
+                    self.columns_to_string(review_data.data.annot_df, multi_type_columns)
+                ], 
+                axis=1
+            )
             review_data_table_data = new_review_data_table_df.reset_index().to_dict('records')
             review_data_table_columns = new_review_data_table_df.reset_index().columns.tolist()
             style = {'display': 'block'}
@@ -563,7 +617,7 @@ class ReviewDataApp:
             if missing_annot_refs.any():
                 raise ValueError(
                     f'Reference to annotation columns {annot_keys[np.argwhere(missing_annot_refs).flatten()]}'
-                    f' do not existin in the Review Data Object.'
+                    f' do not exist in the Review Data Object.'
                     f'Available annotation columns are {review_data_annot_names}')
 
             # check states exist in layout
@@ -624,51 +678,20 @@ class ReviewDataApp:
                                           children='Submit', 
                                           style={"marginBottom": "15px"})
         
-        def annotation_input(annot_name, annot, annot_app_display_type):
-            
+        def annotation_display_component_input(annot_name, annot, annot_app_display_type):
             input_component_id = f"APP-{annot_name}-{annot_app_display_type}-input-state"
             
-            if annot_app_display_type == 'textarea':
-                input_component = dbc.Textarea(size="lg", 
-                                               id=input_component_id,
-                                               value=annot.default),
-            elif annot_app_display_type == 'text':
-                input_component = dbc.Input(type="text",
-                                            id=input_component_id,
-                                            placeholder=f"Enter {annot_name}",
-                                            value=annot.default,
-                                            )
-            elif annot_app_display_type == 'number':
-                input_component = dbc.Input(type="number", 
-                                            id=input_component_id, 
-                                            placeholder=f"Enter {annot_name}",
-                                            value=annot.default)
-            elif annot_app_display_type == 'checklist':
-                default = [] if annot.default is None else annot.default
-                input_component = dbc.Checklist(options=[{"label": f, "value": f} for f in annot.options],
-                                                id=input_component_id, 
-                                                value=default),
-            elif annot_app_display_type == 'radioitem':
-                input_component = dbc.RadioItems(
-                                                options=[{"label": f, "value": f} for f in annot.options],
-                                                value=annot.default,
-                                                id=input_component_id,
-                                            )
-            elif annot_app_display_type == 'select':
-                input_component = dbc.Select(
-                                            options=[{"label": f, "value": f} for f in annot.options],
-                                            value=annot.default,
-                                            id=input_component_id,
-                                            ),
-            else:
-                raise ValueError(f'Invalid annotation type "{annot.annot_type}"')
+            input_component = annot_app_display_type.gen_input_component(
+                annot, 
+                component_id=input_component_id, 
+            )
                 
             return dbc.Row([dbc.Label(annot_name, html_for=input_component_id, width=2),
                             dbc.Col(input_component)],
                            style={"margin-bottom": "15px"})
         
         panel_components = autofill_buttons + [
-            annotation_input(
+            annotation_display_component_input(
                 annot_name, review_data.data.annot_col_config_dict[annot_name], display_type
             ) for annot_name, display_type in annot_app_display_types_dict.items()
         ] + [submit_annot_button]
@@ -686,7 +709,56 @@ class ReviewDataApp:
                     annot_name, display_type in annot_app_display_types_dict.items()},
             use_name_as_title=False
         )
+    
+#     def _gen_annotation_input_DEPRECATED(self, annot_name, annot, annot_app_display_type: str, input_component_id):
         
+#         warnings.warn(f'DEPRECATION WARNING: Annot app display type is string.')
+#         if annot_app_display_type == 'textarea':
+#             input_component = dbc.Textarea(size="lg", 
+#                                            id=input_component_id,
+#                                            value=annot.default),
+#         elif annot_app_display_type == 'text':
+#             input_component = dbc.Input(type="text",
+#                                         id=input_component_id,
+#                                         placeholder=f"Enter {annot_name}",
+#                                         value=annot.default,
+#                                         )
+#         elif annot_app_display_type == 'number':
+#             input_component = dbc.Input(type="number", 
+#                                         id=input_component_id, 
+#                                         placeholder=f"Enter {annot_name}",
+#                                         value=annot.default)
+#         elif annot_app_display_type == 'checklist':
+#             default = [] if annot.default is None else annot.default
+#             if type(default) != list:
+#                 raise ValueError(f'Default for {input_component_id} must be given as a list for checklist annotations, not as a {type(default)}. Perhaps change default to [{default}]?')
+#             input_component = dbc.Checklist(options=[{"label": f, "value": f} for f in annot.options],
+#                                             id=input_component_id, 
+#                                             value=default),
+#         elif annot_app_display_type == 'radioitem':
+#             input_component = dbc.RadioItems(
+#                                             options=[{"label": f, "value": f} for f in annot.options],
+#                                             value=annot.default,
+#                                             id=input_component_id,
+#                                         )
+#         elif annot_app_display_type == 'select':
+#             if annot.default is not None:
+#                 input_component = dbc.Select(
+#                                             options=[{"label": f, "value": f} for f in annot.options],
+#                                             id=input_component_id,
+#                                             ),
+#             else:
+#                 input_component = dbc.Select(
+#                                             options=[{"label": f, "value": f} for f in annot.options],
+#                                             value=annot.default,
+#                                             id=input_component_id,
+#                                             ),
+#         else:
+#             raise ValueError(f'Invalid annotation display type "{annot_app_display_type}"')
+            
+#         return input_component
+    
+    
     def add_component(self, 
                       component: AppComponent, 
                       **kwargs):

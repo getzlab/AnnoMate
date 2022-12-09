@@ -6,7 +6,7 @@ import warnings
 import pickle
 from pathlib import Path
 from typing import List, Dict, Union
-from JupyterReviewer.Data import Data, DataAnnotation
+from JupyterReviewer.Data import Data, DataAnnotation, validate_annot_data
 
 
 class ReviewDataInterface:
@@ -73,26 +73,57 @@ class ReviewDataInterface:
         annot_col_config_dict: Dict
             A dictionary where the key is the name of the annotation (column) and the value is a DataAnnotation object
         """
-
-        new_annot_data = {annot_name: ann for annot_name, ann in annot_col_config_dict.items() if
-                          annot_name not in self.data.annot_col_config_dict.keys()}
         
-        for name, ann in new_annot_data.items():
-            if not isinstance(ann, DataAnnotation):
-                raise ValueError(f'Annotation name {ann} has invalid value {ann}. '
-                                 f'Value in dictionary must be a DataAnnotation object')
-            self.data.annot_col_config_dict[name] = ann
-
-        self.data.annot_df[list(new_annot_data.keys())] = np.nan
-        self.data.history_df[list(new_annot_data.keys())] = np.nan
+        new_annot_names = [annot_name for annot_name, ann in annot_col_config_dict.items() if annot_name not in self.data.annot_col_config_dict.keys()]
+        existing_annot_names = [annot_name for annot_name, ann in annot_col_config_dict.items() if annot_name in self.data.annot_col_config_dict.keys()]
         
-        for name, annot_data in new_annot_data.items():
-            if annot_data.annot_value_type == 'multi':
-                self.data.annot_df[name] = self.data.annot_df[name].astype(object)
-            elif annot_data.annot_value_type == 'float':
-                self.data.annot_df[name] = self.data.annot_df[name].astype(float)
-            elif annot_data.annot_value_type == 'string':
-                self.data.annot_df[name] = self.data.annot_df[name].astype(str)
+        # Check new annotations
+        new_data_annot = {annot_name: annot_col_config_dict[annot_name] for annot_name in new_annot_names}
+        for annot_name, data_annot in new_data_annot.items():
+            if not isinstance(data_annot, DataAnnotation):
+                raise ValueError(
+                    f'Annotation name {annot_name} has invalid value {data_annot} of type {type(data_annot)}. '
+                    f'Value in dictionary must be a DataAnnotation object'
+                )
+            self.data.annot_col_config_dict[annot_name] = data_annot
+            
+        # update existing annotations
+        for existing_annot_name in existing_annot_names:
+            try:
+                existing_annot_data = annot_col_config_dict[existing_annot_name]
+                    
+                for idx, r in self.data.annot_df.iterrows():
+                    validate_annot_data(annot_col_config_dict[existing_annot_name], r[existing_annot_name])
+                    
+            except ValueError as e:
+                raise ValueError(
+                    f'Existing data in annotation table (annot_df) column "{existing_annot_name}" are not compatible with new DataAnnotation configuration. '
+                    f'Original message: {e}'
+                )
+                
+            # Replace    
+            self.data.annot_col_config_dict[existing_annot_name] = annot_col_config_dict[existing_annot_name]
+            
+            
+        self.data.annot_df[list(new_data_annot.keys())] = np.nan
+        self.data.history_df[list(new_data_annot.keys())] = np.nan
+        
+        # Set types
+        try:
+            for name, data_annot in annot_col_config_dict.items():
+                if data_annot.annot_value_type == 'multi':
+                    self.data.annot_df[name] = self.data.annot_df[name].fillna('').astype(object)
+                elif data_annot.annot_value_type == 'float':
+                    self.data.annot_df[name] = self.data.annot_df[name].astype(float)
+                elif data_annot.annot_value_type == 'string':
+                    self.data.annot_df[name] = self.data.annot_df[name].fillna('').astype(str)
+        except ValueError as e:
+            raise ValueError(
+                f'Annotation "{name}" has values that are not compatible with new annot_value_type {data_annot.annot_value_type}. '
+                f'If you mean to change the datatype, consider (1) resetting the reviewer if no annotations were made already, '
+                f'or (2) create a new annotation. '
+                f'Full error: {e}'
+            )
 
         self.save_data()
         
@@ -109,12 +140,18 @@ class ReviewDataInterface:
             at data_idx
         """
         if list(self.data.annot_df.loc[data_idx, list(dictionary.keys())].values) != list(dictionary.values()):
-            self.data.annot_df.loc[data_idx, list(dictionary.keys())] = list(dictionary.values())
-            dictionary['timestamp'] = datetime.today()
-            dictionary['index'] = data_idx
-            dictionary['source_data_fn'] = self.data_pkl_fn
-            self.data.history_df = pd.concat([self.data.history_df, pd.Series(dictionary).to_frame().T])
-            self.save_data()
+            
+            with warnings.catch_warnings():
+                
+                # Catching warning where the annotation value is "multi" (a list type)
+                warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning) 
+                
+                self.data.annot_df.loc[data_idx, list(dictionary.keys())] = list(dictionary.values())
+                dictionary['timestamp'] = datetime.today()
+                dictionary['index'] = data_idx
+                dictionary['source_data_fn'] = self.data_pkl_fn
+                self.data.history_df = pd.concat([self.data.history_df, pd.Series(dictionary).to_frame().T])
+                self.save_data()
         else:
             pass
             
