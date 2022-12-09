@@ -81,8 +81,10 @@ class ReviewDataInterface:
         new_data_annot = {annot_name: annot_col_config_dict[annot_name] for annot_name in new_annot_names}
         for annot_name, data_annot in new_data_annot.items():
             if not isinstance(data_annot, DataAnnotation):
-                raise ValueError(f'Annotation name {annot_name} has invalid value {data_annot} of type {type(data_annot)}. '
-                                 f'Value in dictionary must be a DataAnnotation object')
+                raise ValueError(
+                    f'Annotation name {annot_name} has invalid value {data_annot} of type {type(data_annot)}. '
+                    f'Value in dictionary must be a DataAnnotation object'
+                )
             self.data.annot_col_config_dict[annot_name] = data_annot
             
         # update existing annotations
@@ -118,6 +120,8 @@ class ReviewDataInterface:
         except ValueError as e:
             raise ValueError(
                 f'Annotation "{name}" has values that are not compatible with new annot_value_type {data_annot.annot_value_type}. '
+                f'If you mean to change the datatype, consider (1) resetting the reviewer if no annotations were made already, '
+                f'or (2) create a new annotation. '
                 f'Full error: {e}'
             )
 

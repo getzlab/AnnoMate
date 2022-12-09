@@ -191,7 +191,7 @@ class ReviewerTemplate(ABC):
                 history_df = pd.read_csv(history_df_fn, sep='\t')
 
             data = self.gen_data(
-                description,
+                description=description,
                 annot_df=annot_df,
                 annot_col_config_dict=annot_col_config_dict,
                 history_df=history_df,
@@ -282,8 +282,6 @@ class ReviewerTemplate(ABC):
                             )
             
         data_annot = self.review_data_interface.data.annot_col_config_dict[annot_name]
-        if annot_display_component.default_display_value is not None:
-            validate_annot_data(data_annot, annot_display_component.default_display_value)
             
         if (
             (data_annot.annot_value_type not in annot_display_component.default_compatible_types) and 
@@ -294,11 +292,22 @@ class ReviewerTemplate(ABC):
                 f'data annotation {annot_name} is type {data_annot.annot_value_type}. '
                 'Change app display type or set a display_output_format function.'
             )
+            
+        if annot_display_component.default_display_value is not None:
+            validate_annot_data(data_annot, annot_display_component.default_display_value)
         
         self.annot_app_display_types_dict[annot_name] = annot_display_component
         
+    def remove_annotation_display_component(
+        self,
+        annot_name
+    ):
+        if annot_name not in self.annot_app_display_types_dict.keys():
+            raise ValueError(f"Annote name '{annot_name}' does not already have a set annotation display component. Nothing to remove.")
+        
+        removed_annot_display_component = self.annot_app_display_types_dict.pop(annot_name)
+        return removed_annot_display_component
     
-    # DEPRECATED
     def add_review_data_annotations_app_display(self,
                                                 annot_name: str,
                                                 app_display_type: str):
@@ -314,6 +323,9 @@ class ReviewerTemplate(ABC):
             Type of input display for the annotation. See ReviewDataApp.valid_annotation_app_display_types
 
         """
+        
+        warnings.warn(f'add_review_data_annotations_app_display() is deprecated. Please use add_annotation_display_component()')
+        
         if annot_name not in self.review_data_interface.data.annot_col_config_dict.keys():
             raise ValueError(f"Invalid annotation name '{annot_name}'. "
                              f"Does not exist in review data object annotation table"
@@ -353,7 +365,7 @@ class ReviewerTemplate(ABC):
         # self.annot_app_display_types_dict[annot_name] = conversion[app_display_type]
         self.add_annotation_display_component(annot_name, conversion[app_display_type])
         
-    def add_autofill(self, autofill_button_name: str, fill_value: Union[State, str, float], annot_col: str):
+    def add_autofill(self, autofill_button_name: str, fill_value: Union[State, str, float], annot_name: str):
         """
         Configures the option to use the state of a component in the ReviewDataApp to
         autofill the annotation input form.
@@ -373,14 +385,14 @@ class ReviewerTemplate(ABC):
             - str, float: Just a default value to fill if the data in the current component is used to autofill.
                 Ex. Component A computes results with one method, while Component B computes results with another.
                 You want to annotate with method you used to produce the results that fill the annotation inputs.
-        annot_col: str
+        annot_name: str
             The name of an annotation in self.review_data.data.annot_col_config_dict
 
         """
         if autofill_button_name not in self.autofill_dict.keys():
-            self.autofill_dict[autofill_button_name] = {annot_col: fill_value}
+            self.autofill_dict[autofill_button_name] = {annot_name: fill_value}
         else:
-            self.autofill_dict[autofill_button_name][annot_col] = fill_value
+            self.autofill_dict[autofill_button_name][annot_name] = fill_value
 
         # verify 
         self.app.gen_autofill_buttons_and_states(self.review_data_interface, self.autofill_dict)

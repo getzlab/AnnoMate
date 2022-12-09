@@ -70,6 +70,10 @@ class ChecklistAnnotationDisplay(MultiValueAnnotationDisplayComponent):
     
 class RadioitemAnnotationDisplay(AnnotationDisplayComponent):
     
+    def __init__(self, default_display_value=None, display_output_format=None):
+        super().__init__(default_display_value=default_display_value, display_output_format=display_output_format)
+        self.default_compatible_types = ['string']
+    
     def gen_input_component(self, data_annot: DataAnnotation, component_id: str):
         return dbc.RadioItems(
             options=[{"label": f, "value": f} for f in data_annot.options],

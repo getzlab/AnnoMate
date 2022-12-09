@@ -299,7 +299,7 @@ class ReviewDataApp:
             
             output_dict = {'history_table': dash.no_update,
                            'annot_panel': {annot_col: dash.no_update for annot_col in
-                                           review_data.data.annot_df.columns},
+                                           annot_app_display_types_dict.keys()},
                            'dropdown_list_options': dash.no_update,
                            'dropdown_value': dash.no_update,
                            'review_data_selected_value': dash.no_update,
@@ -351,18 +351,20 @@ class ReviewDataApp:
                 
                 if history_df.empty:
                     output_dict['annot_panel'] = {
-                        annot_name: review_data.data.annot_col_config_dict[annot_name].default if \
-                        review_data.data.annot_col_config_dict[annot_name].default is not None else '' \
-                        for annot_name in review_data.data.annot_df.columns
+                        annot_name: annot_display_component.default_display_value if \
+                        annot_display_component.default_display_value is not None else '' \
+                        for annot_name, annot_display_component in annot_app_display_types_dict.items() 
                     }
                 else:
-                    current_annotations = review_data.data.annot_df.loc[subject_index_value].to_dict()
+                    current_annotations = review_data.data.annot_df.loc[subject_index_value, list(annot_app_display_types_dict.keys())].to_dict()
                     for annot_name, v in current_annotations.items():
-                        
-                        if type(v) == list:
+                        if isinstance(v, list):
                             continue
                         
-                        if (pd.isna(v) or (v == '') or (v is None)) and (annot_app_display_types_dict[annot_name].default_display_value is not None):
+                        if (
+                            (pd.isna(v) or (v == '') or (v is None)) and 
+                            (annot_app_display_types_dict[annot_name].default_display_value is not None)
+                        ):
                             current_annotations[annot_name] = annot_app_display_types_dict[annot_name].default_display_value
                         
                     output_dict['annot_panel'] = current_annotations
@@ -615,7 +617,7 @@ class ReviewDataApp:
             if missing_annot_refs.any():
                 raise ValueError(
                     f'Reference to annotation columns {annot_keys[np.argwhere(missing_annot_refs).flatten()]}'
-                    f' do not existin in the Review Data Object.'
+                    f' do not exist in the Review Data Object.'
                     f'Available annotation columns are {review_data_annot_names}')
 
             # check states exist in layout
@@ -676,7 +678,7 @@ class ReviewDataApp:
                                           children='Submit', 
                                           style={"marginBottom": "15px"})
         
-        def annotation_input(annot_name, annot, annot_app_display_type):
+        def annotation_display_component_input(annot_name, annot, annot_app_display_type):
             input_component_id = f"APP-{annot_name}-{annot_app_display_type}-input-state"
             
             input_component = annot_app_display_type.gen_input_component(
@@ -689,7 +691,7 @@ class ReviewDataApp:
                            style={"margin-bottom": "15px"})
         
         panel_components = autofill_buttons + [
-            annotation_input(
+            annotation_display_component_input(
                 annot_name, review_data.data.annot_col_config_dict[annot_name], display_type
             ) for annot_name, display_type in annot_app_display_types_dict.items()
         ] + [submit_annot_button]

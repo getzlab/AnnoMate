@@ -118,9 +118,12 @@ class ExampleReviewer(ReviewerTemplate):
         return app
 
     def set_default_review_data_annotations_app_display(self):
-        self.add_review_data_annotations_app_display('Notes', 'textarea')
-        # self.add_review_data_annotations_app_display('Flag', 'radioitem')
+        self.add_annotation_display_component('Notes', TextAreaAnnotationDisplay())
         self.add_annotation_display_component('Flag', RadioitemAnnotationDisplay())
 
     def set_default_autofill(self):
-        self.add_autofill('example-autofill-button', 'Nothing to say', 'Notes')
+        self.add_autofill(
+            autofill_button_name='example-autofill-button', 
+            fill_value='Nothing to say', 
+            annot_name='Notes'
+        )
