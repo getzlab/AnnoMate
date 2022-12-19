@@ -589,19 +589,26 @@ def ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_id
     return fig, sample_list
 
 
-def gen_pmf_component(data: PatientSampleData, idx, button_clicks, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids):
+def gen_pmf_component(data: PatientSampleData, idx, button_clicks, sample_selection,
+                      group_clusters, selected_mut_ids, filtered_mut_ids):
+    # when changing participants, show all mutations at first
+    # the filtered and selected mutations input to this function are from the old (previous participant's) MutationTable
+    filtered_mut_ids = None
+    selected_mut_ids = None
+
     fig, sample_list = ccf_pmf_plot(data.participant_df, idx, None, group_clusters, selected_mut_ids, filtered_mut_ids)
 
     return [fig, sample_list, sample_list]
 
 
-def update_pmf_component(data: PatientSampleData, idx, button_clicks, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids):
-    fig, sample_list = ccf_pmf_plot(data.participant_df, idx, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids)
+def update_pmf_component(data: PatientSampleData, idx, button_clicks, sample_selection,
+                         group_clusters, selected_mut_ids, filtered_mut_ids):
+    fig, sample_list = ccf_pmf_plot(data.participant_df, idx, sample_selection,
+                                    group_clusters, selected_mut_ids, filtered_mut_ids)
 
     return [fig, sample_list, sample_selection]
 
 # ----------------------------- Phylogic Cluster Metrics -------------------------------
-
 
 def gen_cluster_metrics_component():
     return AppComponent(name='Mutation Types by Cluster',

@@ -338,7 +338,10 @@ def gen_absolute_components(
     df = data.participant_df
     samples_df = data.sample_df
 
-    filtered_mutation_rows = None  # todo why?
+    # when changing participants, show all mutations at first
+    # the filtered and selected mutations input to this function are from the old (previous participant's) MutationTable
+    filtered_mutation_rows = None
+    selected_mutation_rows = None
 
     cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, [], sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir)
     button_clicks = None
