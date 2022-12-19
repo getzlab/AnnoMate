@@ -336,17 +336,21 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
         maf_cols_value = list(set(cols) & set(maf_cols_options))
 
     hugo_symbols = maf_df['Hugo_Symbol'].unique()
+    hugo_value_in_maf = hugo if hugo is None else list(set(hugo) & set(hugo_symbols))
     variant_classifications = maf_df['Variant_Classification'].unique()
+    variant_in_maf = variant if variant is None else list(set(variant) & set(variant_classifications))
     cluster_assignments = [] if 'Cluster_Assignment' not in maf_df else maf_df['Cluster_Assignment'].unique()
+    cluster_in_maf = cluster if cluster is None else list(set(cluster) & set(cluster_assignments))
     sample_options = maf_df['Sample_ID'].unique()
 
     filtered_maf_df = maf_df.copy()
-    if hugo:
-        filtered_maf_df = filtered_maf_df[filtered_maf_df['Hugo_Symbol'].isin(hugo)]
-    if variant:
-        filtered_maf_df = filtered_maf_df[filtered_maf_df['Variant_Classification'].isin(variant)]
-    if cluster and 'Cluster_Assignment' in maf_df:
-        filtered_maf_df = filtered_maf_df[filtered_maf_df['Cluster_Assignment'].isin(cluster)]
+    # Only filter by (previous) values if they exist in current maf
+    if hugo_value_in_maf:
+        filtered_maf_df = filtered_maf_df[filtered_maf_df['Hugo_Symbol'].isin(hugo_value_in_maf)]
+    if variant_in_maf:
+        filtered_maf_df = filtered_maf_df[filtered_maf_df['Variant_Classification'].isin(variant_in_maf)]
+    if cluster_in_maf:
+        filtered_maf_df = filtered_maf_df[filtered_maf_df['Cluster_Assignment'].isin(cluster_in_maf)]
 
     filtering_expressions = filter_query.split(' && ')
     for filter_part in filtering_expressions:
