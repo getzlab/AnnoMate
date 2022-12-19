@@ -338,6 +338,7 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
     hugo_symbols = maf_df['Hugo_Symbol'].unique()
     variant_classifications = maf_df['Variant_Classification'].unique()
     cluster_assignments = [] if 'Cluster_Assignment' not in maf_df else maf_df['Cluster_Assignment'].unique()
+    sample_options = maf_df['Sample_ID'].unique()
 
     filtered_maf_df = maf_df.copy()
     if hugo:
@@ -372,23 +373,33 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
             inplace=False
         )
 
-    sample_options = filtered_maf_df['Sample_ID'].unique()
-
-    filtered_maf_df = filtered_maf_df.dropna(axis=1, how='all')
+    # if filtered dataframe is not empty, remove columns with only NaNs
+    filtered_maf_empty = filtered_maf_df.shape[0] == 0
+    if not filtered_maf_empty:
+        filtered_maf_df = filtered_maf_df.dropna(axis=1, how='all')
 
     # pull all columns that differ between samples
     # use <= so we don't accidentally catch columns that have all NaNs for certain mutations (nunique == 0)
     columns_equivalent = filtered_maf_df.groupby('id').nunique().le(1).all()
-    sample_cols = columns_equivalent[~columns_equivalent].index.tolist()
 
-    # generate participant-level (cols w/ no difference between samples) and sample-level mafs
-    participant_maf = filtered_maf_df[~filtered_maf_df.index.duplicated(keep='first')].drop(columns=sample_cols)
-    participant_maf['id'] = participant_maf.index.tolist()
+    # generate sample-level dataframe (cols that differ between samples)
+    if filtered_maf_empty:
+        sample_cols = ['Sample_ID', 't_ref_count', 't_alt_count']  # if all mutations filtered out, pull out t_ref/alt_count columns for empty sample dataframe
+        sample_maf = pd.DataFrame(columns=sample_cols)
+        sample_maf.loc[:, 'Sample_ID'] = sample_options
+        sample_maf.index.name = 'id'
+    else:
+        sample_cols = columns_equivalent[~columns_equivalent].index.tolist()
+        sample_maf = filtered_maf_df[sample_cols]
 
     # todo change to sort samples by timing
-    sample_maf = filtered_maf_df[sample_cols].reset_index().sort_values(['id', 'Sample_ID']).set_index(
+    sample_maf = sample_maf.reset_index().sort_values(['id', 'Sample_ID']).set_index(
         ['id', 'Sample_ID']).unstack(1)
     sample_maf['id'] = sample_maf.index.tolist()
+
+    # generate participant-level (cols w/ no difference between samples)
+    participant_maf = filtered_maf_df[~filtered_maf_df.index.duplicated(keep='first')].drop(columns=sample_cols)
+    participant_maf['id'] = participant_maf.index.tolist()
 
     #####
 
