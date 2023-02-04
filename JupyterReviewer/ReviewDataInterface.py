@@ -1,6 +1,7 @@
 import pandas as pd
 from datetime import datetime
 import os
+import json
 import numpy as np
 import warnings
 import pickle
@@ -73,9 +74,14 @@ class ReviewDataInterface:
         annot_col_config_dict: Dict
             A dictionary where the key is the name of the annotation (column) and the value is a DataAnnotation object
         """
-        
-        new_annot_names = [annot_name for annot_name, ann in annot_col_config_dict.items() if annot_name not in self.data.annot_col_config_dict.keys()]
-        existing_annot_names = [annot_name for annot_name, ann in annot_col_config_dict.items() if annot_name in self.data.annot_col_config_dict.keys()]
+
+        existing_annot_names = [
+            annot_name for annot_name, ann in annot_col_config_dict.items() if annot_name in self.data.annot_df.columns
+        ]
+        new_annot_names = [
+            annot_name for annot_name, ann in annot_col_config_dict.items() if annot_name not in existing_annot_names
+        ]
+
         
         # Check new annotations
         new_data_annot = {annot_name: annot_col_config_dict[annot_name] for annot_name in new_annot_names}
@@ -90,7 +96,6 @@ class ReviewDataInterface:
         # update existing annotations
         for existing_annot_name in existing_annot_names:
             try:
-                existing_annot_data = annot_col_config_dict[existing_annot_name]
                     
                 for idx, r in self.data.annot_df.iterrows():
                     validate_annot_data(annot_col_config_dict[existing_annot_name], r[existing_annot_name])
@@ -109,21 +114,21 @@ class ReviewDataInterface:
         self.data.history_df[list(new_data_annot.keys())] = np.nan
         
         # Set types
-        try:
-            for name, data_annot in annot_col_config_dict.items():
+        for name, data_annot in annot_col_config_dict.items():
+            try:
                 if data_annot.annot_value_type == 'multi':
                     self.data.annot_df[name] = self.data.annot_df[name].fillna('').astype(object)
                 elif data_annot.annot_value_type == 'float':
                     self.data.annot_df[name] = self.data.annot_df[name].astype(float)
                 elif data_annot.annot_value_type == 'string':
                     self.data.annot_df[name] = self.data.annot_df[name].fillna('').astype(str)
-        except ValueError as e:
-            raise ValueError(
-                f'Annotation "{name}" has values that are not compatible with new annot_value_type {data_annot.annot_value_type}. '
-                f'If you mean to change the datatype, consider (1) resetting the reviewer if no annotations were made already, '
-                f'or (2) create a new annotation. '
-                f'Full error: {e}'
-            )
+            except ValueError as e:
+                raise ValueError(
+                    f'Annotation "{name}" has values that are not compatible with new annot_value_type {data_annot.annot_value_type}. '
+                    f'If you mean to change the datatype, consider (1) resetting the reviewer if no annotations were made already, '
+                    f'or (2) create a new annotation. '
+                    f'Full error: {e}'
+                )
 
         self.save_data()
         

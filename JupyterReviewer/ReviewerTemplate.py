@@ -187,8 +187,8 @@ class ReviewerTemplate(ABC):
                 print("Loading data from previous review with exported files")
                 annot_df_fn = f'{load_existing_exported_data_dir}/annot_df.tsv'
                 history_df_fn = f'{load_existing_exported_data_dir}/history_df.tsv'
-                annot_df = pd.read_csv(annot_df_fn, sep='\t')
-                history_df = pd.read_csv(history_df_fn, sep='\t')
+                annot_df = pd.read_csv(annot_df_fn, sep='\t', index_col=0)
+                history_df = pd.read_csv(history_df_fn, sep='\t', index_col=0)
 
             data = self.gen_data(
                 description=description,
