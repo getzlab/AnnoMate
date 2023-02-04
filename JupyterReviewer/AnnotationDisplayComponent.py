@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from .Data import DataAnnotation, valid_annotation_types
 import dash_bootstrap_components as dbc
 from dash import dcc
+import numpy as np
+from typing import List
 
 class AnnotationDisplayComponent(ABC):
     
@@ -47,10 +49,13 @@ class TextAreaAnnotationDisplay(AnnotationDisplayComponent):
         )
     
 class NumberAnnotationDisplay(AnnotationDisplayComponent):
-    
-    def __init__(self, default_display_value=None, display_output_format=None):
+    def __init__(self, default_display_value=None, display_output_format=None, empty_values: List =None):
         super().__init__(default_display_value=default_display_value, display_output_format=display_output_format)
         self.default_compatible_types = ['float', 'int']
+
+        self.empty_values = ['', None, 'None', 'NaN'] if empty_values is None else empty_values
+        if self.display_output_format is None:
+            self.display_output_format = lambda x: np.nan if x in self.empty_values else x
     
     def gen_input_component(self, data_annot: DataAnnotation, component_id: str):
         return dbc.Input(
