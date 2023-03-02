@@ -159,7 +159,7 @@ class ReviewDataInterface:
         else:
             pass
             
-    def export_data(self, path: Union[str, Path]):
+    def export_data(self, path: Union[str, Path], attributes_to_export: List = None, verbose=True):
         """
         Export tables in self.data to tsv files in specified directory
 
@@ -167,9 +167,16 @@ class ReviewDataInterface:
         ----------
         path: Union[str, Path]
             local or gsurl path to directory to save object's dataframe objects
+        attributes_to_export: List
+            Specify which attributes to export
         """
+        attributes_to_export = self.data.__dict__.keys() if attributes_to_export is None else attributes_to_export 
 
-        for attribute_name in self.data.__dict__:
+        for attribute_name in attributes_to_export:
             x = getattr(self.data, attribute_name)
             if isinstance(x, pd.DataFrame):
-                x.to_csv(f'{path}/{attribute_name}.tsv', sep='\t')
+                fn = f'{path}/{attribute_name}.tsv'
+                if verbose: print(f'Saving {attribute_name} to {fn}')
+                x.to_csv(fn, sep='\t')
+            else:
+                if verbose: print(f'{attribute_name} is not a dataframe. Not exporting.')
