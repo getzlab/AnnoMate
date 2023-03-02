@@ -6,12 +6,14 @@ import pandas as pd
 import os
 from dash.dependencies import State
 from typing import Union, Dict, List
+from pathlib import Path
 from abc import ABC, abstractmethod
 import pathlib
 import pickle
 import inspect
 import traceback
 import warnings
+from datetime import date
 
 
 def make_docstring(object_type_name, func1_doc, func2):
@@ -439,3 +441,29 @@ class ReviewerTemplate(ABC):
 
     def get_history(self):
         return self.get_data_attribute('history_df')
+    
+    def export_data(self, path: Union[str, Path], export_by_day=False, dry_run=True):
+        """
+        Export annotation and history tables to tsv files
+        
+        Parameters
+        ----------
+        path: str, Path
+            Path to directory to export files. ie /path/to/export_files
+        export_by_day: bool
+            Optionally add a date to the end of the directory. 
+            Currently set to using the day so each day a different directory will be used
+        dry_run: bool
+        """
+        export_dir = f'{path}/{date.today()}' if export_by_day else path
+        if not os.path.isdir(export_dir):
+            print(f'Making new directory {export_dir}')
+            os.mkdir(export_dir)
+        else:
+            print(f'Directory {export_dir} already exists')
+            
+        if not dry_run:
+            self.review_data_interface.export_data(export_dir)
+            print(f"Exported to {export_dir}")
+        else:
+            print(f"Export directory will be {export_dir}. Nothing exported yet.")
