@@ -405,7 +405,9 @@ class ReviewerTemplate(ABC):
             collapsable=True,
             mode='external', 
             host='0.0.0.0', 
-            port=8050):
+            port=8050,
+            **kwargs
+           ):
         """
         Runs the app
 
@@ -428,7 +430,9 @@ class ReviewerTemplate(ABC):
                      collapsable=collapsable,
                      mode=mode,
                      host=host,
-                     port=port)
+                     port=port,
+                     **kwargs
+                    )
 
     def get_data_attribute(self, attribute: str):
         return getattr(self.review_data_interface.data, attribute)
@@ -442,7 +446,7 @@ class ReviewerTemplate(ABC):
     def get_history(self):
         return self.get_data_attribute('history_df')
     
-    def export_data(self, path: Union[str, Path], export_by_day=False, dry_run=True):
+    def export_data(self, path: Union[str, Path], export_by_day=False, dry_run=True, **kwargs):
         """
         Export annotation and history tables to tsv files
         
@@ -460,10 +464,10 @@ class ReviewerTemplate(ABC):
             print(f'Making new directory {export_dir}')
             os.mkdir(export_dir)
         else:
-            print(f'Directory {export_dir} already exists')
+            warnings.warn(f'Directory {export_dir} already exists')
             
         if not dry_run:
-            self.review_data_interface.export_data(export_dir)
+            self.review_data_interface.export_data(export_dir, **kwargs)
             print(f"Exported to {export_dir}")
         else:
             print(f"Export directory will be {export_dir}. Nothing exported yet.")
