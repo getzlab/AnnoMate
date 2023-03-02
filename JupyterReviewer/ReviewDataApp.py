@@ -14,6 +14,8 @@ import copy
 import warnings
 from typing import Union, List, Tuple
 from math import floor
+from pathlib import Path
+import os
 
 from .ReviewDataInterface import ReviewDataInterface
 from .Data import DataAnnotation, validate_annot_data
@@ -164,6 +166,9 @@ class ReviewDataApp:
             review_data_table_df: pd.DataFrame = None,
             review_data_table_page_size: int = 10,
             collapsable=True,
+            auto_export: bool = True,
+            auto_export_path: Union[Path, str] = None, 
+            attributes_to_export: List = ['annot_df', 'history_df'],
             mode='external',
             host='0.0.0.0',
             port=8050,
@@ -208,7 +213,15 @@ class ReviewDataApp:
                                    annot_col_config_dict
                 - autofill values: State()'s referring to objects in the component named component name, or a 
                                    valid literal value according to the DataAnnotation object's validation method.
-
+                                   
+        auto_export: bool, default=False
+            Whether to auto export on save to path set by argument auto_export_path
+            
+        auto_export_path: Union[Path, str]
+            Path to export data if argument auto_export=True
+            
+        attributes_to_export: List
+            List of attributes from the data object to automatically export
         """
         multi_type_columns = [c for c in annot_app_display_types_dict.keys() if review_data.data.annot_col_config_dict[c].annot_value_type == 'multi']
         
@@ -240,6 +253,16 @@ class ReviewDataApp:
             )
         
         app.title = review_data.data_pkl_fn.split('/')[-1].split('.')[0]
+        
+        if auto_export:
+            if auto_export_path is None:
+                auto_export_path = f"{review_data.data_pkl_fn.rsplit('.', 1)[0]}.auto_export"
+                print(f'Setting auto_export_path to {auto_export_path}')
+            if not os.path.exists(auto_export_path):
+                print(f'Making directory {auto_export_path} for auto exporting.')
+                os.mkdir(auto_export_path)
+            
+            print(f'Using {auto_export_path} for auto exporting.')
         
         def validate_callback_outputs(component_output, 
                                       component, 
@@ -382,6 +405,9 @@ class ReviewDataApp:
                     
                 new_annot_input_state = dict(annot_input_state)
                 review_data._update(dropdown_value, new_annot_input_state)
+                
+                if auto_export:
+                    review_data.export_data(auto_export_path, attributes_to_export=attributes_to_export, verbose=False)
 
                 output_dict['history_table'] = get_history_display_table(dropdown_value).to_dict('records')
                 
