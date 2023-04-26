@@ -15,53 +15,75 @@ Select a purity reviewer you want to use and follow their installation instructi
 - [PurityReviewers](https://github.com/getzlab/PurityReviewers)
 - More to come!
 
+**Set up Conda Environment**
 
-**Pip Install**
+This is _highly_ recommended to manage different dependencies required by different reviewers.
 
-`pip install JupyterReviewer`
+1. Install conda
 
-**Git**
+Credit to Raymond Chu this article: https://medium.com/google-cloud/set-up-anaconda-under-google-cloud-vm-on-windows-f71fc1064bd7
 
-1. Download the repository: `git clone git@github.com:getzlab/JupyterReviewer.git` 
-1. `cd JupyterReviewer`
-1. Create an environment: `conda create --name <my-env> --file requirements.txt`
-1. Install package: `pip install -e .`
+```
+sudo apt-get update
+sudo apt-get install bzip2 libxml2-dev
 
-### Start reviewing
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+rm Miniconda3-latest-Linux-x86_64.sh
+source .bashrc
+conda install scikit-learn pandas jupyter ipython
+```
 
-1. Open or create a new jupyter notebook
-1. Pick a reviewer (see `JupyterReviewer.Reviewers`)
-   ```
-   from JupyterReviewer.Reviewers import ExampleReviewer
-   ```
-1. Instantiate the reviewer
-   ```
-   my_example_reviewer = ExampleReviewer()
-   ```
-1. Set the review data*
-   ```
-   my_example_reviewer.set_review_data(...)
-   ```
-1. Set the app*
-   ```
-   my_example_reviewer.set_review_app(...)
-   ```
-1. Set default annotation configurations
-   ```
-   my_example_reviewer.set_default_review_data_annotations_configuration(...)
-   ```
-1. Set default autofill configurations
-   ```
-   my_example_reviewer.set_default_autofill(...)
-   ```
-1. Run the reviewer!
-   ```
-   my_example_reviewer.run()
-   ```
+2. Create a conda environment
 
-*In jupyter notebook, place the cursor at the end of the function call and press `Shift+Tab` to view the docstring.
+If you do not already have a designated environment: 
+```
+conda create --name <your_env> python==<py_version>
+```
+
+`<your_env>` is the name of your environment (ie purity_review_env). Check the corresponding reviewer's `setup.py` file to get the proper python version for `py_version`.
+
+3. Add conda environment to ipykernel 
+
+Credit to Nihal Sangeeth from StackOverflow: https://stackoverflow.com/questions/53004311/how-to-add-conda-environment-to-jupyter-lab.
+
+```
+conda activate <your_env>
+conda install ipykernel
+ipython kernel install --user --name=<your_env>
+conda deactivate
+```
+
+When you open a jupyter notebook, you can change the environment the notebook cells are run in to `<your_env>`
+
+
+**Install JupyterReviewer with pip**
+
+If you are developing a brand new reviewer, you can install from PyPi
+
+```
+conda activate <your_env>
+pip install JupyterReviewer
+```
+
+If installing a prebuilt reviewer, check its corresponding installation instructions.
+
+**Install with Git**
+
+JupyterReviewer and Most prebuilt reviewers can be downloaded with git. 
+
+```
+git clone git@github.com:getzlab/JupyterReviewer.git
+cd JupyterReviewer
+conda activate <your_env> --file requirements.txt
+pip install -e .
+```
+
+### Tutorials and Documentation
 
 See a more detailed tutorial in `example_notebooks/Intro_to_Reviewers.ipynb`
+
+For developers, see `example_notebooks/Developer_Jupyter_Reviewer_Tutorial.ipynb`
 
 ## Why Jupyter Reviewer
 ### Why and how we review data
