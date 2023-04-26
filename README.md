@@ -4,60 +4,54 @@ A package for using and creating interactive dashboards for manual review.
 
 ![Purity Jupyter Reviewer](https://github.com/getzlab/JupyterReviewer/blob/master/images/ezgif.com-gif-maker.gif)
 
-## Quick Start
+# Quick Start
 
-### Install
+## Install
 
-**Reviewer Suites**
-
-Select a purity reviewer you want to use and follow their installation instructions. List of existing reviewer suites:
-
-- [PurityReviewers](https://github.com/getzlab/PurityReviewers)
-- More to come!
-
-**Set up Conda Environment**
+### Set up Conda Environment
 
 This is _highly_ recommended to manage different dependencies required by different reviewers.
 
 1. Install conda
 
-Credit to Raymond Chu this article: https://medium.com/google-cloud/set-up-anaconda-under-google-cloud-vm-on-windows-f71fc1064bd7
+    Credit to Raymond Chu this article: https://medium.com/google-cloud/set-up-anaconda-under-google-cloud-vm-on-windows-f71fc1064bd7
 
-```
-sudo apt-get update
-sudo apt-get install bzip2 libxml2-dev
+    ```
+    sudo apt-get update
+    sudo apt-get install bzip2 libxml2-dev
 
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-bash Miniconda3-latest-Linux-x86_64.sh
-rm Miniconda3-latest-Linux-x86_64.sh
-source .bashrc
-conda install scikit-learn pandas jupyter ipython
-```
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    bash Miniconda3-latest-Linux-x86_64.sh
+    rm Miniconda3-latest-Linux-x86_64.sh
+    source .bashrc
+    conda install scikit-learn pandas jupyter ipython
+    ```
 
 2. Create a conda environment
 
-If you do not already have a designated environment: 
-```
-conda create --name <your_env> python==<py_version>
-```
+    If you do not already have a designated environment: 
+    
+    ```
+    conda create --name <your_env> python==<py_version>
+    ```
 
-`<your_env>` is the name of your environment (ie purity_review_env). Check the corresponding reviewer's `setup.py` file to get the proper python version for `py_version`.
+    `<your_env>` is the name of your environment (ie purity_review_env). Check the corresponding reviewer's `setup.py` file to get the proper python version for `py_version`.
 
 3. Add conda environment to ipykernel 
 
-Credit to Nihal Sangeeth from StackOverflow: https://stackoverflow.com/questions/53004311/how-to-add-conda-environment-to-jupyter-lab.
+    Credit to Nihal Sangeeth from StackOverflow: https://stackoverflow.com/questions/53004311/how-to-add-conda-environment-to-jupyter-lab.
 
-```
-conda activate <your_env>
-conda install ipykernel
-ipython kernel install --user --name=<your_env>
-conda deactivate
-```
+    ```
+    conda activate <your_env>
+    conda install ipykernel
+    ipython kernel install --user --name=<your_env>
+    conda deactivate
+    ```
 
-When you open a jupyter notebook, you can change the environment the notebook cells are run in to `<your_env>`
+    When you open a jupyter notebook, you can change the environment the notebook cells are run in to `<your_env>`
 
 
-**Install JupyterReviewer with pip**
+### Install JupyterReviewer with pip
 
 If you are developing a brand new reviewer, you can install from PyPi
 
@@ -66,9 +60,7 @@ conda activate <your_env>
 pip install JupyterReviewer
 ```
 
-If installing a prebuilt reviewer, check its corresponding installation instructions.
-
-**Install with Git**
+### Install with Git
 
 JupyterReviewer and Most prebuilt reviewers can be downloaded with git. 
 
