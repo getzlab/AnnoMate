@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="JupyterReviewer",
-    version="0.0.6",
+    version="0.0.7",
     author="Claudia Chu",
     author_email="cchu@broadinstitute.org",
     description="A general tool to create dashboards for manual review",
@@ -45,7 +45,7 @@ setuptools.setup(
                         'plotly',
                         'scipy',
                         'setuptools',
-
+                        'frozendict',
                         # fixes jupyter-dash bug when repeat calls to run_server hangs
                         # see: https://github.com/plotly/jupyter-dash/issues/103
                         'flask<=2.2.1',

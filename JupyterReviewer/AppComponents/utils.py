@@ -1,5 +1,11 @@
+import pandas as pd
+import frozendict
+import functools
+
+
 def get_hex_string(c):
     return '#{:02X}{:02X}{:02X}'.format(*c)
+
 
 def cluster_color(v=None):
     phylogic_color_list = [[166, 17, 129],
@@ -81,3 +87,32 @@ def get_unique_identifier(row, chrom='Chromosome', start_pos='Start_position',
     :param alt: the name of the alternate allele column/field; default: Tumor_Seq_Allele
     """
     return f"{row[chrom]}:{row[start_pos]}{row[ref]}>{row[alt]}"
+
+
+@functools.lru_cache(maxsize=32)
+def cached_read_csv(fn, **kwargs):
+    """Convenience method: Pandas read_csv with a cache already implemented.
+
+    Maxsize is set to 32 by default. At most, 32 function calls will be stored in memory.
+
+    :param fn: filename/path
+    :param kwargs: additional arguments to be passed to pandas.read_csv
+    :return: pandas.DataFrame from given filename
+    """
+    return pd.read_csv(fn, **kwargs)
+
+
+def freezeargs(func):
+    """Transform mutable dictionary into immutable and lists into tuples
+
+    Useful to be compatible with cache. Use: decorate functions (@freezeargs) that are decorated with a
+    functools cache but have mutable inputs.
+
+    :param func: function that is being wrapped
+    """
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+        args = tuple([frozendict(arg) if isinstance(arg, dict) else (tuple(arg) if isinstance(arg, list) else arg) for arg in args])
+        kwargs = {k: frozendict(v) if isinstance(v, dict) else (tuple(v) if isinstance(v, list) else v) for k, v in kwargs.items()}
+        return func(*args, **kwargs)
+    return wrapped
