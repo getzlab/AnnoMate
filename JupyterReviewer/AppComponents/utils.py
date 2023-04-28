@@ -1,5 +1,5 @@
 import pandas as pd
-import frozendict
+from frozendict import frozendict as fdict
 import functools
 
 
@@ -112,7 +112,7 @@ def freezeargs(func):
     """
     @functools.wraps(func)
     def wrapped(*args, **kwargs):
-        args = tuple([frozendict(arg) if isinstance(arg, dict) else (tuple(arg) if isinstance(arg, list) else arg) for arg in args])
-        kwargs = {k: frozendict(v) if isinstance(v, dict) else (tuple(v) if isinstance(v, list) else v) for k, v in kwargs.items()}
+        args = tuple([fdict(arg) if isinstance(arg, dict) else (tuple(arg) if isinstance(arg, list) else arg) for arg in args])
+        kwargs = {k: fdict(v) if isinstance(v, dict) else (tuple(v) if isinstance(v, list) else v) for k, v in kwargs.items()}
         return func(*args, **kwargs)
     return wrapped
