@@ -1,0 +1,32 @@
+	Repo	Type	Name	Description	url
+0	getzlab/PurityReviewers	Repository	getzlab/PurityReviewers	Suite of purity reviewers and review components	https://github.com/getzlab/PurityReviewers
+1	getzlab/PurityReviewers	AppComponent	AppComponents		https://github.com/getzlab/PurityReviewers/blob/master/PurityReviewers/AppComponents
+2	getzlab/PurityReviewers	AppComponent	AbsoluteCustomSolutionComponent		https://github.com/getzlab/PurityReviewers/blob/master/PurityReviewers/AppComponents/AbsoluteCustomSolutionComponent.py
+3	getzlab/PurityReviewers	AppComponent	AbsoluteSolutionsReportComponent		https://github.com/getzlab/PurityReviewers/blob/master/PurityReviewers/AppComponents/AbsoluteSolutionsReportComponent.py
+4	getzlab/PurityReviewers	AppComponent	utils		https://github.com/getzlab/PurityReviewers/blob/master/PurityReviewers/AppComponents/utils.py
+5	getzlab/PurityReviewers	Reviewer	Reviewers		https://github.com/getzlab/PurityReviewers/blob/master/PurityReviewers/Reviewers
+6	getzlab/PurityReviewers	Reviewer	ManualPurityReviewer		https://github.com/getzlab/PurityReviewers/blob/master/PurityReviewers/Reviewers/ManualPurityReviewer.py
+7	getzlab/PurityReviewers	Reviewer	MatchedPurityReviewer		https://github.com/getzlab/PurityReviewers/blob/master/PurityReviewers/Reviewers/MatchedPurityReviewer.py
+8	getzlab/PatientReviewer	Repository	getzlab/PatientReviewer	Explore integrated data on the patient level interactively in a Dash App, powered by JupyterReviewer	https://github.com/getzlab/PatientReviewer
+9	getzlab/PatientReviewer	AppComponent	AppComponents		https://github.com/getzlab/PatientReviewer/blob/master/PatientReviewer/AppComponents
+10	getzlab/PatientReviewer	AppComponent	PatientReviewerLayout		https://github.com/getzlab/PatientReviewer/blob/master/PatientReviewer/AppComponents/PatientReviewerLayout.py
+11	getzlab/PatientReviewer	AppComponent	ReviewerLayout		https://github.com/getzlab/PatientReviewer/blob/master/PatientReviewer/AppComponents/ReviewerLayout.py
+12	getzlab/PatientReviewer	AppComponent	__init__		https://github.com/getzlab/PatientReviewer/blob/master/PatientReviewer/AppComponents/__init__.py
+13	getzlab/PatientReviewer	Reviewer	Reviewers		https://github.com/getzlab/PatientReviewer/blob/master/PatientReviewer/Reviewers
+14	getzlab/PatientReviewer	Reviewer	PatientReviewer		https://github.com/getzlab/PatientReviewer/blob/master/PatientReviewer/Reviewers/PatientReviewer.py
+15	getzlab/MutationReviewer	Repository	getzlab/MutationReviewer		https://github.com/getzlab/MutationReviewer
+16	getzlab/MutationReviewer	AppComponent	AppComponents		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents
+17	getzlab/MutationReviewer	AppComponent	BamTableComponent		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/BamTableComponent.py
+18	getzlab/MutationReviewer	AppComponent	IGVJSComponent		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/IGVJSComponent.py
+19	getzlab/MutationReviewer	AppComponent	IGVLocalComponent		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/IGVLocalComponent.py
+20	getzlab/MutationReviewer	AppComponent	MutationTableComponent		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/MutationTableComponent.py
+21	getzlab/MutationReviewer	AppComponent	utils		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/utils.py
+22	getzlab/MutationReviewer	Reviewer	Reviewers		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/Reviewers
+23	getzlab/MutationReviewer	Reviewer	DeprecatedMutationReviewer		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/Reviewers/DeprecatedMutationReviewer.py
+24	getzlab/MutationReviewer	Reviewer	GeneralMutationReviewer		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/Reviewers/GeneralMutationReviewer.py
+25	getzlab/PhylogicReviewer	Repository	getzlab/PhylogicReviewer	Interactive app to review Phylogic solutions and data.	https://github.com/getzlab/PhylogicReviewer
+26	getzlab/PhylogicReviewer	AppComponent	AppComponents		https://github.com/getzlab/PhylogicReviewer/blob/master/PhylogicReviewer/AppComponents
+27	getzlab/PhylogicReviewer	AppComponent	__init__		https://github.com/getzlab/PhylogicReviewer/blob/master/PhylogicReviewer/AppComponents/__init__.py
+28	getzlab/PhylogicReviewer	Reviewer	Reviewers		https://github.com/getzlab/PhylogicReviewer/blob/master/PhylogicReviewer/Reviewers
+29	getzlab/PhylogicReviewer	Reviewer	PhylogicReviewer		https://github.com/getzlab/PhylogicReviewer/blob/master/PhylogicReviewer/Reviewers/PhylogicReviewer.py
+30	getzlab/PhylogicReviewer	Reviewer	__init__		https://github.com/getzlab/PhylogicReviewer/blob/master/PhylogicReviewer/Reviewers/__init__.py
