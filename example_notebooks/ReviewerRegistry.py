@@ -3,6 +3,7 @@ import requests
 
 
 registered_reviewer_repos = [
+    'https://github.com/getzlab/JupyterReviewer',
     'https://github.com/getzlab/PurityReviewers', 
     'https://github.com/getzlab/PatientReviewer',
     'https://github.com/getzlab/MutationReviewer',
@@ -42,7 +43,7 @@ def gen_reviewer_registry():
                 repo_data_df.loc[i] = {'Repo': repo_name, 'Type': 'AppComponent', 'Name': filename, 'Description': '', 'url': url}
                 i += 1
     
-    repo_data_df.to_csv(repo_data_fn, sep='\t')
+    repo_data_df.to_csv(registry_fn, sep='\t')
 
 def make_clickable(val):
     # target _blank to open new window
