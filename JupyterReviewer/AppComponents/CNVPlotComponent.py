@@ -14,13 +14,14 @@ import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 from scipy.stats import beta
 import pickle
+import functools
 
 from JupyterReviewer.ReviewDataApp import AppComponent
-from JupyterReviewer.AppComponents.utils import cluster_color, get_unique_identifier
+from JupyterReviewer.DataTypes.PatientSampleData import PatientSampleData
+from JupyterReviewer.AppComponents.utils import cluster_color, get_unique_identifier, freezeargs, cached_read_csv
 
 from cnv_suite.visualize import plot_acr_subplots, update_cnv_color_absolute, update_cnv_scatter_sigma_toggle, plot_acr_interactive
 from cnv_suite.utils import calc_cn_levels, apply_segment_data_to_df, get_segment_interval_trees, switch_contigs
-from JupyterReviewer.DataTypes.PatientSampleData import PatientSampleData
 
 
 def gen_cnv_plot_app_component():
@@ -167,45 +168,95 @@ def gen_mut_scatter(maf_df, mut_sigma, sample):
 
     return mut_scatter
 
+@freezeargs
+@functools.lru_cache(maxsize=32)
+def gen_seg_figure(cnv_seg_fn, csize, purity=None, ploidy=None):
+    """Generate a CNV Plot from given seg file, purity, and ploidy
 
-def gen_preloaded_cnv_plot(participant_df, participant_id, samples_df, output_dir):
+    Parameters
+    ----------
+    cnv_seg_fn: str
+        Filename for sample seg file
+    csize: dict
+        Dictionary with contig sizes
+    purity: float
+        Tumor purity for this sample (optional)
+    ploidy: float
+        Tumor ploidy for this sample (optional)
+
+    Returns
+    -------
+    (cnv_plot, cnv_seg_df_mod, start_trace, end_trace): (plotly.Figure, pd.DataFrame, int, int)
+    """
+    cnv_seg_df = cached_read_csv(cnv_seg_fn, sep='\t')
+    cnv_plot, cnv_seg_df_mod, start_trace, end_trace = plot_acr_interactive(cnv_seg_df, csize,
+                                                                            purity=purity, ploidy=ploidy)
+
+    return cnv_plot, cnv_seg_df_mod, start_trace, end_trace
+
+
+@freezeargs
+@functools.lru_cache(maxsize=16)
+def gen_participant_cnv_and_maf(cnv_seg_filenames, maf_fn, sample_names, csize, purity_dict, ploidy_dict):
     """Generate a CNV Plot to be stored in a pickle file
 
     Parameters
     ----------
-    participant_df: pd.DataFrame
-        Participant level DataFrame
-    participant_id: str
-        name of the participant
-    samples_df: pd.DataFrame
-        Sample level DataFrame
-    output_dir: str
-        Directory in which to save pre-computed pickle files
+    cnv_seg_filenames: list
+        List of filenames for the sample cnv seg files
+    maf_fn: str
+        Filename for the participant maf file
+    sample_names: list
+        List of sample names for this participant
+    csize: dict
+        Dictionary with contig sizes
+    purity_dict: dict
+        Dictionary with purity values for this participant, keys given by sample_id
+    ploidy_dict: dict
+        Dictionary with ploidy values for this participant, keys given by sample_id
 
     Returns
     -------
+    (participant_maf_df, cnv_plot_dict, cnv_seg_dict, trace_dict): (pd.DataFrame, dict, dict, dict)
     """
-    sample_id_list = []
-    cnv_seg_list = []
-    sample_cnv_series = pd.Series()
-    for sample_id in samples_df[samples_df['participant_id'] == participant_id].index:
-        cnv_seg_df = pd.read_csv(samples_df.loc[sample_id, 'cnv_seg_fn'], sep='\t')
-        cnv_plot, cnv_seg_df_mod, start_trace, end_trace = plot_acr_interactive(cnv_seg_df, csize, purity=samples_df.loc[sample_id, 'wxs_purity'], ploidy=samples_df.loc[sample_id, 'wxs_ploidy'])
+    cnv_seg_dict = {}
+    cnv_plot_dict = {}
+    trace_dict = {}
+    for cnv_seg_fn, sample in zip(cnv_seg_filenames, sample_names):
+        purity = purity_dict[sample]
+        ploidy = ploidy_dict[sample]
+        cnv_plot, cnv_seg_df_mod, start_trace, end_trace = gen_seg_figure(cnv_seg_fn, csize, purity=purity, ploidy=ploidy)
+        cnv_seg_df_mod['Sample_ID'] = sample
+        cnv_seg_dict[sample] = cnv_seg_df_mod
+        cnv_plot_dict[sample] = cnv_plot
+        trace_dict[sample] = (start_trace, end_trace)
 
-        output_fn = f'{output_dir}/cnv_figs/{sample_id}.cnv_fig.pkl'
-        pickle.dump([cnv_plot, cnv_seg_df_mod, start_trace, end_trace], open(output_fn, 'wb'))
-        sample_id_list.append(sample_id)
-        cnv_seg_list.append(cnv_seg_df_mod)
-        sample_cnv_series.loc[sample_id] = output_fn
+    seg_trees = get_segment_interval_trees(pd.concat(cnv_seg_dict.values()))
+    participant_maf_df = gen_maf(maf_fn, purity_dict, ploidy_dict, seg_trees)
 
-    participant_maf_series = gen_preloaded_maf(participant_df, participant_id, samples_df, cnv_seg_list, sample_id_list,
-                                               output_dir)
-
-    return sample_cnv_series, participant_maf_series
+    return participant_maf_df, cnv_plot_dict, cnv_seg_dict, trace_dict
 
 
-def gen_preloaded_maf(participant_df, participant_id, sample_df, cnv_segs, sample_ids, output_dir):
-    maf_df = pd.read_csv(participant_df.loc[participant_id, 'maf_fn'], sep='\t')
+def gen_maf(maf_fn, purity_dict, ploidy_dict, seg_trees):
+    """
+
+    Parameters
+    ----------
+    maf_fn: str
+        Filename for the participant maf file
+    purity_dict: dict
+        Dictionary with purity values for this participant, keys given by sample_id
+    ploidy_dict: dict
+        Dictionary with ploidy values for this participant, keys given by sample_id
+    seg_trees: list of IntervalTrees
+        IntervalTree for each contig with copy number data
+
+    Returns
+    -------
+    maf_df: pd.DataFrame
+        Modified maf for this participant, including copy number data and additional annotations
+    """
+    maf_df = cached_read_csv(maf_fn, sep='\t')
     start_pos = maf_df.columns[maf_df.columns.isin(['Start_position', 'Start_Position'])][0]
     alt = maf_df.columns[maf_df.columns.isin(['Tumor_Seq_Allele2', 'Tumor_Seq_Allele'])][0]
     sample_id_col = maf_df.columns[maf_df.columns.isin(['Tumor_Sample_Barcode', 'Sample_ID', 'sample_id', 'Sample_id'])][0]
@@ -216,21 +267,15 @@ def gen_preloaded_maf(participant_df, participant_id, sample_df, cnv_segs, sampl
     # .replace giving: Series.replace cannot use dict-like to_replace and non-None value ?? todo
     maf_df['Chromosome'] = maf_df['Chromosome'].apply(lambda x: '23' if x == 'X' else '24' if x == 'Y' else x)
 
-    for i, seg_df in enumerate(cnv_segs):
-        seg_df['Sample_ID'] = sample_ids[i]
-
-    seg_trees = get_segment_interval_trees(pd.concat(cnv_segs))
     maf_df = apply_segment_data_to_df(maf_df, seg_trees)
     maf_df.set_index('id', inplace=True, drop=False)
 
-    purity = sample_df['wxs_purity'].astype(float).to_dict()
-    ploidy = sample_df['wxs_ploidy'].astype(float).to_dict()
-    c_values = [calc_cn_levels(pur, plo) for pur, plo in zip(purity.values(), ploidy.values())]
-    c_0 = {sample: c[0] for sample, c in zip(purity.keys(), c_values)}
-    c_delta = {sample: c[1] for sample, c in zip(purity.keys(), c_values)}
+    c_values = [calc_cn_levels(pur, plo) for pur, plo in zip(purity_dict.values(), ploidy_dict.values())]
+    c_0 = {sample: c[0] for sample, c in zip(purity_dict.keys(), c_values)}
+    c_delta = {sample: c[1] for sample, c in zip(purity_dict.keys(), c_values)}
 
-    maf_df['purity'] = maf_df['Sample_ID'].replace(purity)
-    maf_df['ploidy'] = maf_df['Sample_ID'].replace(ploidy)
+    maf_df['purity'] = maf_df['Sample_ID'].replace(purity_dict)
+    maf_df['ploidy'] = maf_df['Sample_ID'].replace(ploidy_dict)
     maf_df['c_0'] = maf_df['Sample_ID'].replace(c_0)
     maf_df['c_delta'] = maf_df['Sample_ID'].replace(c_delta)
 
@@ -252,10 +297,7 @@ def gen_preloaded_maf(participant_df, participant_id, sample_df, cnv_segs, sampl
     maf_df['error_bottom'] = maf_df.apply(
         lambda x: -1 * calculate_error(x.t_alt_count, x.t_ref_count, x['purity'], 0.025), axis=1)
 
-    output_fn = f'{output_dir}/maf_df/{participant_id}.maf_df.pkl'
-    pickle.dump(maf_df, open(output_fn, 'wb'))
-
-    return pd.Series(output_fn, [participant_id])
+    return maf_df
 
 
 def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, preprocess_data_dir):
@@ -280,7 +322,7 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
         rows filtered in the mutations table, None if none selected
     samples_df
         sample level dataframe
-    preprocess_data_dir
+    preprocess_data_dir  TODO: remove
         directory path in which preprocessed CNV pickle files are stored
 
     Returns
@@ -303,27 +345,32 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     sigmas_val = 'Show CNV Sigmas' in sigmas
     absolute_val = 'Display Absolute CN' in absolute
 
-    # collect Figures in list
-    fig_list = []
-    for i, sample_id in enumerate(sample_selection_corrected):
-        cnv_plot, this_seg_df, start_trace, end_trace = pickle.load(
-            open(samples_df.loc[sample_id, 'cnv_fig_pickle'], "rb"))
-        update_cnv_color_absolute(cnv_plot, this_seg_df, absolute_val, color, start_trace, end_trace)
+    # collect Figures and mutation maf
+    purity_dict = samples_df.loc[sample_list, 'wxs_purity'].to_dict()
+    ploidy_dict = samples_df.loc[sample_list, 'wxs_ploidy'].to_dict()
+    cnv_seg_filenames = samples_df.loc[sample_list, 'cnv_seg_fn'].values
+    maf_fn = df.loc[idx, 'maf_fn'].values
+    participant_maf_df, cnv_plot_dict, cnv_seg_dict, trace_dict = gen_participant_cnv_and_maf(cnv_seg_filenames, maf_fn, sample_list, csize, purity_dict, ploidy_dict)
 
+    fig_list = []
+    for sample_id in sample_selection_corrected:
+        cnv_plot = cnv_plot_dict[sample_id]
+        this_seg_df = cnv_seg_dict[sample_id]
+        update_cnv_color_absolute(cnv_plot, this_seg_df, absolute_val, color,
+                                  trace_dict[sample_id][0], trace_dict[sample_id][1])
         fig_list.append(cnv_plot)
 
     cnv_subplots_fig = plot_acr_subplots(fig_list, 'Copy Number Plots', sample_selection_corrected, csize)
     update_cnv_scatter_sigma_toggle(cnv_subplots_fig, sigmas_val)
 
-    maf_df = pickle.load(open(df.loc[idx, 'maf_df_pickle'], "rb"))
     if selected_mutation_rows:
-        maf_df = maf_df.loc[selected_mutation_rows]
+        participant_maf_df = participant_maf_df.loc[selected_mutation_rows]
     elif filtered_mutation_rows:
-        maf_df = maf_df.loc[filtered_mutation_rows]
+        participant_maf_df = participant_maf_df.loc[filtered_mutation_rows]
     # else (if all mutations in table are filtered out and none selected): use all mutations
 
     for i, sample_id in enumerate(sample_selection_corrected):
-        sample_maf_df = maf_df[maf_df['Sample_ID'] == sample_id]
+        sample_maf_df = participant_maf_df[participant_maf_df['Sample_ID'] == sample_id]
         cnv_subplots_fig.add_trace(gen_mut_scatter(sample_maf_df, sigmas_val, sample_id), row=i+1, col=1)
 
     return [
