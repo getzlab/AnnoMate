@@ -263,6 +263,16 @@ def gen_maf(maf_fn, purity_dict, ploidy_dict, seg_trees):
     maf_df['id'] = maf_df.apply(lambda x: get_unique_identifier(x, start_pos=start_pos, alt=alt), axis=1)
 
     maf_df['Sample_ID'] = maf_df[sample_id_col]
+
+    maf_sample_names = set(maf_df['Sample_ID'])
+    given_sample_names = set(purity_dict.keys())
+    if len(maf_sample_names & given_sample_names) == 0:
+        if len(set([p[:-5] for p in maf_sample_names]) & given_sample_names) == 0:
+            raise ValueError("Maf sample names don't match what is given")
+        else:
+            # remove '_pair' from sample ids in maf
+            maf_df['Sample_ID'] = maf_df['Sample_ID'].apply(lambda x: x[:-5])
+
     # maf_df = switch_contigs(maf_df)
     # .replace giving: Series.replace cannot use dict-like to_replace and non-None value ?? todo
     maf_df['Chromosome'] = maf_df['Chromosome'].apply(lambda x: '23' if x == 'X' else '24' if x == 'Y' else x)
@@ -348,8 +358,8 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     # collect Figures and mutation maf
     purity_dict = samples_df.loc[sample_list, 'wxs_purity'].to_dict()
     ploidy_dict = samples_df.loc[sample_list, 'wxs_ploidy'].to_dict()
-    cnv_seg_filenames = samples_df.loc[sample_list, 'cnv_seg_fn'].values
-    maf_fn = df.loc[idx, 'maf_fn'].values
+    cnv_seg_filenames = samples_df.loc[sample_list, 'cnv_seg_fn'].values.tolist()
+    maf_fn = df.loc[idx, 'maf_fn']
     participant_maf_df, cnv_plot_dict, cnv_seg_dict, trace_dict = gen_participant_cnv_and_maf(cnv_seg_filenames, maf_fn, sample_list, csize, purity_dict, ploidy_dict)
 
     fig_list = []
