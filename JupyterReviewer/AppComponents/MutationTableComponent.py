@@ -269,7 +269,11 @@ def load_file(filename):
 
     maf_cols_options = maf_df.dropna(axis=1, how='all').columns.tolist()
 
-    return maf_df, maf_cols_options
+    # pull all columns that differ between samples
+    # use <= so we don't accidentally catch columns that have all NaNs for certain mutations (nunique == 0)
+    columns_equivalent = maf_df.groupby('id', sort=False).nunique().le(1).all()
+
+    return maf_df, maf_cols_options, columns_equivalent
 
 
 def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, page_current, sort_by, filter_query, viewport_selected_row_ids, prev_selected_ids, viewport_ids, custom_colors):
@@ -328,9 +332,9 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
 
     # load maf from file
     if 'maf_df_pickle' in df:
-        maf_df, maf_cols_options = load_file(df.loc[idx, 'maf_df_pickle'])
+        maf_df, maf_cols_options, columns_equivalent = load_file(df.loc[idx, 'maf_df_pickle'])
     else:
-        maf_df, maf_cols_options = load_file(df.loc[idx, 'maf_fn'])
+        maf_df, maf_cols_options, columns_equivalent = load_file(df.loc[idx, 'maf_fn'])
 
     if not cols:  # Nothing selected for columns
         maf_cols_value = list(set(default_maf_cols) & set(maf_cols_options))
@@ -383,10 +387,6 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
     filtered_maf_empty = filtered_maf_df.shape[0] == 0
     if not filtered_maf_empty:
         filtered_maf_df = filtered_maf_df.dropna(axis=1, how='all')
-
-    # pull all columns that differ between samples
-    # use <= so we don't accidentally catch columns that have all NaNs for certain mutations (nunique == 0)
-    columns_equivalent = filtered_maf_df.groupby('id', sort=False).nunique().le(1).all()
 
     # generate sample-level dataframe (cols that differ between samples)
     if filtered_maf_empty:
