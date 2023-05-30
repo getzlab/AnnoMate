@@ -1,8 +1,8 @@
-# JupyterReviewer
+# AnnoMate
 
 A package for using and creating interactive dashboards for manual review.
 
-![Purity Jupyter Reviewer](https://github.com/getzlab/JupyterReviewer/blob/master/images/ezgif.com-gif-maker.gif)
+![Purity AnnoMate Reviewer](https://github.com/getzlab/AnnoMate/blob/master/images/ezgif.com-gif-maker.gif)
 
 # Quick Start
 
@@ -51,7 +51,7 @@ This is _highly_ recommended to manage different dependencies required by differ
     When you open a jupyter notebook, you can change the environment the notebook cells are run in to `<your_env>`
 
 
-### Install JupyterReviewer with pip
+### Install AnnoMate with pip
 
 If you are developing a brand new reviewer, you can install from PyPi
 
@@ -62,11 +62,11 @@ pip install JupyterReviewer
 
 ### Install with Git
 
-JupyterReviewer and Most prebuilt reviewers can be downloaded with git. 
+AnnoMate and most prebuilt reviewers can be downloaded with git. 
 
 ```
-git clone git@github.com:getzlab/JupyterReviewer.git
-cd JupyterReviewer
+git clone git@github.com:getzlab/AnnoMate.git
+cd AnnoMate
 conda activate <your_env> --file requirements.txt
 pip install -e .
 ```
