@@ -4,16 +4,16 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="JupyterReviewer",
+    name="AnnoMate",
     version="0.0.7",
     author="Claudia Chu",
     author_email="cchu@broadinstitute.org",
     description="A general tool to create dashboards for manual review",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
-    url="https://github.com/getzlab/JupyterReviewer",
+    url="https://github.com/getzlab/AnnoMate",
     project_urls={
-        "Bug Tracker": "https://github.com/getzlab/JupyterReviewer/issues",
+        "Bug Tracker": "https://github.com/getzlab/AnnoMate/issues",
     },
     classifiers=[
         "Programming Language :: Python :: 3",
