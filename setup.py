@@ -35,7 +35,6 @@ setuptools.setup(
                         'hound',
                         'ipykernel',
                         'ipython',
-                        'jupyter-dash',
                         'jupyterlab',
                         'matplotlib',
                         'pandas',

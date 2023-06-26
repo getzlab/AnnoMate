@@ -1,8 +1,9 @@
 import pandas as pd
 import numpy as np
-from jupyter_dash import JupyterDash
+# from jupyter_dash import JupyterDash
+from dash import jupyter_dash
 from dash import dcc
-from dash import html
+from dash import html, Dash
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 import dash
@@ -233,7 +234,8 @@ class ReviewDataApp:
             return self.columns_to_string(filtered_history_df, multi_type_columns)
         
         
-        app = JupyterDash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+        # app = JupyterDash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+        app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
         
         reviewed_data_df = pd.DataFrame(index=review_data.data.index, columns=['label'])
         reviewed_data_df['label'] = reviewed_data_df.apply(lambda r: self.gen_dropdown_labels(review_data, r), 
@@ -458,7 +460,9 @@ class ReviewDataApp:
 
             return output_dict
         
-        app.run_server(mode=mode, host=host, port=port, debug=True) 
+        # app.run_server(mode=mode, host=host, port=port, debug=True)
+        jupyter_dash.default_mode = mode
+        app.run(host=host, port=port, debug=True)
         
     def gen_layout(self,
                    review_data: ReviewDataInterface,
