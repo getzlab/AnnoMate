@@ -189,3 +189,5 @@ Dev*
 # .idea files
 .idea/
 
+# data
+*/data/*
