@@ -479,6 +479,17 @@ class ReviewerTemplate(ABC):
 
 
 def parse_lists(x):
+    """Parses the annotation item, returning a list of items split by commas, or itself.
+
+    Parameters
+    ----------
+    x: (str, double)
+        annotation item to be parsed
+
+    Returns
+    -------
+    (str, List, double): annotation item, split into a list if needed
+    """
     if not x:  # NaN
         return np.NaN  # does AnnoMate expect NaN or empty string??
     elif (x[0] != '[') and (x[-1] != ']'):  # anything not formatted as a list with two brackets
