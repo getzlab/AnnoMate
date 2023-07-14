@@ -486,4 +486,4 @@ def parse_lists(x):
     elif x == '[]':  # empty list
         return list()
     else:
-        return x.strip("[]").replace("'", "").split(", ") if x != '[]' else list()
+        return x.strip("[]").replace("'", "").split(", ")

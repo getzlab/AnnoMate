@@ -83,6 +83,11 @@ class DataAnnotation:
             raise ValueError(
                 f'annot_type {annot_value_type} is not a valid annotation value type. '
                 f'Valid types are {valid_annotation_types}')
+        if annot_value_type == 'multi' and options is not None:
+            for x in options:
+                if ',' in x or "'" in x:
+                    raise ValueError("List options cannot contain an apostrophe or comma, due to issues parsing the string.\n"
+                                     f"Please remove the offending character (' or ,) from option {x}.")
 
         self.annot_value_type = annot_value_type
         self.options = options
