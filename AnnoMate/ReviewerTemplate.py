@@ -189,8 +189,13 @@ class ReviewerTemplate(ABC):
                 print("Loading data from previous review with exported files")
                 annot_df_fn = f'{load_existing_exported_data_dir}/annot_df.tsv'
                 history_df_fn = f'{load_existing_exported_data_dir}/history_df.tsv'
-                annot_df = pd.read_csv(annot_df_fn, sep='\t', index_col=0)
-                history_df = pd.read_csv(history_df_fn, sep='\t', index_col=0)
+
+                annot_headers = pd.read_csv(annot_df_fn, sep='\t', nrows=0, index_col=0)
+                annot_df = pd.read_csv(annot_df_fn, sep='\t', index_col=0,
+                                       converters={h: parse_lists for h in annot_headers})
+                history_headers = pd.read_csv(history_df_fn, sep='\t', nrows=0, index_col=0)
+                history_df = pd.read_csv(history_df_fn, sep='\t', index_col=0,
+                                       converters={h: parse_lists for h in history_headers})
 
             data = self.gen_data(
                 description=description,
@@ -471,3 +476,14 @@ class ReviewerTemplate(ABC):
             print(f"Exported to {export_dir}")
         else:
             print(f"Export directory will be {export_dir}. Nothing exported yet.")
+
+
+def parse_lists(x):
+    if not x:  # NaN
+        return np.NaN  # does AnnoMate expect NaN or empty string??
+    elif (x[0] != '[') and (x[-1] != ']'):  # anything not formatted as a list with two brackets
+        return x
+    elif x == '[]':  # empty list
+        return list()
+    else:
+        return x.strip("[]").replace("'", "").split(", ") if x != '[]' else list()
