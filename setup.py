@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="AnnoMate",
-    version="0.0.1",
+    version="0.0.2",
     author="Claudia Chu",
     author_email="cchu@broadinstitute.org",
     description="A general tool to create dashboards for manual review",
