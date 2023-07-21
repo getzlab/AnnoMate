@@ -57,7 +57,7 @@ If you are developing a brand new reviewer, you can install from PyPi
 
 ```
 conda activate <your_env>
-pip install JupyterReviewer
+pip install AnnoMate
 ```
 
 ### Install with Git
@@ -67,7 +67,6 @@ AnnoMate and most prebuilt reviewers can be downloaded with git.
 ```
 git clone git@github.com:getzlab/AnnoMate.git
 cd AnnoMate
-conda activate <your_env> --file requirements.txt
 pip install -e .
 ```
 
@@ -77,7 +76,7 @@ See a more detailed tutorial in `example_notebooks/Intro_to_Reviewers.ipynb`
 
 For developers, see `example_notebooks/Developer_Jupyter_Reviewer_Tutorial.ipynb`
 
-## Why Jupyter Reviewer
+## Why AnnoMate
 ### Why and how we review data
 
 Part of any study is ensuring data are consistent and drawing conclusions about the data from multiple sources. Studies are often novel, so frequently there are steps along the way that do not have existing, validated automation techniques. Therefore, we must perform manual review.
@@ -100,7 +99,7 @@ Lastly, humans are humans, and we make mistakes. It can be very tedious to maint
 
 Most ACBs use jupyter notebooks for their analysis. So why not keep the review process in jupyter notebooks too? Additionally, there already exist great tools for making interactive figures and dashboards. We can use these packages to help automatically consildate information and create figures that will make it easier to review, enforce annotation standards, and track changes over time.
 
-The `JupyterReviewer` package makes it simple to create dashboards for reviewing data. Developers and users can easily customize their dashboards to incorpate any data they like, and automatically provides a reviewer an easy way to annotate their data, track changes, and share their annotations with others.
+The `AnnoMate` package makes it simple to create dashboards for reviewing data. Developers and users can easily customize their dashboards to incorpate any data they like, and automatically provides a reviewer an easy way to annotate their data, track changes, and share their annotations with others.
 
 ### Get Started
 
