@@ -870,6 +870,15 @@ class ReviewDataApp:
             autofill_buttons += [autofill_button_component]
             autofill_states[autofill_button_component.id] = button_autofill_states_dict
             autofill_literals[autofill_button_component.id] = button_autofill_non_states_dict
+
+        if len(autofill_buttons) == 0:
+            autofill_button_component = html.Button(
+                'dummy button - required for autofill callback',
+                id=f'APP-autofill-dummy-button',
+                disabled=True, hidden=True,
+                style={"marginBottom": "15px"}
+            )
+            autofill_buttons += [autofill_button_component]
             
         return autofill_buttons, autofill_states, autofill_literals
 
