@@ -70,9 +70,6 @@ def display_catalog_df(wrap_length=30):
         ~catalog_data_df['Name'].isin(['__init__', 'AppComponents', 'Reviewers', '__pycache__']) &
         ~catalog_data_df['Name'].str.contains('cpython')
     ]
-
-    with open(readme_fn, 'w') as fh:
-        fh.write(catalog_data_df.to_markdown())
         
     catalog_data_df = catalog_data_df.set_index(['Repo', 'Type', 'Name'])
     
@@ -92,6 +89,9 @@ def display_catalog_df(wrap_length=30):
             overwrite=False, 
             axis=1
         )
+
+    with open(readme_fn, 'w') as fh:
+        fh.write(f"`{s.to_html()}`")
 
     return s
                        
