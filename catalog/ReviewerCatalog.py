@@ -2,6 +2,7 @@ import pandas as pd
 import requests
 import tqdm
 from IPython.display import display, HTML
+import re
 
 
 registered_reviewer_repos = [
@@ -36,16 +37,26 @@ def gen_reviewer_catalog():
         for file in res["tree"]:
             url = f'{repo_url}/blob/master/{file["path"]}'
             filename = file['path'].rsplit('/')[-1].rsplit('.py')[0]
-
+            
+            raw_url = url.replace("github", "raw.githubusercontent", 1).replace("blob/", "", 1)
+            
             if f'{base_name}/Reviewers' in file['path']:
-                repo_data_df.loc[i] = {'Repo': repo_name, 'Type': 'Reviewer', 'Name': filename, 'Description': '', 'url': url}
+                description = parse_header_docstring(raw_url)
+                repo_data_df.loc[i] = {'Repo': repo_name, 'Type': 'Reviewer', 'Name': filename, 'Description': description, 'url': url}
                 i += 1
 
             elif f'{base_name}/AppComponent' in file['path']:
-                repo_data_df.loc[i] = {'Repo': repo_name, 'Type': 'AppComponent', 'Name': filename, 'Description': '', 'url': url}
+                description = parse_header_docstring(raw_url)
+                repo_data_df.loc[i] = {'Repo': repo_name, 'Type': 'AppComponent', 'Name': filename, 'Description': description, 'url': url}
                 i += 1
     
     repo_data_df.to_csv(catalog_fn, sep='\t')
+
+def parse_header_docstring(raw_url):
+    raw_data = requests.get(raw_url)
+    parse_docstr = re.findall('^(?:"""|\'\'\')[\s\S]*?(?:"""|\'\'\')', raw_data.text)
+    description = "" if len(parse_docstr) == 0 else parse_docstr[0].strip('"').strip("'")
+    return description
 
 def make_clickable(val):
     # target _blank to open new window

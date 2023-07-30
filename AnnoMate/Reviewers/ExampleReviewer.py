@@ -1,3 +1,7 @@
+"""Example Reviewer Description
+A basic reviewer for the AnnoMate tutorial.
+Uses simulated data from simulated_data directory
+"""
 from AnnoMate.Data import DataAnnotation
 from AnnoMate.DataTypes.GenericData import GenericData
 from AnnoMate.ReviewDataApp import ReviewDataApp, AppComponent
