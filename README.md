@@ -73,9 +73,11 @@ pip install -e .
 
 ### Tutorials and Documentation
 
-See a more detailed tutorial in `example_notebooks/Intro_to_Reviewers.ipynb`
+See a more detailed tutorial in `tutorial_notebooks/Intro_to_Reviewers.ipynb`.
 
-For developers, see `example_notebooks/Developer_Jupyter_Reviewer_Tutorial.ipynb`
+View the catalog of existing reviewers at [catalog/ReviewerCatalog.ipynb](https://github.com/getzlab/AnnoMate/blob/master/catalog/ReviewerCatalog.ipynb).
+
+For developers, see `tutorial_notebooks/Developer_Jupyter_Reviewer_Tutorial.ipynb`.
 
 ## Why Jupyter Reviewer
 ### Why and how we review data
@@ -104,4 +106,4 @@ The `JupyterReviewer` package makes it simple to create dashboards for reviewing
 
 ### Get Started
 
-See `example_notebooks/` for documentation and tutorials.
+See `tutorial_notebooks/` for documentation and tutorials.

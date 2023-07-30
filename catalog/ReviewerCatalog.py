@@ -14,6 +14,7 @@ registered_reviewer_repos = [
 ]
 
 catalog_fn = 'catalog.tsv'
+readme_fn = 'README.md'
 
 def gen_reviewer_catalog():
     repo_data_df = pd.DataFrame(columns=['Repo', 'Type', 'Name', 'Description', 'url'])
@@ -51,6 +52,9 @@ def gen_reviewer_catalog():
                 i += 1
     
     repo_data_df.to_csv(catalog_fn, sep='\t')
+
+    with open(readme_fn, 'w') as fh:
+        fh.write(repo_data_df.to_markdown())
 
 def parse_header_docstring(raw_url):
     raw_data = requests.get(raw_url)
