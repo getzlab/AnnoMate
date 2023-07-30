@@ -1,3 +1,6 @@
+"""Description
+A basic reviewer for the AnnoMate tutorial.
+"""
 from AnnoMate.Data import DataAnnotation
 from AnnoMate.DataTypes.GenericData import GenericData
 from AnnoMate.ReviewDataApp import ReviewDataApp, AppComponent
