@@ -1,4 +1,6 @@
 # Reviewer Catalog 
+See `ReviewerCatalog.ipynb` to regenerate or contribute to the Reviewer Catalog
+## Reviewer Catalog Table
 `<table border="1" class="dataframe">
   <thead>
     <tr style="text-align: right;">

@@ -97,7 +97,10 @@ def display_catalog_df(wrap_length=30):
             },
             justify='right', na_rep='', render_links=True
         )
-        fh.write(f"# Reviewer Catalog \n`{html_str}`")
+        
+        fh.write(
+            f"# Reviewer Catalog \nSee `ReviewerCatalog.ipynb` to regenerate or contribute to the Reviewer Catalog\n## Reviewer Catalog Table\n`{html_str}`"
+        )
 
     return s
                        
