@@ -14,6 +14,7 @@ registered_reviewer_repos = [
 ]
 
 catalog_fn = 'catalog.tsv'
+readme_fn = 'README.md'
 
 def gen_reviewer_catalog():
     repo_data_df = pd.DataFrame(columns=['Repo', 'Type', 'Name', 'Description', 'url'])
@@ -69,13 +70,11 @@ def display_catalog_df(wrap_length=30):
         ~catalog_data_df['Name'].isin(['__init__', 'AppComponents', 'Reviewers', '__pycache__']) &
         ~catalog_data_df['Name'].str.contains('cpython')
     ]
-
+        
     catalog_data_df = catalog_data_df.set_index(['Repo', 'Type', 'Name'])
     
     s = catalog_data_df[['url', 'Description']].style.format(
         {'url': make_clickable, 'Description': lambda x: x if not pd.isna(x) else ''}
-    ).set_properties(
-        **{'background-color': 'white'}
     ).set_table_styles([
         {'selector': 'th',
         'props': [
@@ -89,6 +88,18 @@ def display_catalog_df(wrap_length=30):
             {group_df.index[0]: [{'selector': '', 'props': 'border-top: 1px solid black;'}]}, 
             overwrite=False, 
             axis=1
+        )
+
+    with open(readme_fn, 'w') as fh:
+        html_str = catalog_data_df.to_html(
+            formatters={
+                'Description': lambda x: x.replace('\\n', '<br>'),
+            },
+            justify='right', na_rep='', render_links=True
+        )
+        
+        fh.write(
+            f"# Reviewer Catalog \nSee `ReviewerCatalog.ipynb` to regenerate or contribute to the Reviewer Catalog\n## Reviewer Catalog Table\n`{html_str}`"
         )
 
     return s
