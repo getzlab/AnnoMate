@@ -71,10 +71,10 @@ def display_catalog_df(wrap_length=30):
         ~catalog_data_df['Name'].str.contains('cpython')
     ]
 
-    catalog_data_df = catalog_data_df.set_index(['Repo', 'Type', 'Name'])
-
     with open(readme_fn, 'w') as fh:
         fh.write(catalog_data_df.to_markdown())
+        
+    catalog_data_df = catalog_data_df.set_index(['Repo', 'Type', 'Name'])
     
     s = catalog_data_df[['url', 'Description']].style.format(
         {'url': make_clickable, 'Description': lambda x: x if not pd.isna(x) else ''}
