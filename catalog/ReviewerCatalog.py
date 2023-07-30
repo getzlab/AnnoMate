@@ -91,7 +91,7 @@ def display_catalog_df(wrap_length=30):
         )
 
     with open(readme_fn, 'w') as fh:
-        fh.write(f"`{s.to_html()}`")
+        fh.write(f"`{catalog_data_df.to_html(justify='right', render_links=True, escape=True, na_rep='')}`")
 
     return s
                        
