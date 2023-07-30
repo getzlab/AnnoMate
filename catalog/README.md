@@ -1,3 +1,4 @@
+# Reviewer Catalog 
 `<table border="1" class="dataframe">
   <thead>
     <tr style="text-align: right;">
@@ -26,22 +27,32 @@
     <tr>
       <th rowspan="5" valign="top">AppComponent</th>
       <th>CNVPlotComponent</th>
-      <td>CNVPlotComponent.py module\n\nInteractive CNV Plot with mutation multiplicity scatterplot\n\nMutation scatter interactive with mutation table\n\n</td>
+      <td>CNVPlotComponent.py module
+
+Interactive CNV Plot with mutation multiplicity scatterplot
+
+Mutation scatter interactive with mutation table</td>
       <td><a href="https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/AppComponents/CNVPlotComponent.py" target="_blank">https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/AppComponents/CNVPlotComponent.py</a></td>
     </tr>
     <tr>
       <th>DataTableComponents</th>
-      <td>\nDataTableComponents module contains methods to generate components for displaying table information\n</td>
+      <td>DataTableComponents module contains methods to generate components for displaying table information</td>
       <td><a href="https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/AppComponents/DataTableComponents.py" target="_blank">https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/AppComponents/DataTableComponents.py</a></td>
     </tr>
     <tr>
       <th>MutationTableComponent</th>
-      <td>MutationTableComponent.py module\n\nInteractive Mutation Table with column selection, sorting, selecting, and filtering\n\n</td>
+      <td>MutationTableComponent.py module
+
+Interactive Mutation Table with column selection, sorting, selecting, and filtering</td>
       <td><a href="https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/AppComponents/MutationTableComponent.py" target="_blank">https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/AppComponents/MutationTableComponent.py</a></td>
     </tr>
     <tr>
       <th>PhylogicComponents</th>
-      <td>PhylogicComponents.py module\n\nPhylogic CCF Plot and Trees implemented in the PatientReviewer and PhylogicReviewer\n\nPhylogic PMF Plot implemented in the PhylogicReviewer\n\n</td>
+      <td>PhylogicComponents.py module
+
+Phylogic CCF Plot and Trees implemented in the PatientReviewer and PhylogicReviewer
+
+Phylogic PMF Plot implemented in the PhylogicReviewer</td>
       <td><a href="https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/AppComponents/PhylogicComponents.py" target="_blank">https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/AppComponents/PhylogicComponents.py</a></td>
     </tr>
     <tr>
@@ -52,7 +63,9 @@
     <tr>
       <th>Reviewer</th>
       <th>ExampleReviewer</th>
-      <td>Example Reviewer Description\nA basic reviewer for the AnnoMate tutorial.\nUses simulated data from simulated_data directory\n</td>
+      <td>Example Reviewer Description
+A basic reviewer for the AnnoMate tutorial.
+Uses simulated data from simulated_data directory</td>
       <td><a href="https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/Reviewers/ExampleReviewer.py" target="_blank">https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/Reviewers/ExampleReviewer.py</a></td>
     </tr>
     <tr>
@@ -99,7 +112,12 @@
     <tr>
       <th>Reviewer</th>
       <th>PatientReviewer</th>
-      <td>PatientReviewer.py module\n\nInteractive dashboard for reviewing and annotating data on a patient-by-patient basis\nIncludes app layout and callback functionality\n\nRun by the user with a Jupyter Notebook: UserPatientReviewer.ipynb\n\n</td>
+      <td>PatientReviewer.py module
+
+Interactive dashboard for reviewing and annotating data on a patient-by-patient basis
+Includes app layout and callback functionality
+
+Run by the user with a Jupyter Notebook: UserPatientReviewer.ipynb</td>
       <td><a href="https://github.com/getzlab/PatientReviewer/blob/master/PatientReviewer/Reviewers/PatientReviewer.py" target="_blank">https://github.com/getzlab/PatientReviewer/blob/master/PatientReviewer/Reviewers/PatientReviewer.py</a></td>
     </tr>
     <tr>

@@ -91,7 +91,13 @@ def display_catalog_df(wrap_length=30):
         )
 
     with open(readme_fn, 'w') as fh:
-        fh.write(f"`{catalog_data_df.to_html(justify='right', render_links=True, escape=True, na_rep='')}`")
+        html_str = catalog_data_df.to_html(
+            formatters={
+                'Description': lambda x: x.replace('\\n', '<br>'),
+            },
+            justify='right', na_rep='', render_links=True
+        )
+        fh.write(f"# Reviewer Catalog \n`{html_str}`")
 
     return s
                        
