@@ -53,9 +53,6 @@ def gen_reviewer_catalog():
     
     repo_data_df.to_csv(catalog_fn, sep='\t')
 
-    with open(readme_fn, 'w') as fh:
-        fh.write(repo_data_df.to_markdown())
-
 def parse_header_docstring(raw_url):
     raw_data = requests.get(raw_url)
     parse_docstr = re.findall('^(?:"""|\'\'\')[\s\S]*?(?:"""|\'\'\')', raw_data.text)
@@ -75,6 +72,9 @@ def display_catalog_df(wrap_length=30):
     ]
 
     catalog_data_df = catalog_data_df.set_index(['Repo', 'Type', 'Name'])
+
+    with open(readme_fn, 'w') as fh:
+        fh.write(catalog_data_df.to_markdown())
     
     s = catalog_data_df[['url', 'Description']].style.format(
         {'url': make_clickable, 'Description': lambda x: x if not pd.isna(x) else ''}
