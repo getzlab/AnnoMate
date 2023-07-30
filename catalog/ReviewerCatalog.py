@@ -68,12 +68,10 @@ def display_catalog_df(wrap_length=30):
     ).set_table_styles([
         {'selector': 'th',
         'props': [
-            # ('border-style', 'solid'),
-            # ('border-color', 'black'),
             ('vertical-align','top')
         ]
         }
-    ])
+    ]).set_properties(**{"vertical-align": "text-top"})
 
     for idx, group_df in catalog_data_df.groupby(level=0):
         s.set_table_styles(
