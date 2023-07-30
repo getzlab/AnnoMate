@@ -74,8 +74,6 @@ def display_catalog_df(wrap_length=30):
     
     s = catalog_data_df[['url', 'Description']].style.format(
         {'url': make_clickable, 'Description': lambda x: x if not pd.isna(x) else ''}
-    ).set_properties(
-        **{'background-color': 'white'}
     ).set_table_styles([
         {'selector': 'th',
         'props': [
