@@ -1,0 +1,77 @@
+	Repo	Type	Name	Description	url
+0	getzlab/AnnoMate	Repository	getzlab/AnnoMate	Review anything (purities, mutations, etc) within a jupyter notebook with plotly dash and jupyter widgets	https://github.com/getzlab/AnnoMate
+1	getzlab/AnnoMate	AppComponent	AppComponents		https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/AppComponents
+2	getzlab/AnnoMate	AppComponent	CNVPlotComponent	"CNVPlotComponent.py module
+
+Interactive CNV Plot with mutation multiplicity scatterplot
+
+Mutation scatter interactive with mutation table
+
+"	https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/AppComponents/CNVPlotComponent.py
+3	getzlab/AnnoMate	AppComponent	DataTableComponents	"
+DataTableComponents module contains methods to generate components for displaying table information
+"	https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/AppComponents/DataTableComponents.py
+4	getzlab/AnnoMate	AppComponent	MutationTableComponent	"MutationTableComponent.py module
+
+Interactive Mutation Table with column selection, sorting, selecting, and filtering
+
+"	https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/AppComponents/MutationTableComponent.py
+5	getzlab/AnnoMate	AppComponent	PhylogicComponents	"PhylogicComponents.py module
+
+Phylogic CCF Plot and Trees implemented in the PatientReviewer and PhylogicReviewer
+
+Phylogic PMF Plot implemented in the PhylogicReviewer
+
+"	https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/AppComponents/PhylogicComponents.py
+6	getzlab/AnnoMate	AppComponent	__init__		https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/AppComponents/__init__.py
+7	getzlab/AnnoMate	AppComponent	utils		https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/AppComponents/utils.py
+8	getzlab/AnnoMate	Reviewer	Reviewers		https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/Reviewers
+9	getzlab/AnnoMate	Reviewer	ExampleReviewer	"Example Reviewer Description
+A basic reviewer for the AnnoMate tutorial.
+Uses simulated data from simulated_data directory
+"	https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/Reviewers/ExampleReviewer.py
+10	getzlab/AnnoMate	Reviewer	__init__		https://github.com/getzlab/AnnoMate/blob/master/AnnoMate/Reviewers/__init__.py
+11	getzlab/PurityReviewer	Repository	getzlab/PurityReviewer	Suite of purity reviewers and review components	https://github.com/getzlab/PurityReviewer
+12	getzlab/PurityReviewer	AppComponent	AppComponents		https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/AppComponents
+13	getzlab/PurityReviewer	AppComponent	AbsoluteCustomSolutionComponent		https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/AppComponents/AbsoluteCustomSolutionComponent.py
+14	getzlab/PurityReviewer	AppComponent	AbsoluteSolutionsReportComponent		https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/AppComponents/AbsoluteSolutionsReportComponent.py
+15	getzlab/PurityReviewer	AppComponent	__pycache__		https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/AppComponents/__pycache__
+16	getzlab/PurityReviewer	AppComponent	AbsoluteCustomSolutionComponent.cpython-39		https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/AppComponents/__pycache__/AbsoluteCustomSolutionComponent.cpython-39.pyc
+17	getzlab/PurityReviewer	AppComponent	AbsoluteSolutionsReportComponent.cpython-39		https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/AppComponents/__pycache__/AbsoluteSolutionsReportComponent.cpython-39.pyc
+18	getzlab/PurityReviewer	AppComponent	utils.cpython-39		https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/AppComponents/__pycache__/utils.cpython-39.pyc
+19	getzlab/PurityReviewer	AppComponent	utils		https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/AppComponents/utils.py
+20	getzlab/PurityReviewer	Reviewer	Reviewers		https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/Reviewers
+21	getzlab/PurityReviewer	Reviewer	ManualPurityReviewer		https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/Reviewers/ManualPurityReviewer.py
+22	getzlab/PurityReviewer	Reviewer	MatchedPurityReviewer		https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/Reviewers/MatchedPurityReviewer.py
+23	getzlab/PurityReviewer	Reviewer	__pycache__		https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/Reviewers/__pycache__
+24	getzlab/PurityReviewer	Reviewer	ManualPurityReviewer.cpython-39		https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/Reviewers/__pycache__/ManualPurityReviewer.cpython-39.pyc
+25	getzlab/PurityReviewer	Reviewer	MatchedPurityReviewer.cpython-39		https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/Reviewers/__pycache__/MatchedPurityReviewer.cpython-39.pyc
+26	getzlab/PatientReviewer	Repository	getzlab/PatientReviewer	Explore integrated data on the patient level interactively in a Dash App, powered by JupyterReviewer	https://github.com/getzlab/PatientReviewer
+27	getzlab/PatientReviewer	AppComponent	AppComponents		https://github.com/getzlab/PatientReviewer/blob/master/PatientReviewer/AppComponents
+28	getzlab/PatientReviewer	AppComponent	__init__		https://github.com/getzlab/PatientReviewer/blob/master/PatientReviewer/AppComponents/__init__.py
+29	getzlab/PatientReviewer	Reviewer	Reviewers		https://github.com/getzlab/PatientReviewer/blob/master/PatientReviewer/Reviewers
+30	getzlab/PatientReviewer	Reviewer	PatientReviewer	"PatientReviewer.py module
+
+Interactive dashboard for reviewing and annotating data on a patient-by-patient basis
+Includes app layout and callback functionality
+
+Run by the user with a Jupyter Notebook: UserPatientReviewer.ipynb
+
+"	https://github.com/getzlab/PatientReviewer/blob/master/PatientReviewer/Reviewers/PatientReviewer.py
+31	getzlab/PatientReviewer	Reviewer	__init__		https://github.com/getzlab/PatientReviewer/blob/master/PatientReviewer/Reviewers/__init__.py
+32	getzlab/MutationReviewer	Repository	getzlab/MutationReviewer		https://github.com/getzlab/MutationReviewer
+33	getzlab/MutationReviewer	AppComponent	AppComponents		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents
+34	getzlab/MutationReviewer	AppComponent	BamTableComponent		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/BamTableComponent.py
+35	getzlab/MutationReviewer	AppComponent	IGVJSComponent		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/IGVJSComponent.py
+36	getzlab/MutationReviewer	AppComponent	IGVLocalComponent		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/IGVLocalComponent.py
+37	getzlab/MutationReviewer	AppComponent	MutationTableComponent		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/MutationTableComponent.py
+38	getzlab/MutationReviewer	AppComponent	utils		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/utils.py
+39	getzlab/MutationReviewer	Reviewer	Reviewers		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/Reviewers
+40	getzlab/MutationReviewer	Reviewer	DeprecatedMutationReviewer		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/Reviewers/DeprecatedMutationReviewer.py
+41	getzlab/MutationReviewer	Reviewer	GeneralMutationReviewer		https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/Reviewers/GeneralMutationReviewer.py
+42	getzlab/PhylogicReviewer	Repository	getzlab/PhylogicReviewer	Interactive app to review Phylogic solutions and data.	https://github.com/getzlab/PhylogicReviewer
+43	getzlab/PhylogicReviewer	AppComponent	AppComponents		https://github.com/getzlab/PhylogicReviewer/blob/master/PhylogicReviewer/AppComponents
+44	getzlab/PhylogicReviewer	AppComponent	__init__		https://github.com/getzlab/PhylogicReviewer/blob/master/PhylogicReviewer/AppComponents/__init__.py
+45	getzlab/PhylogicReviewer	Reviewer	Reviewers		https://github.com/getzlab/PhylogicReviewer/blob/master/PhylogicReviewer/Reviewers
+46	getzlab/PhylogicReviewer	Reviewer	PhylogicReviewer		https://github.com/getzlab/PhylogicReviewer/blob/master/PhylogicReviewer/Reviewers/PhylogicReviewer.py
+47	getzlab/PhylogicReviewer	Reviewer	__init__		https://github.com/getzlab/PhylogicReviewer/blob/master/PhylogicReviewer/Reviewers/__init__.py
