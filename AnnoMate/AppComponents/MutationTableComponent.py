@@ -257,7 +257,7 @@ def load_file(filename):
     if os.path.splitext(filename)[1] == '.pkl':
         maf_df = pd.read_pickle(filename)
     else:
-        maf_df = pd.read_csv(filename, sep='\t')
+        maf_df = pd.read_csv(filename) # prev had sep \t
 
     start_pos_id = maf_df.columns[maf_df.columns.isin(['Start_position', 'Start_Position'])][0]
     alt_allele_id = maf_df.columns[maf_df.columns.isin(['Tumor_Seq_Allele2', 'Tumor_Seq_Allele'])][0]
@@ -341,11 +341,11 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
     else:
         maf_cols_value = list(set(cols) & set(maf_cols_options))
 
-    hugo_symbols = maf_df['Hugo_Symbol'].unique()
+    hugo_symbols = maf_df['Hugo_Symbol'].unique() if 'Hugo_Symbol' in maf_df else []
     hugo_value_in_maf = hugo if hugo is None else list(set(hugo) & set(hugo_symbols))
-    variant_classifications = maf_df['Variant_Classification'].unique()
+    variant_classifications = maf_df['Variant_Classification'].unique() if 'Variant Classification' in maf_df else []
     variant_in_maf = variant if variant is None else list(set(variant) & set(variant_classifications))
-    cluster_assignments = [] if 'Cluster_Assignment' not in maf_df else maf_df['Cluster_Assignment'].unique()
+    cluster_assignments = maf_df['Cluster_Assignment'].unique() if 'Cluster Assignment' in maf_df else []
     cluster_in_maf = cluster if cluster is None else list(set(cluster) & set(cluster_assignments))
     sample_options = maf_df['Sample_ID'].unique()
 
