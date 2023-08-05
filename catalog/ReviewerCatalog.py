@@ -17,6 +17,9 @@ catalog_fn = 'catalog.tsv'
 readme_fn = 'README.md'
 
 def gen_reviewer_catalog():
+    """
+    Iterates through registered reviewer repos and extracts AnnoMate related files to display
+    """
     repo_data_df = pd.DataFrame(columns=['Repo', 'Type', 'Name', 'Description', 'url'])
     i = 0
     for repo_url in tqdm.tqdm(registered_reviewer_repos, total=len(registered_reviewer_repos)):
@@ -65,6 +68,9 @@ def make_clickable(val):
 
 
 def display_catalog_df(wrap_length=30):
+    """
+    Generates formatted table to display within a notebook and updates the README.md file
+    """
     catalog_data_df = pd.read_csv(catalog_fn, sep='\t', index_col=0)
     catalog_data_df = catalog_data_df[
         ~catalog_data_df['Name'].isin(['__init__', 'AppComponents', 'Reviewers', '__pycache__']) &

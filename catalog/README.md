@@ -80,12 +80,12 @@ Uses simulated data from simulated_data directory</td>
     <tr>
       <th rowspan="3" valign="top">AppComponent</th>
       <th>AbsoluteCustomSolutionComponent</th>
-      <td></td>
+      <td>Displays a allelic copy ratio profile with the option to set the 0 and 1 line (via slider or input value) corresponding to an integer assignment to copy number peaks. Automatically calculates the purity given the corresponding solution.</td>
       <td><a href="https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/AppComponents/AbsoluteCustomSolutionComponent.py" target="_blank">https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/AppComponents/AbsoluteCustomSolutionComponent.py</a></td>
     </tr>
     <tr>
       <th>AbsoluteSolutionsReportComponent</th>
-      <td></td>
+      <td>Displays a allelic copy ratio profile and a table of solutions from ABSOLUTE (Carter, 2014). The rows of the table can be selected, and the copy number profile plot will be updated with the corresponding ABSOLUTE "comb" solution.</td>
       <td><a href="https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/AppComponents/AbsoluteSolutionsReportComponent.py" target="_blank">https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/AppComponents/AbsoluteSolutionsReportComponent.py</a></td>
     </tr>
     <tr>
@@ -96,12 +96,12 @@ Uses simulated data from simulated_data directory</td>
     <tr>
       <th rowspan="2" valign="top">Reviewer</th>
       <th>ManualPurityReviewer</th>
-      <td></td>
+      <td>A reviewer dashboard that displays generic sample data and a allelic copy ratio profile for a given sample. The allelic copy ratio profile includes sliders and inputs to manually set the 0 and 1 line corresponding to the integer assignment of the genomic segments and automatically calculates a purity.</td>
       <td><a href="https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/Reviewers/ManualPurityReviewer.py" target="_blank">https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/Reviewers/ManualPurityReviewer.py</a></td>
     </tr>
     <tr>
       <th>MatchedPurityReviewer</th>
-      <td></td>
+      <td>A reviewer dashboard that displays generic sample data and a allelic copy ratio profile for a given sample. The allelic copy ratio profile is linked to a table with the solutions from ABSOLUTE (Carter, 2014), where you can select a row and the corresponding ABSOLUTE "comb" solution will be plotted over the allelic copy ratio plot.</td>
       <td><a href="https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/Reviewers/MatchedPurityReviewer.py" target="_blank">https://github.com/getzlab/PurityReviewer/blob/master/PurityReviewer/Reviewers/MatchedPurityReviewer.py</a></td>
     </tr>
     <tr>
@@ -132,22 +132,22 @@ Run by the user with a Jupyter Notebook: UserPatientReviewer.ipynb</td>
     <tr>
       <th rowspan="5" valign="top">AppComponent</th>
       <th>BamTableComponent</th>
-      <td></td>
+      <td>Table of bam files. Each row corresponds to a different bam file, and includes a custom field to reference by sample/patient or other feature. Rows are selectable.</td>
       <td><a href="https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/BamTableComponent.py" target="_blank">https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/BamTableComponent.py</a></td>
     </tr>
     <tr>
       <th>IGVJSComponent</th>
-      <td></td>
+      <td>Displays an internal IGV session inside the dashboard. Takes a list of bams to load and a genomic coordinate to go to.</td>
       <td><a href="https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/IGVJSComponent.py" target="_blank">https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/IGVJSComponent.py</a></td>
     </tr>
     <tr>
       <th>IGVLocalComponent</th>
-      <td></td>
+      <td>Connects with the local IGV app, outside of the dashboard. Takes a list of bams to load and a genomic coordinate to go to.</td>
       <td><a href="https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/IGVLocalComponent.py" target="_blank">https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/IGVLocalComponent.py</a></td>
     </tr>
     <tr>
       <th>MutationTableComponent</th>
-      <td></td>
+      <td>Table of mutations. Mutations can be grouped by different features, and all mutations that are within a group are displayed (ie by patient (tumors and normal) or exclusively by sample).</td>
       <td><a href="https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/MutationTableComponent.py" target="_blank">https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/AppComponents/MutationTableComponent.py</a></td>
     </tr>
     <tr>
@@ -158,12 +158,12 @@ Run by the user with a Jupyter Notebook: UserPatientReviewer.ipynb</td>
     <tr>
       <th rowspan="2" valign="top">Reviewer</th>
       <th>DeprecatedMutationReviewer</th>
-      <td></td>
+      <td>Deprecated reviewer. Please see GeneralMutationReviewer.</td>
       <td><a href="https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/Reviewers/DeprecatedMutationReviewer.py" target="_blank">https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/Reviewers/DeprecatedMutationReviewer.py</a></td>
     </tr>
     <tr>
       <th>GeneralMutationReviewer</th>
-      <td></td>
+      <td>A general reviewer for reviewing mutations with IGV. Includes default annotations corresponding to Barnell, 2019 Standard operating procedure for reviewing mutations. Iterates through mutations and automatically loads bams and goes to corresponding coordinates for the mutation in IGV (either local or inside the dashboard itself).</td>
       <td><a href="https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/Reviewers/GeneralMutationReviewer.py" target="_blank">https://github.com/getzlab/MutationReviewer/blob/master/MutationReviewer/Reviewers/GeneralMutationReviewer.py</a></td>
     </tr>
     <tr>
