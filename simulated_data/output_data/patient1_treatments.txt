@@ -1,0 +1,3 @@
+participant_id	categories	drugs	drug_combination	start_date_dfd	stop_date_dfd	stop_reason	pre_status	post_status	notes
+patient1	Chemotherapy	Trastuzumab		100	200	Unknown		Unknown	
+patient1	Precision/Targeted therapy	Neratinib		200	300	Unknown		Unknown	

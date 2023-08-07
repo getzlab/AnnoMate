@@ -31,7 +31,7 @@ from AnnoMate.DataTypes.PatientSampleData import PatientSampleData
 def gen_phylogic_app_component():
     """Generate Phylogic CCG Plot and Tree components"""
     return AppComponent(
-        'Phylogic Graphics',
+        'PhylogicNDT Results',
         layout=gen_phylogic_components_layout(),
 
         callback_input=[
@@ -138,13 +138,16 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
 
     # get mutation counts
     mut_ccfs = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
+    participant_id = mut_ccfs.columns[mut_ccfs.columns.isin(['Patient_ID', 'Participant_ID', 'participant_id'])][0]
+    start_pos_id = mut_ccfs.columns[mut_ccfs.columns.isin(['Start_position', 'Start_Position'])][0]
+    cluster = mut_ccfs.columns[mut_ccfs.columns.isin(['Cluster_Assignment', 'cluster'])][0]
     mut_count_dict = mut_ccfs.drop_duplicates([
-        'Patient_ID',
+        participant_id,
         'Hugo_Symbol',
         'Chromosome',
-        'Start_position',
-        'Cluster_Assignment'
-    ]).groupby('Cluster_Assignment').count()['Patient_ID'].to_dict()
+        start_pos_id,
+        cluster
+    ]).groupby(cluster).count()[participant_id].to_dict()
 
     cluster_colors = [cluster_color(i) for i in cluster_df['Cluster_ID'].unique()]
     cluster_df['Cluster_ID'] = cluster_df['Cluster_ID'].astype(str)
@@ -378,7 +381,8 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
     if drivers_fn:
         drivers = pd.read_csv(drivers_fn, header=None, names=['drivers'])
 
-    cluster_assignments = maf_df.Cluster_Assignment.unique().tolist()
+    cluster_assignment_col = maf_df.columns[maf_df.columns.isin(['Cluster_Assignment', 'cluster'])][0]
+    cluster_assignments = maf_df[cluster_assignment_col].unique().tolist()
     possible_trees = []
     possible_trees_edges = []
     clusters = {}
@@ -391,7 +395,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
         possible_trees.append(f'Tree {i+1} ({tree_df.n_iter[i]})')
 
     for i in range(len(cluster_assignments)):
-        clusters[cluster_assignments[i]] = [hugo for clust, hugo in zip(maf_df.Cluster_Assignment, maf_df.Hugo_Symbol) if clust == cluster_assignments[i]]
+        clusters[cluster_assignments[i]] = [hugo for clust, hugo in zip(maf_df[cluster_assignment_col], maf_df.Hugo_Symbol) if clust == cluster_assignments[i]]
 
     for clust in clusters:
         cluster_count[clust] = len(clusters[clust])

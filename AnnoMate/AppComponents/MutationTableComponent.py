@@ -123,7 +123,7 @@ def gen_mutation_table_layout():
                         placeholder='Filter by Cluster Assignment'
                     )
                 ], width=2)
-            ])
+            ]),
         ),
 
         html.Div([
@@ -160,6 +160,11 @@ def gen_mutation_table_layout():
                     #    ), id='mutation-sample-table-component'
                     )
                 ], width=5),
+            ]),
+            dbc.Row([
+                dbc.Col([
+                    html.P('Note: When performing numeric filtering directly in the table, symbols =,>,>=,<,<= must be used. For filtering multiple inputs at once, use filtering dropdowns above the table.'),
+                ]),
             ])
         ]),
         html.Div([
@@ -228,10 +233,11 @@ def gen_style_data_conditional(maf_df, custom_colors, maf_cols_value):
 
     """
     style_data_conditional = []
+    cluster_assignment = maf_df.columns[maf_df.columns.isin(['Cluster_Assignment', 'cluster'])][0]
 
-    if 'Cluster_Assignment' in maf_cols_value:
-        for n in maf_df.Cluster_Assignment.unique():
-            style_data_conditional.append(format_style_data('Cluster_Assignment', n, color=cluster_color(n)))
+    if cluster_assignment in maf_cols_value:
+        for n in maf_df[cluster_assignment].unique():
+            style_data_conditional.append(format_style_data(cluster_assignment, n, color=cluster_color(n)))
 
     if 'functional_effect' in maf_cols_value:
         style_data_conditional.extend([
@@ -257,7 +263,7 @@ def load_file(filename):
     if os.path.splitext(filename)[1] == '.pkl':
         maf_df = pd.read_pickle(filename)
     else:
-        maf_df = pd.read_csv(filename) # prev had sep \t
+        maf_df = pd.read_csv(filename, sep='\t') # prev had sep \t
 
     start_pos_id = maf_df.columns[maf_df.columns.isin(['Start_position', 'Start_Position'])][0]
     alt_allele_id = maf_df.columns[maf_df.columns.isin(['Tumor_Seq_Allele2', 'Tumor_Seq_Allele'])][0]
@@ -274,7 +280,6 @@ def load_file(filename):
     columns_equivalent = maf_df.groupby('id', sort=False).nunique().le(1).all()
 
     return maf_df, maf_cols_options, columns_equivalent
-
 
 def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, page_current, sort_by, filter_query, viewport_selected_row_ids, prev_selected_ids, viewport_ids, custom_colors):
     """Generate mutation table columns from selected columns and filtering dropdowns.
@@ -316,6 +321,7 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
     t_alt_count = 't_alt_count' or 't_alt_count_post_forcecall'
     n_ref_count = 'n_ref_count' or 'n_ref_count_post_forcecall'
     n_alt_count = 'n_alt_count' or 'n_alt_count_post_forcecall'
+    cluster_assignment = 'CLuster_Assignment' or 'cluster'
 
     default_maf_cols = [
         'Hugo_Symbol',
@@ -329,7 +335,6 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
         n_ref_count,
         n_alt_count
     ]
-
     # load maf from file
     if 'maf_df_pickle' in df:
         maf_df, maf_cols_options, columns_equivalent = load_file(df.loc[idx, 'maf_df_pickle'])
@@ -345,7 +350,7 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
     hugo_value_in_maf = hugo if hugo is None else list(set(hugo) & set(hugo_symbols))
     variant_classifications = maf_df['Variant_Classification'].unique() if 'Variant Classification' in maf_df else []
     variant_in_maf = variant if variant is None else list(set(variant) & set(variant_classifications))
-    cluster_assignments = maf_df['Cluster_Assignment'].unique() if 'Cluster Assignment' in maf_df else []
+    cluster_assignments = maf_df[cluster_assignment].unique() if cluster_assignment in maf_df else []
     cluster_in_maf = cluster if cluster is None else list(set(cluster) & set(cluster_assignments))
     sample_options = maf_df['Sample_ID'].unique()
 
@@ -356,7 +361,7 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
     if variant_in_maf:
         filtered_maf_df = filtered_maf_df[filtered_maf_df['Variant_Classification'].isin(variant_in_maf)]
     if cluster_in_maf:
-        filtered_maf_df = filtered_maf_df[filtered_maf_df['Cluster_Assignment'].isin(cluster_in_maf)]
+        filtered_maf_df = filtered_maf_df[filtered_maf_df[cluster_assignment].isin(cluster_in_maf)]
 
     filtering_expressions = filter_query.split(' && ')
     for filter_part in filtering_expressions:

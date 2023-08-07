@@ -131,12 +131,14 @@ def gen_mut_scatter(maf_df, mut_sigma, sample):
     mut_scatter : go.Scatter
 
     """
+    cluster_assignment = maf_df.columns[maf_df.columns.isin(['Cluster_Assignment', 'cluster'])][0]
+
     mut_scatter = go.Scatter(
         x=maf_df['x_loc'],
         y=maf_df['multiplicity_ccf'],
         mode='markers',
         marker_size=5,
-        marker_color=maf_df['cluster_color'] if 'Cluster_Assignment' in list(maf_df) else 'Black',
+        marker_color=maf_df['cluster_color'] if cluster_assignment in list(maf_df) else 'Black',
         name=f'Mutations ({sample})',
         error_y=dict(
             type='data',
@@ -150,11 +152,11 @@ def gen_mut_scatter(maf_df, mut_sigma, sample):
             maf_df['Hugo_Symbol'].tolist(),
             maf_df['Chromosome'].tolist(),
             maf_df['Start_position'].tolist(),
-            maf_df['VAF'].tolist(),
-            maf_df['Cluster_Assignment'].tolist() if 'Cluster_Assignment' in list(maf_df) else [None]*len(maf_df),
-            maf_df['Variant_Type'].tolist(),
-            maf_df['Variant_Classification'].tolist(),
-            maf_df['Protein_change']),
+            maf_df['VAF'].tolist() if 'VAF' in maf_df else ['N/A']*len(maf_df),
+            maf_df[cluster_assignment].tolist() if cluster_assignment in maf_df else ['N/A']*len(maf_df),
+            maf_df['Variant_Type'].tolist() if 'Variant_Type' in maf_df else ['N/A']*len(maf_df),
+            maf_df['Variant_Classification'].tolist() if 'Variant_Classification' in maf_df else ['N/A']*len(maf_df),
+            maf_df['Protein_change'] if 'Protein_change' in maf_df else ['N/A']*len(maf_df)),
             axis=-1
         ),
         hovertemplate='<extra></extra>' +
@@ -189,7 +191,7 @@ def gen_seg_figure(cnv_seg_fn, csize, purity=None, ploidy=None):
     -------
     (cnv_plot, cnv_seg_df_mod, start_trace, end_trace): (plotly.Figure, pd.DataFrame, int, int)
     """
-    cnv_seg_df = cached_read_csv(cnv_seg_fn, sep='\t')
+    cnv_seg_df = cached_read_csv(cnv_seg_fn, sep='\t') 
     cnv_plot, cnv_seg_df_mod, start_trace, end_trace = plot_acr_interactive(cnv_seg_df, csize,
                                                                             purity=purity, ploidy=ploidy)
 
@@ -290,9 +292,10 @@ def gen_maf(maf_fn, purity_dict, ploidy_dict, seg_trees):
     maf_df['c_0'] = maf_df['Sample_ID'].replace(c_0)
     maf_df['c_delta'] = maf_df['Sample_ID'].replace(c_delta)
 
+    cluster_assignment = maf_df.columns[maf_df.columns.isin(['Cluster_Assignment', 'cluster'])][0]
     maf_df['Chromosome'] = maf_df['Chromosome'].astype(int)
-    if 'Cluster_Assignment' in maf_df:
-        maf_df['cluster_color'] = maf_df['Cluster_Assignment'].astype(int).apply(lambda x: cluster_color(x))
+    if cluster_assignment in maf_df:
+        maf_df['cluster_color'] = maf_df[cluster_assignment].astype(int).apply(lambda x: cluster_color(x))
 
     c_size_cumsum = np.cumsum([0] + list(csize.values()))
     maf_df['x_loc'] = maf_df.apply(lambda x: c_size_cumsum[x['Chromosome'] - 1] + x['Start_position'], axis=1)

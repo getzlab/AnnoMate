@@ -246,7 +246,7 @@ class ReviewDataApp:
             List of attributes from the data object to automatically export
         """
         multi_type_columns = [c for c in annot_app_display_types_dict.keys() if review_data.data.annot_col_config_dict[c].annot_value_type == 'multi']
-        
+
         def get_history_display_table(subject_index_value):
             filtered_history_df = review_data.data.history_df.loc[
                 review_data.data.history_df['index'] == subject_index_value
@@ -628,15 +628,15 @@ class ReviewDataApp:
                             f'Either remove Input "{prop_id}" from "{component.name}.callback_input" attribute, '
                             f'or define a callback function'
                         )
+                    if dropdown_value:
+                        component_output = component.internal_callback(
+                            review_data.data,
+                            dropdown_value,
+                            *more_component_inputs[component.name]
+                        )
 
-                    component_output = component.internal_callback(
-                        review_data.data,
-                        dropdown_value,
-                        *more_component_inputs[component.name]
-                    )
-
-                    validate_callback_outputs(component_output, component, which_callback='internal_callback')
-                    output_dict['more_component_outputs'][component.name] = component_output
+                        validate_callback_outputs(component_output, component, which_callback='internal_callback')
+                        output_dict['more_component_outputs'][component.name] = component_output
             return output_dict
 
         jupyter_dash.default_mode = mode
@@ -943,7 +943,6 @@ class ReviewDataApp:
         component: An AppComponent object to include in the app
         **kwargs: include more arguments for the component's callback functions 
         """
-        
         all_component_names = [c_name for c_name, c in self.more_components.items()]
         
         if component.name in all_component_names:
