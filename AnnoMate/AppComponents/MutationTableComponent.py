@@ -314,6 +314,12 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
     df = data.participant_df
 
     #####
+    # load maf from file
+    if 'maf_df_pickle' in df:
+        maf_df, maf_cols_options, columns_equivalent = load_file(df.loc[idx, 'maf_df_pickle'])
+    else:
+        maf_df, maf_cols_options, columns_equivalent = load_file(df.loc[idx, 'maf_fn'])
+
     start_pos = 'Start_position' or 'Start_Position'
     end_pos = 'End_position' or 'End_Position'
     protein_change = 'Protein_change' or 'Protein_Change'
@@ -321,7 +327,7 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
     t_alt_count = 't_alt_count' or 't_alt_count_post_forcecall'
     n_ref_count = 'n_ref_count' or 'n_ref_count_post_forcecall'
     n_alt_count = 'n_alt_count' or 'n_alt_count_post_forcecall'
-    cluster_assignment = 'CLuster_Assignment' or 'cluster'
+    cluster_assignment = maf_df.columns[maf_df.columns.isin(['cluster', 'Cluster_Assignment'])][0]
 
     default_maf_cols = [
         'Hugo_Symbol',
@@ -335,11 +341,6 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
         n_ref_count,
         n_alt_count
     ]
-    # load maf from file
-    if 'maf_df_pickle' in df:
-        maf_df, maf_cols_options, columns_equivalent = load_file(df.loc[idx, 'maf_df_pickle'])
-    else:
-        maf_df, maf_cols_options, columns_equivalent = load_file(df.loc[idx, 'maf_fn'])
 
     if not cols:  # Nothing selected for columns
         maf_cols_value = list(set(default_maf_cols) & set(maf_cols_options))
