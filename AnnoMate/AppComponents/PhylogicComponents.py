@@ -9,7 +9,7 @@ Phylogic PMF Plot implemented in the PhylogicReviewer
 import pandas as pd
 import numpy as np
 from dash import dcc
-from dash import html
+from dash import html, ctx
 from dash.dependencies import Input, Output, State
 import dash_daq as daq
 import dash
@@ -36,13 +36,15 @@ def gen_phylogic_app_component():
 
         callback_input=[
             Input('time-scale-checklist', 'value'),
-            Input('tree-dropdown', 'value')
+            Input('tree-dropdown', 'value'),
+            Input('save-tree-button', 'n_clicks')
         ],
         callback_output=[
             Output('ccf-plot', 'figure'),
             Output('tree-dropdown', 'options'),
             Output('tree-dropdown', 'value'),
-            Output('phylogic-tree-component', 'children')
+            Output('phylogic-tree-component', 'children'),
+            Output('phylogic-tree', 'generateImage')
         ],
         new_data_callback=gen_phylogic_graphics,
         internal_callback=internal_gen_phylogic_graphics
@@ -78,7 +80,8 @@ def gen_phylogic_components_layout():
                     dcc.Dropdown(
                         id='tree-dropdown',
                         options=[]
-                    )
+                    ),
+                    html.Button('save', id='save-tree-button'),
                 ], width=4, align='center')
             ])
         ])
@@ -459,7 +462,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
         possible_trees
     ]
 
-def gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, drivers_fn):
+def gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, save_tree_button, drivers_fn):
     """Phylogic graphics callback function with parameters being the callback inputs and returns being callback outputs."""
     df = data.participant_df
     samples_df = data.sample_df
@@ -468,27 +471,30 @@ def gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree
         ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
         tree, possible_trees = gen_phylogic_tree(df, idx, 0, drivers_fn)
 
-        return [ccf_plot, possible_trees, possible_trees[0], tree]
+        return [ccf_plot, possible_trees, possible_trees[0], tree, dash.no_update]
     else:
-        return [go.Figure, [], 0, '']
+        return [go.Figure, [], 0, '', dash.no_update]
 
-def internal_gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, drivers_fn):
+def internal_gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, save_tree_button, drivers_fn):
     """Phylogic graphics internal callback function with parameters being the callback inputs and returns being callback outputs."""
     df = data.participant_df
     samples_df = data.sample_df
+    if ctx.triggered:
+        if ctx.triggered_id != 'save-tree-button':
+            if df.loc[idx, 'cluster_ccfs_fn']:
+                tree_num = 0
+                for n in chosen_tree.split():
+                    if n.isdigit():
+                        tree_num = int(n)
 
-    if df.loc[idx, 'cluster_ccfs_fn']:
-        tree_num = 0
-        for n in chosen_tree.split():
-            if n.isdigit():
-                tree_num = int(n)
+                ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
+                tree, possible_trees = gen_phylogic_tree(df, idx, tree_num-1, drivers_fn)
 
-        ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
-        tree, possible_trees = gen_phylogic_tree(df, idx, tree_num-1, drivers_fn)
-
-        return [ccf_plot, possible_trees, chosen_tree, tree]
-    else:
-        return [go.Figure, [], 0, '']
+                return [ccf_plot, possible_trees, chosen_tree, tree, dash.no_update]
+            else:
+                return [go.Figure, [], 0, '', dash.no_update]
+        else:
+            return [dash.no_update, dash.no_update, dash.no_update, dash.no_update, {'type': 'jpg', 'action': 'download'}]
 
 
 # -------------------------- Phylogic PMF Plot ----------------------------
