@@ -135,8 +135,9 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
         scatter_x = 'order'
         rect_x = 6
 
-    treatments_df = pd.read_csv(df.loc[idx, 'treatments_fn'], sep='\t', comment='#')
-    treatments_in_frame_df = treatments_df[(treatments_df['stop_date_dfd'] >= int(timing_data[samples_in_order[0]])) &
+    if 'treatments_fn' in list(df):
+        treatments_df = pd.read_csv(df.loc[idx, 'treatments_fn'], sep='\t', comment='#')
+        treatments_in_frame_df = treatments_df[(treatments_df['stop_date_dfd'] >= int(timing_data[samples_in_order[0]])) &
                                            (treatments_df['start_date_dfd'] <= int(timing_data[samples_in_order[-1]]))]
 
     # get mutation counts
@@ -236,7 +237,7 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
         row=2, col=1
     )
 
-    if 'Time Scaled' in time_scaled:
+    if 'Time Scaled' in time_scaled and 'treatments_fn' in df:
         for start, stop, drug, drug_combo, category, stop_reason, post_status in zip(treatments_in_frame_df.start_date_dfd,
                                                                                      treatments_in_frame_df.stop_date_dfd,
                                                                                      treatments_in_frame_df.drugs,
