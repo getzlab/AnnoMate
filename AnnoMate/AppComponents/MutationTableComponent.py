@@ -366,9 +366,9 @@ def update_mutation_tables(
 
     # get the columns displayed in the table, ensuring these columns are present in the maf 
     if not cols:  # Nothing selected for columns
-        maf_cols_value = list(set(default_maf_cols) & set(maf_cols_options))
+        maf_cols_value = [c for c in default_maf_cols if c in maf_cols_options]# list(set(default_maf_cols) & set(maf_cols_options))
     else:
-        maf_cols_value = list(set(cols) & set(maf_cols_options))
+        maf_cols_value = [c for c in cols if c in maf_cols_options] #list(set(cols) & set(maf_cols_options))
 
     # options and values for filtering dropdowns 
     # if none is input for the column name, the dropdown list will be empty 
@@ -419,7 +419,7 @@ def update_mutation_tables(
     filtered_maf_empty = filtered_maf_df.shape[0] == 0
     if not filtered_maf_empty:
         filtered_maf_df.replace(['None', None], np.nan, inplace=True)
-        maf_cols_value = list(set(maf_cols_value) & set(list(filtered_maf_df.dropna(axis=1, how='all'))))
+        maf_cols_value = [c for c in maf_cols_value if c in list(filtered_maf_df.dropna(axis=1, how='all'))] 
         filtered_maf_df = filtered_maf_df.dropna(axis=1, how='all')
         
 
