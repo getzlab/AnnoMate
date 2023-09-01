@@ -184,6 +184,7 @@ po/*~
 # additional folders
 data/*
 example_notebooks/data/*
+.virtual_documents/*
 
 # .idea files
 .idea/
