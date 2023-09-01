@@ -67,7 +67,6 @@ AnnoMate and most prebuilt reviewers can be downloaded with git.
 ```
 git clone git@github.com:getzlab/AnnoMate.git
 cd AnnoMate
-conda activate <your_env> --file requirements.txt
 pip install -e .
 ```
 
@@ -79,7 +78,7 @@ View the catalog of existing reviewers at [catalog/ReviewerCatalog.ipynb](https:
 
 For developers, see `tutorial_notebooks/Developer_Jupyter_Reviewer_Tutorial.ipynb`.
 
-## Why Jupyter Reviewer
+## Why AnnoMate
 ### Why and how we review data
 
 Part of any study is ensuring data are consistent and drawing conclusions about the data from multiple sources. Studies are often novel, so frequently there are steps along the way that do not have existing, validated automation techniques. Therefore, we must perform manual review.

@@ -6,6 +6,7 @@ Interactive Mutation Table with column selection, sorting, selecting, and filter
 import os.path
 
 import pandas as pd
+import numpy as np
 from dash import dcc, html, dash_table, ctx
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
@@ -123,7 +124,7 @@ def gen_mutation_table_layout():
                         placeholder='Filter by Cluster Assignment'
                     )
                 ], width=2)
-            ])
+            ]),
         ),
 
         html.Div([
@@ -160,6 +161,11 @@ def gen_mutation_table_layout():
                     #    ), id='mutation-sample-table-component'
                     )
                 ], width=5),
+            ]),
+            dbc.Row([
+                dbc.Col([
+                    html.P('Note: When performing numeric filtering directly in the table, symbols =,>,>=,<,<= must be used. For filtering multiple inputs at once, use filtering dropdowns above the table.'),
+                ]),
             ])
         ]),
         html.Div([
@@ -194,6 +200,7 @@ def format_style_data(column_id, filter_query, color='Black', backgroundColor='W
     color
         text color
     backgroundColor
+        text box background color
 
     Returns
     -------
@@ -228,10 +235,11 @@ def gen_style_data_conditional(maf_df, custom_colors, maf_cols_value):
 
     """
     style_data_conditional = []
+    cluster_assignment = maf_df.columns[maf_df.columns.isin(['Cluster_Assignment', 'cluster'])][0]
 
-    if 'Cluster_Assignment' in maf_cols_value:
-        for n in maf_df.Cluster_Assignment.unique():
-            style_data_conditional.append(format_style_data('Cluster_Assignment', n, color=cluster_color(n)))
+    if cluster_assignment in maf_cols_value:
+        for n in maf_df[cluster_assignment].unique():
+            style_data_conditional.append(format_style_data(cluster_assignment, n, color=cluster_color(n)))
 
     if 'functional_effect' in maf_cols_value:
         style_data_conditional.extend([
@@ -257,7 +265,7 @@ def load_file(filename):
     if os.path.splitext(filename)[1] == '.pkl':
         maf_df = pd.read_pickle(filename)
     else:
-        maf_df = pd.read_csv(filename, sep='\t')
+        maf_df = pd.read_csv(filename, sep='\t') # prev had sep \t
 
     start_pos_id = maf_df.columns[maf_df.columns.isin(['Start_position', 'Start_Position'])][0]
     alt_allele_id = maf_df.columns[maf_df.columns.isin(['Tumor_Seq_Allele2', 'Tumor_Seq_Allele'])][0]
@@ -275,8 +283,13 @@ def load_file(filename):
 
     return maf_df, maf_cols_options, columns_equivalent
 
-
-def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, page_current, sort_by, filter_query, viewport_selected_row_ids, prev_selected_ids, viewport_ids, custom_colors):
+#def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size, variant, cluster, page_current, sort_by, filter_query, viewport_selected_row_ids, prev_selected_ids, viewport_ids, custom_colors=None, default_maf_participant_cols=None, default_maf_sample_cols=None, maf_hugo_col=None, maf_variant_class_col=None, maf_cluster_col=None, maf_sample_id_col=None):
+def update_mutation_tables(
+        data: PatientSampleData, 
+        idx, cols, hugo, table_size, variant, cluster, page_current, sort_by, filter_query, viewport_selected_row_ids, prev_selected_ids, viewport_ids, 
+        custom_colors=None, default_maf_sample_cols=None, maf_hugo_col=None, maf_chromosome_col=None, maf_start_pos_col=None, maf_end_pos_col=None, 
+        maf_protein_change_col=None, maf_variant_class_col=None, maf_cluster_col=None, maf_sample_id_col=None
+    ):
     """Generate mutation table columns from selected columns and filtering dropdowns.
 
     Parameters
@@ -284,80 +297,99 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
     data
         PatientSampleData containing participant and sample dfs
     idx
+        Index - current participant
     cols
         column selection dropdown value
     hugo
         hugo symbol filtering dropdown value
-    page_current
-    sort_by
-    filter_query
-    viewport_selected_row_ids
-    prev_selected_ids
-    viewport_ids
-    custom_colors
+    table_size : int
+        number of mutations displayed in
     variant
         variant classification filtering dropdown value
     cluster
         cluster assignment filtering dropdown value
-    table_size : int
-        number of mutations displayed in
+    page_current
+        current page from mutation table arrows 
+    sort_by
+        table sorting input 
+    filter_query
+        table filtering input (default tabel filtering, not dropdowns)
+    viewport_selected_row_ids
+        selected rows in the mutation table
+    prev_selected_ids
+    viewport_ids
+    custom_colors : list of lists
+        kwarg - Specify colummn colors in mutation table with format:
+        [[column_id_1, filter_query_1, text_color_1, background_color_1]]
+    default_maf_sample_cols
+        kwarg - List of default columns to be displayed on the sample side of the mutation table 
+    maf_hugo_col
+        kwarg - Name of the hugo symbol column in the maf file 
+    maf_chromosome_col
+        kwarg - Name of the chromosome column in the maf file 
+    maf_start_pos_col
+        kwarg - Name of the start position column in the maf file 
+    maf_end_pos_col
+        kwarg - Name of the end position column in the maf file 
+    maf_protein_change_col
+        kwarg - Name of the protein change column in the maf file 
+    maf_variant_class_col
+        kwarg - Name of the variant classification column in the maf file 
+    maf_cluster_col
+        kwarg - Name of the cluster assignment column in the maf file 
+    maf_sample_id_col
+        kwarg - Name of the sample id column in the maf file 
 
     Returns
     -------
-
+    Corresponding values to callback outputs (in corresponding order)
+    
     """
     df = data.participant_df
+    default_maf_participant_cols=[
+        maf_hugo_col,
+        maf_chromosome_col,
+        maf_start_pos_col,
+        maf_end_pos_col,
+        maf_protein_change_col,
+        maf_variant_class_col
+    ]
+    default_maf_cols = default_maf_participant_cols.copy()
+    default_maf_cols.extend(default_maf_sample_cols)
 
     #####
-    start_pos = 'Start_position' or 'Start_Position'
-    end_pos = 'End_position' or 'End_Position'
-    protein_change = 'Protein_change' or 'Protein_Change'
-    t_ref_count = 't_ref_count' or 't_ref_count_post_forcecall'
-    t_alt_count = 't_alt_count' or 't_alt_count_post_forcecall'
-    n_ref_count = 'n_ref_count' or 'n_ref_count_post_forcecall'
-    n_alt_count = 'n_alt_count' or 'n_alt_count_post_forcecall'
-
-    default_maf_cols = [
-        'Hugo_Symbol',
-        'Chromosome',
-        start_pos,
-        end_pos,
-        protein_change,
-        'Variant_Classification',
-        t_ref_count,
-        t_alt_count,
-        n_ref_count,
-        n_alt_count
-    ]
-
     # load maf from file
     if 'maf_df_pickle' in df:
         maf_df, maf_cols_options, columns_equivalent = load_file(df.loc[idx, 'maf_df_pickle'])
     else:
         maf_df, maf_cols_options, columns_equivalent = load_file(df.loc[idx, 'maf_fn'])
 
+    # get the columns displayed in the table, ensuring these columns are present in the maf 
     if not cols:  # Nothing selected for columns
         maf_cols_value = list(set(default_maf_cols) & set(maf_cols_options))
     else:
         maf_cols_value = list(set(cols) & set(maf_cols_options))
 
-    hugo_symbols = maf_df['Hugo_Symbol'].unique()
-    hugo_value_in_maf = hugo if hugo is None else list(set(hugo) & set(hugo_symbols))
-    variant_classifications = maf_df['Variant_Classification'].unique()
-    variant_in_maf = variant if variant is None else list(set(variant) & set(variant_classifications))
-    cluster_assignments = [] if 'Cluster_Assignment' not in maf_df else maf_df['Cluster_Assignment'].unique()
-    cluster_in_maf = cluster if cluster is None else list(set(cluster) & set(cluster_assignments))
-    sample_options = maf_df['Sample_ID'].unique()
+    # options and values for filtering dropdowns 
+    # if none is input for the column name, the dropdown list will be empty 
+    hugo_symbols = maf_df[maf_hugo_col].unique() if maf_hugo_col else []
+    hugo_value_in_maf = list(set(hugo) & set(hugo_symbols)) if hugo else None
+    variant_classifications = maf_df[maf_variant_class_col].unique() if maf_variant_class_col else []
+    variant_in_maf = list(set(variant) & set(variant_classifications)) if variant else None
+    cluster_assignments = maf_df[maf_cluster_col].unique() if maf_cluster_col else []
+    cluster_in_maf = list(set(cluster) & set(cluster_assignments)) if cluster else None
+    sample_options = maf_df[maf_sample_id_col].unique()
 
+    # apply the filter dropdown values to the maf
     filtered_maf_df = maf_df.copy()
-    # Only filter by (previous) values if they exist in current maf
     if hugo_value_in_maf:
-        filtered_maf_df = filtered_maf_df[filtered_maf_df['Hugo_Symbol'].isin(hugo_value_in_maf)]
+        filtered_maf_df = filtered_maf_df[filtered_maf_df[maf_hugo_col].isin(hugo_value_in_maf)]
     if variant_in_maf:
-        filtered_maf_df = filtered_maf_df[filtered_maf_df['Variant_Classification'].isin(variant_in_maf)]
+        filtered_maf_df = filtered_maf_df[filtered_maf_df[maf_variant_class_col].isin(variant_in_maf)]
     if cluster_in_maf:
-        filtered_maf_df = filtered_maf_df[filtered_maf_df['Cluster_Assignment'].isin(cluster_in_maf)]
+        filtered_maf_df = filtered_maf_df[filtered_maf_df[maf_cluster_col].isin(cluster_in_maf)]
 
+    # built in table filtering 
     filtering_expressions = filter_query.split(' && ')
     for filter_part in filtering_expressions:
         col_name, operator, filter_value = split_filter_part(filter_part)
@@ -383,28 +415,33 @@ def update_mutation_tables(data: PatientSampleData, idx, cols, hugo, table_size,
             inplace=False
         )
 
-    # if filtered dataframe is not empty, remove columns with only NaNs
+    # if filtered dataframe is not empty, remove columns with only NaNs or Nones 
     filtered_maf_empty = filtered_maf_df.shape[0] == 0
     if not filtered_maf_empty:
+        filtered_maf_df.replace(['None', None], np.nan, inplace=True)
+        maf_cols_value = list(set(maf_cols_value) & set(list(filtered_maf_df.dropna(axis=1, how='all'))))
         filtered_maf_df = filtered_maf_df.dropna(axis=1, how='all')
+        
 
     # generate sample-level dataframe (cols that differ between samples)
     if filtered_maf_empty:
-        sample_cols = ['Sample_ID', 't_ref_count', 't_alt_count']  # if all mutations filtered out, pull out t_ref/alt_count columns for empty sample dataframe
+        sample_cols = default_maf_sample_cols.append(maf_sample_id_col)
         sample_maf = pd.DataFrame(columns=sample_cols)
-        sample_maf.loc[:, 'Sample_ID'] = sample_options
+        sample_maf.loc[:, maf_sample_id_col] = sample_options
         sample_maf.index.name = 'id'
     else:
         sample_cols = columns_equivalent[~columns_equivalent].index.tolist()
         sample_maf = filtered_maf_df[sample_cols]
 
     # todo change to sort samples by timing
-    sample_maf = sample_maf.reset_index().sort_values(['id', 'Sample_ID']).set_index(
-        ['id', 'Sample_ID']).unstack(1)
+    sample_maf = sample_maf.reset_index().sort_values(['id', maf_sample_id_col]).set_index(
+        ['id', maf_sample_id_col]).unstack(1)
     sample_maf['id'] = sample_maf.index.tolist()
 
     # generate participant-level (cols w/ no difference between samples)
-    participant_maf = filtered_maf_df[~filtered_maf_df.index.duplicated(keep='first')].drop(columns=sample_cols)
+    participant_maf = filtered_maf_df[~filtered_maf_df.index.duplicated(keep='first')]
+    if sample_cols:
+        participant_maf.drop(columns=sample_cols, inplace=True)
     participant_maf['id'] = participant_maf.index.tolist()
 
     #####

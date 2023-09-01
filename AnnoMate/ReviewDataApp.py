@@ -194,6 +194,8 @@ class ReviewDataApp:
         mode='external',
         host='0.0.0.0',
         port=8050,
+        hide_history_df_cols=[],
+        components_name_order=[],
     ):
 
         """
@@ -244,12 +246,30 @@ class ReviewDataApp:
             
         attributes_to_export: List
             List of attributes from the data object to automatically export
+
+        hide_history_df_cols: List[str]
+            list of columns in the history table to NOT display in the dashboard
+
+        components_name_order: List[str]
+            list of component names in order to be displayed. Component names not included will not be displayed.
+            Be careful if some components listen to each other. To list component names:
+
+            > reviewer.app.more_components
         """
         multi_type_columns = [c for c in annot_app_display_types_dict.keys() if review_data.data.annot_col_config_dict[c].annot_value_type == 'multi']
-        
+
+        self.history_display_cols = review_data.data.history_df.columns
+        self.history_display_cols = [c for c in self.history_display_cols if c not in hide_history_df_cols]
+
+        if len(components_name_order) > 0:
+            self.ordered_more_components = {name: self.more_components[name] for name in components_name_order}
+        else:
+            self.ordered_more_components = self.more_components
+
         def get_history_display_table(subject_index_value):
             filtered_history_df = review_data.data.history_df.loc[
-                review_data.data.history_df['index'] == subject_index_value
+                review_data.data.history_df['index'] == subject_index_value,
+                self.history_display_cols
             ].loc[::-1]
             
             return self.columns_to_string(filtered_history_df, multi_type_columns)
@@ -304,7 +324,7 @@ class ReviewDataApp:
             return
 
         more_component_inputs = {
-            c.name: c.callback_input + c.callback_state + c.callback_state_external for c_name, c in self.more_components.items()
+            c.name: c.callback_input + c.callback_state + c.callback_state_external for c_name, c in self.ordered_more_components.items()
         }
 
         more_component_inputs_as_states = {
@@ -313,14 +333,14 @@ class ReviewDataApp:
             ] for c_name, c_list in more_component_inputs.items()
         }
 
-        more_component_outputs = {c.name: c.callback_output for c_name, c in self.more_components.items()}
+        more_component_outputs = {c.name: c.callback_output for c_name, c in self.ordered_more_components.items()}
                
         def update_components(output_dict, subject_index_value, more_component_inputs_as_states):
             output_dict['more_component_outputs'] = {
-                c.name: list(np.full(len(c.callback_output), dash.no_update)) for c_name, c in self.more_components.items()
+                c.name: list(np.full(len(c.callback_output), dash.no_update)) for c_name, c in self.ordered_more_components.items()
             }
             
-            for c_name, component in self.more_components.items():
+            for c_name, component in self.ordered_more_components.items():
                 if component.new_data_callback is not None:
                     component_output = component.new_data_callback(
                         review_data.data,
@@ -616,10 +636,10 @@ class ReviewDataApp:
 
             output_dict = {
                 'more_component_outputs': {
-                    c.name: list(np.full(len(c.callback_output), dash.no_update)) for c_name, c in self.more_components.items()
+                    c.name: list(np.full(len(c.callback_output), dash.no_update)) for c_name, c in self.ordered_more_components.items()
                 }
             }
-            for c_name, component in self.more_components.items():
+            for c_name, component in self.ordered_more_components.items():
                 if sum([ci.component_id == prop_id for ci in component.callback_input]) > 0:
                     if component.internal_callback is None:
                         raise ValueError(
@@ -628,15 +648,15 @@ class ReviewDataApp:
                             f'Either remove Input "{prop_id}" from "{component.name}.callback_input" attribute, '
                             f'or define a callback function'
                         )
+                    if dropdown_value:
+                        component_output = component.internal_callback(
+                            review_data.data,
+                            dropdown_value,
+                            *more_component_inputs[component.name]
+                        )
 
-                    component_output = component.internal_callback(
-                        review_data.data,
-                        dropdown_value,
-                        *more_component_inputs[component.name]
-                    )
-
-                    validate_callback_outputs(component_output, component, which_callback='internal_callback')
-                    output_dict['more_component_outputs'][component.name] = component_output
+                        validate_callback_outputs(component_output, component, which_callback='internal_callback')
+                        output_dict['more_component_outputs'][component.name] = component_output
             return output_dict
 
         jupyter_dash.default_mode = mode
@@ -742,7 +762,7 @@ class ReviewDataApp:
                     id='APP-history-table',
                     data=pd.DataFrame().to_dict('records'),
                     columns=[
-                        {"name": i, "id": i, "deletable": False, "selectable": False} for i in review_data.data.history_df.columns
+                        {"name": i, "id": i, "deletable": False, "selectable": False} for i in self.history_display_cols
                     ],
                     editable=False,
                     filter_action="native",
@@ -777,14 +797,14 @@ class ReviewDataApp:
         
         if collapsable:
             more_components_layout = dbc.Accordion(
-                [dbc.AccordionItem(c.layout, title=c_name) for c_name, c in self.more_components.items()], 
+                [dbc.AccordionItem(c.layout, title=c_name) for c_name, c in self.ordered_more_components.items()], 
                 always_open=True, 
                 start_collapsed=False,
-                active_item=[f'item-{i}' for i in range(len(self.more_components.keys()))],
+                active_item=[f'item-{i}' for i in range(len(self.ordered_more_components.keys()))],
                 style={'.accordion-button': {'font-size': 'xx-large'}}
             )
         else:
-            more_components_layout = [dbc.Row(c.layout, style={"marginBottom": "15px"}) for c_name, c in self.more_components.items()]
+            more_components_layout = [dbc.Row(c.layout, style={"marginBottom": "15px"}) for c_name, c in self.ordered_more_components.items()]
 
         
         layout = html.Div(
@@ -943,7 +963,6 @@ class ReviewDataApp:
         component: An AppComponent object to include in the app
         **kwargs: include more arguments for the component's callback functions 
         """
-        
         all_component_names = [c_name for c_name, c in self.more_components.items()]
         
         if component.name in all_component_names:
