@@ -1,2 +1,0 @@
-participant_id	maf_fn	cluster_ccfs_fn	build_tree_posterior_fn	tumor_molecular_subtype	tumor_morphology	tumor_primary_site	cancer_stage	vital_status	death_date_dfd	follow_up_date	age_at_diagnosis	gender	notes	treatments_fn
-patient1	../../Annomate/simulated_data/output_data/patient1_maf.txt	../../Annomate/simulated_data/output_data/PhylogicNDT_outputs/patient1.cluster_ccfs.txt	../../Annomate/simulated_data/output_data/PhylogicNDT_outputs/patient1_build_tree_posteriors.tsv	Unknown	Unknown						32			../../Annomate/simulated_data/output_data/patient1_treatments.txt

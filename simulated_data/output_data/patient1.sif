@@ -1,4 +1,0 @@
-sample_id	maf_fn	seg_fn	purity	timepoint
-patient1_t1	simulated_maf.t1.maf		0.7	0
-patient1_t2	simulated_maf.t2.maf		0.45	100
-patient1_t3	simulated_maf.t3.maf		0.9	300

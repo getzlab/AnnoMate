@@ -1,4 +1,0 @@
-sample_id	maf_fn	wxs_purity	collection_date_dfd	cnv_seg_fn	participant_id	preservation_method	wxs_ploidy
-patient1_t1	simulated_maf.t1.maf	0.7	0	../../Annomate/simulated_data/output_data/simulated_seg.t1.tsv	patient1		2
-patient1_t2	simulated_maf.t2.maf	0.45	100	../../Annomate/simulated_data/output_data/simulated_seg.t2.tsv	patient1		2
-patient1_t3	simulated_maf.t3.maf	0.9	300	../../Annomate/simulated_data/output_data/simulated_seg.t3.tsv	patient1		2

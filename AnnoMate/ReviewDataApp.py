@@ -194,6 +194,7 @@ class ReviewDataApp:
         mode='external',
         host='0.0.0.0',
         port=8050,
+        hide_history_df_cols=[],
     ):
 
         """
@@ -244,12 +245,19 @@ class ReviewDataApp:
             
         attributes_to_export: List
             List of attributes from the data object to automatically export
+
+        hide_history_df_cols: List[str]
+            list of columns in the history table to NOT display in the dashboard
         """
         multi_type_columns = [c for c in annot_app_display_types_dict.keys() if review_data.data.annot_col_config_dict[c].annot_value_type == 'multi']
 
+        self.history_display_cols = review_data.data.history_df.columns
+        self.history_display_cols = [c for c in self.history_display_cols if c not in hide_history_df_cols]
+
         def get_history_display_table(subject_index_value):
             filtered_history_df = review_data.data.history_df.loc[
-                review_data.data.history_df['index'] == subject_index_value
+                review_data.data.history_df['index'] == subject_index_value,
+                self.history_display_cols
             ].loc[::-1]
             
             return self.columns_to_string(filtered_history_df, multi_type_columns)
@@ -742,7 +750,7 @@ class ReviewDataApp:
                     id='APP-history-table',
                     data=pd.DataFrame().to_dict('records'),
                     columns=[
-                        {"name": i, "id": i, "deletable": False, "selectable": False} for i in review_data.data.history_df.columns
+                        {"name": i, "id": i, "deletable": False, "selectable": False} for i in self.history_display_cols
                     ],
                     editable=False,
                     filter_action="native",
