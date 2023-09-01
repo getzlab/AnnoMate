@@ -358,7 +358,7 @@ def gen_driver_edge_labels(drivers, cluster_hugo_list):
 
     return label
 
-def gen_phylogicNDT_tree(df, idx, tree_num, drivers_fn, maf_start_pos_col, maf_cluster_col, maf_hugo_col):
+def gen_phylogicNDT_tree(df, idx, tree_num, drivers_fn, maf_start_pos_col, maf_cluster_col, maf_hugo_col, tree_meta_col='n_iter'):
     """Generate PhlogicNDT tree and dropdown to choose from all possible trees.
 
     Parameters
@@ -370,6 +370,8 @@ def gen_phylogicNDT_tree(df, idx, tree_num, drivers_fn, maf_start_pos_col, maf_c
         number assigned to the chosen tree that is to be displayed
     drivers_fn
         name of the drivers file passed into to gen_review_app as kwarg
+    tree_meta_col
+        Which column from the tree file to display along with the tree name in the dropdown. See data in 'build_tree_posterior_fn'
 
     Returns
     -------
@@ -396,7 +398,10 @@ def gen_phylogicNDT_tree(df, idx, tree_num, drivers_fn, maf_start_pos_col, maf_c
     trees = tree_df.loc[:, 'edges']
     for i, tree in enumerate(trees):
         possible_trees_edges.append(tree.split(','))
-        possible_trees.append(f'Tree {i+1} ({tree_df.n_iter[i]})')
+        tree_label = f'Tree {i+1}'
+        if tree_meta_col:
+            tree_label = tree_label + f' ({tree_meta_col}={tree_df[tree_meta_col][i]})'
+        possible_trees.append(tree_label)
 
     for i in range(len(cluster_assignments)):
         clusters[cluster_assignments[i]] = [hugo for clust, hugo in zip(maf_df[maf_cluster_col], maf_df[maf_hugo_col]) if clust == cluster_assignments[i]]
@@ -466,7 +471,8 @@ def gen_phylogicNDT_tree(df, idx, tree_num, drivers_fn, maf_start_pos_col, maf_c
 def gen_phylogicNDT_graphics(
         data: PatientSampleData, 
         idx, time_scaled, chosen_tree, save_tree_button, 
-        drivers_fn=None, maf_participant_id_col=None, maf_hugo_col=None, maf_chromosome_col=None, maf_start_pos_col=None, maf_cluster_col=None
+        drivers_fn=None, maf_participant_id_col=None, maf_hugo_col=None, maf_chromosome_col=None, maf_start_pos_col=None, maf_cluster_col=None,
+        tree_meta_col='n_iter'
     ):
     """Generate PhylogicNDT CCF plot and trees - new data callback.
 
@@ -505,7 +511,7 @@ def gen_phylogicNDT_graphics(
 
     if df.loc[idx, 'cluster_ccfs_fn']:
         ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df, maf_participant_id_col, maf_hugo_col, maf_chromosome_col, maf_start_pos_col, maf_cluster_col)
-        tree, possible_trees = gen_phylogicNDT_tree(df, idx, 0, drivers_fn, maf_start_pos_col, maf_cluster_col, maf_hugo_col)
+        tree, possible_trees = gen_phylogicNDT_tree(df, idx, 0, drivers_fn, maf_start_pos_col, maf_cluster_col, maf_hugo_col, tree_meta_col=tree_meta_col)
 
         return [ccf_plot, possible_trees, possible_trees[0], tree, dash.no_update]
     else:
@@ -514,7 +520,8 @@ def gen_phylogicNDT_graphics(
 def internal_gen_phylogicNDT_graphics(
         data: PatientSampleData, 
         idx, time_scaled, chosen_tree, save_tree_button, 
-        drivers_fn=None, maf_participant_id_col=None, maf_hugo_col=None, maf_chromosome_col=None, maf_start_pos_col=None, maf_cluster_col=None
+        drivers_fn=None, maf_participant_id_col=None, maf_hugo_col=None, maf_chromosome_col=None, maf_start_pos_col=None, maf_cluster_col=None,
+        tree_meta_col='n_iter'
     ):
     """Generate PhylogicNDT CCF plot and trees - interal callback.
     
@@ -559,7 +566,7 @@ def internal_gen_phylogicNDT_graphics(
                         tree_num = int(n)
 
                 ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df, maf_participant_id_col, maf_hugo_col, maf_chromosome_col, maf_start_pos_col, maf_cluster_col)
-                tree, possible_trees = gen_phylogicNDT_tree(df, idx, tree_num-1, drivers_fn, maf_start_pos_col, maf_cluster_col, maf_hugo_col)
+                tree, possible_trees = gen_phylogicNDT_tree(df, idx, tree_num-1, drivers_fn, maf_start_pos_col, maf_cluster_col, maf_hugo_col, tree_meta_col)
 
                 return [ccf_plot, possible_trees, chosen_tree, tree, dash.no_update]
             else:
