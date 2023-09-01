@@ -11,6 +11,7 @@ class AnnotationDisplayComponent(ABC):
         self.display_output_format = display_output_format
         self.default_display_value = default_display_value
         self.default_compatible_types = valid_annotation_types
+        self.kwargs = kwargs
         
     @abstractmethod
     def gen_input_component(self, data_annot: DataAnnotation, component_id: str):
@@ -21,8 +22,8 @@ class AnnotationDisplayComponent(ABC):
     
 class MultiValueAnnotationDisplayComponent(AnnotationDisplayComponent):
     
-    def __init__(self, default_display_value=None, display_output_format=None):
-        super().__init__(default_display_value=default_display_value, display_output_format=display_output_format)
+    def __init__(self, default_display_value=None, display_output_format=None, **kwargs):
+        super().__init__(default_display_value=default_display_value, display_output_format=display_output_format, **kwargs)
         self.default_compatible_types = ['multi']
         
     @abstractmethod
@@ -37,6 +38,7 @@ class TextAnnotationDisplay(AnnotationDisplayComponent):
             type="text",
             id=component_id,
             value=self.default_display_value,
+            **self.kwargs
         )
     
 class TextAreaAnnotationDisplay(AnnotationDisplayComponent):
@@ -45,7 +47,8 @@ class TextAreaAnnotationDisplay(AnnotationDisplayComponent):
         return dbc.Textarea(
             size="lg", 
             id=component_id,
-            value=self.default_display_value
+            value=self.default_display_value,
+            **self.kwargs
         )
     
 class NumberAnnotationDisplay(AnnotationDisplayComponent):
@@ -62,6 +65,7 @@ class NumberAnnotationDisplay(AnnotationDisplayComponent):
             type="number",
             id=component_id,
             value=self.default_display_value,
+            **self.kwargs
         )
     
 class ChecklistAnnotationDisplay(MultiValueAnnotationDisplayComponent):
@@ -70,13 +74,14 @@ class ChecklistAnnotationDisplay(MultiValueAnnotationDisplayComponent):
         return dbc.Checklist(
             options=[{"label": f, "value": f} for f in data_annot.options],
             id=component_id, 
-            value='' if self.default_display_value is None else self.default_display_value # Checklist does not take NoneType values
+            value='' if self.default_display_value is None else self.default_display_value, # Checklist does not take NoneType values
+            **self.kwargs
         ) 
     
 class RadioitemAnnotationDisplay(AnnotationDisplayComponent):
     
-    def __init__(self, default_display_value=None, display_output_format=None):
-        super().__init__(default_display_value=default_display_value, display_output_format=display_output_format)
+    def __init__(self, default_display_value=None, display_output_format=None, **kwargs):
+        super().__init__(default_display_value=default_display_value, display_output_format=display_output_format, **kwargs)
         self.default_compatible_types = ['string']
     
     def gen_input_component(self, data_annot: DataAnnotation, component_id: str):
@@ -84,12 +89,13 @@ class RadioitemAnnotationDisplay(AnnotationDisplayComponent):
             options=[{"label": f, "value": f} for f in data_annot.options],
             value=self.default_display_value,
             id=component_id,
+            **self.kwargs
         )
     
 class SelectAnnotationDisplay(AnnotationDisplayComponent):
     
-    def __init__(self, default_display_value=None, display_output_format=None):
-        super().__init__(default_display_value=default_display_value, display_output_format=display_output_format)
+    def __init__(self, default_display_value=None, display_output_format=None, **kwargs):
+        super().__init__(default_display_value=default_display_value, display_output_format=display_output_format, **kwargs)
         self.default_compatible_types = ['string']
     
     def gen_input_component(self, data_annot: DataAnnotation, component_id: str):
@@ -97,6 +103,7 @@ class SelectAnnotationDisplay(AnnotationDisplayComponent):
             options=[{"label": f, "value": f} for f in data_annot.options],
             value=self.default_display_value,
             id=component_id,
+            **self.kwargs
         )
 
 
@@ -108,6 +115,7 @@ class MultiValueSelectAnnotationDisplay(MultiValueAnnotationDisplayComponent):
             options=[{"label": f, "value": f} for f in data_annot.options],
             multi=True,
             id=component_id,
-            value=self.default_display_value 
+            value=self.default_display_value,
+            **self.kwargs
         )
         
