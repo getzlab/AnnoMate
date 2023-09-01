@@ -197,6 +197,15 @@ class ReviewerTemplate(ABC):
                 history_df = pd.read_csv(history_df_fn, sep='\t', index_col=0,
                                        converters={h: parse_lists for h in history_headers})
 
+            if isinstance(history_df, pd.DataFrame):
+                assert 'index' in history_df.columns
+
+            if annot_df.index.dtype == np.int64:
+                warnings.warn(f'annot_df has integers in the index. ' + 
+                              f'Check the table is formatted correctly such that the subjects (ie sample, patient ids) are in the first column.\n' + \
+                              f'annot_df.index.dtype == np.int64' 
+                             )
+                
             data = self.gen_data(
                 description=description,
                 annot_df=annot_df,
