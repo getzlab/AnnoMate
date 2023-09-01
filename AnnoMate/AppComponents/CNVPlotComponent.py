@@ -12,6 +12,8 @@ from dash import dcc, html
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
+import plotly.subplots
+from matplotlib import patches
 from scipy.stats import beta
 import pickle
 import functools
@@ -20,7 +22,8 @@ from AnnoMate.ReviewDataApp import AppComponent
 from AnnoMate.AppComponents.utils import cluster_color, get_unique_identifier, freezeargs, cached_read_csv
 from AnnoMate.DataTypes.PatientSampleData import PatientSampleData
 
-from cnv_suite.visualize import plot_acr_subplots, update_cnv_color_absolute, update_cnv_scatter_sigma_toggle, plot_acr_interactive
+from cnv_suite.visualize import plot_acr_subplots, update_cnv_color_absolute, \
+    update_cnv_scatter_sigma_toggle, plot_acr_interactive, add_background
 from cnv_suite.utils import calc_cn_levels, apply_segment_data_to_df, get_segment_interval_trees, switch_contigs
 
 
@@ -96,7 +99,7 @@ def gen_cnv_plot_layout():
                     id='absolute-cnv-box'
                 ),
                 html.P(''),
-                html.Button('Submit', id='cnv-button')
+                html.Button('Reload Copy Number Plots', id='cnv-button')
             ], width=2)
         ]),
     ])
@@ -313,7 +316,40 @@ def gen_maf(maf_fn, purity_dict, ploidy_dict, seg_trees, maf_start_pos_col, maf_
 
     return maf_df
 
+# Adapting https://github.com/getzlab/cnv_suite/blob/1cfef02623e93d7483841b50dfc598dcfebe577e/cnv_suite/visualize/plot_cnv_profile.py#L93C1-L125C15 to plot background on all subfigures
+def updated_plot_acr_subplots(fig_list, title, fig_names, csize, height_per_sample=350, **kwargs):
+    """Add each Figure in list to plotly subplots.
 
+    Additional kwargs are passed to plotly's make_subplots method.
+
+    :param height_per_sample: plot height for each sample plot (scales based on size of fig_list); default 350
+    :param csize: dict with chromosome sizes, as {contig_name: size}
+    :param fig_list: List of plotly.graph_objects.Figure, one for each row
+    :param title: Title of plot
+    :param fig_names: Title for each subplot (one for each row)
+    """
+    fig = plotly.subplots.make_subplots(rows=len(fig_list), cols=1,
+                                        shared_xaxes=True, subplot_titles=fig_names,
+                                        vertical_spacing=0.15/len(fig_list), **kwargs)
+
+    for i, sub_figure in enumerate(fig_list):
+        fig.add_traces(sub_figure.data, rows=i + 1, cols=1)
+        fig.update_yaxes(fig_list[i].layout.yaxis, row=i+1, col=1)
+        # Add chromosome background back in
+        add_background(fig, csize.keys(), csize, plotly_row=i+1, plotly_col=1)
+
+    # update height based on subplot number
+    fig.update_layout(height=len(fig_list)*height_per_sample + 50,
+                      title_text=title,
+                      title_font_size=26,
+                      plot_bgcolor='white')
+    fig.update_xaxes(fig_list[0].layout.xaxis)
+
+    # show x-axis title on only bottom plot
+    fig.update_xaxes(title_text='', selector=(lambda x: not x['showticklabels']))
+
+    return fig
+    
 def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, maf_sample_id_col, maf_start_pos_col, maf_chromosome_col, maf_cluster_col, maf_hugo_col, maf_variant_class_col, maf_protein_change_col):
     """Generate CNV Plot with all customizations.
 
@@ -374,7 +410,8 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
                                   trace_dict[sample_id][0], trace_dict[sample_id][1])
         fig_list.append(cnv_plot)
 
-    cnv_subplots_fig = plot_acr_subplots(fig_list, 'Copy Number Plots', sample_selection_corrected, csize)
+    cnv_subplots_fig = updated_plot_acr_subplots(fig_list, 'Copy Number Plots', sample_selection_corrected, csize)
+    
     update_cnv_scatter_sigma_toggle(cnv_subplots_fig, sigmas_val)
 
     if selected_mutation_rows:
@@ -385,7 +422,20 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
 
     for i, sample_id in enumerate(sample_selection_corrected):
         sample_maf_df = participant_maf_df[participant_maf_df[maf_sample_id_col] == sample_id]
-        cnv_subplots_fig.add_trace(gen_mut_scatter(sample_maf_df, sigmas_val, sample_id, maf_cluster_col, maf_hugo_col, maf_chromosome_col, maf_start_pos_col, maf_variant_class_col, maf_protein_change_col), row=i+1, col=1)
+        cnv_subplots_fig.add_trace(
+            gen_mut_scatter(
+                sample_maf_df, 
+                sigmas_val, 
+                sample_id, 
+                maf_cluster_col, 
+                maf_hugo_col, 
+                maf_chromosome_col, 
+                maf_start_pos_col, 
+                maf_variant_class_col, 
+                maf_protein_change_col
+            ), 
+            row=i+1, col=1
+        )
 
     return [
         cnv_subplots_fig,

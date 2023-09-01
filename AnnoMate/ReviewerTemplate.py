@@ -197,6 +197,15 @@ class ReviewerTemplate(ABC):
                 history_df = pd.read_csv(history_df_fn, sep='\t', index_col=0,
                                        converters={h: parse_lists for h in history_headers})
 
+            if isinstance(history_df, pd.DataFrame):
+                assert 'index' in history_df.columns
+
+            if annot_df.index.dtype == np.int64:
+                warnings.warn(f'annot_df has integers in the index. ' + 
+                              f'Check the table is formatted correctly such that the subjects (ie sample, patient ids) are in the first column.\n' + \
+                              f'annot_df.index.dtype == np.int64' 
+                             )
+                
             data = self.gen_data(
                 description=description,
                 annot_df=annot_df,
@@ -465,11 +474,15 @@ class ReviewerTemplate(ABC):
         dry_run: bool
         """
         export_dir = f'{path}/{date.today()}' if export_by_day else path
-        if not os.path.isdir(export_dir):
-            print(f'Making new directory {export_dir}')
-            os.mkdir(export_dir)
-        else:
-            warnings.warn(f'Directory {export_dir} already exists')
+
+        is_gsurl = path[:5] == 'gs://'
+
+        if not is_gsurl:
+            if not os.path.isdir(export_dir):
+                print(f'Making new directory {export_dir}')
+                os.mkdir(export_dir)
+            else:
+                warnings.warn(f'Directory {export_dir} already exists')
             
         if not dry_run:
             self.review_data_interface.export_data(export_dir, **kwargs)
