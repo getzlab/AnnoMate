@@ -1,8 +1,8 @@
-"""PhylogicComponents.py module
+"""PhylogicNDTComponents.py module
 
-Phylogic CCF Plot and Trees implemented in the PatientReviewer and PhylogicReviewer
+PhylogicNDT CCF Plot and Trees implemented in the PatientReviewer and PhylogicNDTReviewer
 
-Phylogic PMF Plot implemented in the PhylogicReviewer
+PhylogicNDT PMF Plot implemented in the PhylogicNDTReviewer
 
 """
 
@@ -26,13 +26,13 @@ from AnnoMate.AppComponents.utils import cluster_color, get_unique_identifier
 from AnnoMate.DataTypes.PatientSampleData import PatientSampleData
 
 
-# --------------------- Phylogic CCF Plot and Tree ------------------------
+# --------------------- PhylogicNDT CCF Plot and Tree ------------------------
 
-def gen_phylogic_app_component():
-    """Generate Phylogic CCG Plot and Tree components"""
+def gen_phylogicNDT_app_component():
+    """Generate PhylogicNDT CCF Plot and Tree components"""
     return AppComponent(
         'PhylogicNDT Results',
-        layout=gen_phylogic_components_layout(),
+        layout=gen_phylogicNDT_components_layout(),
 
         callback_input=[
             Input('time-scale-checklist', 'value'),
@@ -43,15 +43,15 @@ def gen_phylogic_app_component():
             Output('ccf-plot', 'figure'),
             Output('tree-dropdown', 'options'),
             Output('tree-dropdown', 'value'),
-            Output('phylogic-tree-component', 'children'),
-            Output('phylogic-tree', 'generateImage')
+            Output('phylogicNDT-tree-component', 'children'),
+            Output('phylogicNDT-tree', 'generateImage')
         ],
-        new_data_callback=gen_phylogic_graphics,
-        internal_callback=internal_gen_phylogic_graphics
+        new_data_callback=gen_phylogicNDT_graphics,
+        internal_callback=internal_gen_phylogicNDT_graphics
     )
 
-def gen_phylogic_components_layout():
-    """Generate Phylogic CCF Plot and Tree layout"""
+def gen_phylogicNDT_components_layout():
+    """Generate phylogicNDT CCF Plot and Tree layout"""
     return html.Div([
         dcc.Checklist(
             id='time-scale-checklist',
@@ -71,11 +71,11 @@ def gen_phylogic_components_layout():
                 dbc.Col([
                     html.Div(
                         cyto.Cytoscape(
-                            id='phylogic-tree',
+                            id='phylogicNDT-tree',
                             elements=[],
                             style={'width': '100%', 'height': '450px'},
                         ),
-                        id='phylogic-tree-component'
+                        id='phylogicNDT-tree-component'
                     ),
                     dcc.Dropdown(
                         id='tree-dropdown',
@@ -87,7 +87,7 @@ def gen_phylogic_components_layout():
         ])
     ])
 
-def gen_ccf_plot(df, idx, time_scaled, samples_df):
+def gen_ccf_plot(df, idx, time_scaled, samples_df, maf_participant_id_col, maf_hugo_col, maf_chromosome_col, maf_start_pos_col, maf_cluster_col):
     """Generate CCF plot including treatment bars.
 
     Parameters
@@ -135,23 +135,23 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
         scatter_x = 'order'
         rect_x = 6
 
-    if 'treatments_fn' in list(df):
+    if 'treatments_fn' in df:
         treatments_df = pd.read_csv(df.loc[idx, 'treatments_fn'], sep='\t', comment='#')
         treatments_in_frame_df = treatments_df[(treatments_df['stop_date_dfd'] >= int(timing_data[samples_in_order[0]])) &
                                            (treatments_df['start_date_dfd'] <= int(timing_data[samples_in_order[-1]]))]
 
     # get mutation counts
     mut_ccfs = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
-    participant_id = mut_ccfs.columns[mut_ccfs.columns.isin(['Patient_ID', 'Participant_ID', 'participant_id'])][0]
-    start_pos_id = mut_ccfs.columns[mut_ccfs.columns.isin(['Start_position', 'Start_Position'])][0]
-    cluster = mut_ccfs.columns[mut_ccfs.columns.isin(['Cluster_Assignment', 'cluster'])][0]
+    # participant_id = mut_ccfs.columns[mut_ccfs.columns.isin(['Patient_ID', 'Participant_ID', 'participant_id'])][0]
+    # start_pos_id = mut_ccfs.columns[mut_ccfs.columns.isin(['Start_position', 'Start_Position'])][0]
+    # cluster = mut_ccfs.columns[mut_ccfs.columns.isin(['Cluster_Assignment', 'cluster'])][0]
     mut_count_dict = mut_ccfs.drop_duplicates([
-        participant_id,
-        'Hugo_Symbol',
-        'Chromosome',
-        start_pos_id,
-        cluster
-    ]).groupby(cluster).count()[participant_id].to_dict()
+        maf_participant_id_col,
+        maf_hugo_col,
+        maf_chromosome_col,
+        maf_start_pos_col,
+        maf_cluster_col
+    ]).groupby(maf_cluster_col).count()[maf_participant_id_col].to_dict()
 
     cluster_colors = [cluster_color(i) for i in cluster_df['Cluster_ID'].unique()]
     cluster_df['Cluster_ID'] = cluster_df['Cluster_ID'].astype(str)
@@ -283,7 +283,7 @@ def gen_ccf_plot(df, idx, time_scaled, samples_df):
     return ccf_plot
 
 def gen_stylesheet(cluster_list):
-    """Format Phylogic tree to have correct cluster colors and labels
+    """Format PhylogicNDT tree to have correct cluster colors and labels
 
     Parameters
     ----------
@@ -358,8 +358,8 @@ def gen_driver_edge_labels(drivers, cluster_hugo_list):
 
     return label
 
-def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
-    """Generate Phylogic tree and dropdown to choose from all possible trees.
+def gen_phylogicNDT_tree(df, idx, tree_num, drivers_fn, maf_start_pos_col, maf_cluster_col, maf_hugo_col):
+    """Generate PhlogicNDT tree and dropdown to choose from all possible trees.
 
     Parameters
     ----------
@@ -381,12 +381,12 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
     """
     tree_df = pd.read_csv(df.loc[idx, 'build_tree_posterior_fn'], sep='\t')
     maf_df = pd.read_csv(df.loc[idx, 'maf_fn'], sep='\t')
-    maf_df.drop_duplicates(subset='Start_position', inplace=True)
+    maf_df.drop_duplicates(subset=maf_start_pos_col, inplace=True)
     if drivers_fn:
         drivers = pd.read_csv(drivers_fn, header=None, names=['drivers'])
 
-    cluster_assignment_col = maf_df.columns[maf_df.columns.isin(['Cluster_Assignment', 'cluster'])][0]
-    cluster_assignments = maf_df[cluster_assignment_col].unique().tolist()
+    # cluster_assignment_col = maf_df.columns[maf_df.columns.isin(['Cluster_Assignment', 'cluster'])][0]
+    cluster_assignments = maf_df[maf_cluster_col].unique().tolist()
     possible_trees = []
     possible_trees_edges = []
     clusters = {}
@@ -399,7 +399,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
         possible_trees.append(f'Tree {i+1} ({tree_df.n_iter[i]})')
 
     for i in range(len(cluster_assignments)):
-        clusters[cluster_assignments[i]] = [hugo for clust, hugo in zip(maf_df[cluster_assignment_col], maf_df.Hugo_Symbol) if clust == cluster_assignments[i]]
+        clusters[cluster_assignments[i]] = [hugo for clust, hugo in zip(maf_df[maf_cluster_col], maf_df[maf_hugo_col]) if clust == cluster_assignments[i]]
 
     for clust in clusters:
         cluster_count[clust] = len(clusters[clust])
@@ -450,7 +450,7 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
 
     return [
         cyto.Cytoscape(
-            id='phylogic-tree',
+            id='phylogicNDT-tree',
             style={'width': '100%', 'height': '450px'},
             layout={
                 'name': 'breadthfirst',
@@ -463,21 +463,91 @@ def gen_phylogic_tree(df, idx, tree_num, drivers_fn):
         possible_trees
     ]
 
-def gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, save_tree_button, drivers_fn):
-    """Phylogic graphics callback function with parameters being the callback inputs and returns being callback outputs."""
+def gen_phylogicNDT_graphics(
+        data: PatientSampleData, 
+        idx, time_scaled, chosen_tree, save_tree_button, 
+        drivers_fn=None, maf_participant_id_col=None, maf_hugo_col=None, maf_chromosome_col=None, maf_start_pos_col=None, maf_cluster_col=None
+    ):
+    """Generate PhylogicNDT CCF plot and trees - new data callback.
+
+    Parameters
+    ----------
+    data
+        PatientSampleData containing participant and sample dfs
+    idx
+        Index - current participant
+    time_scaled
+        Time scaled checkbox input (checked or not checked)
+    chosen_tree
+        Tree chosen in the tree dropdown
+    save_tree_button
+        Response from the 'save' button under the tree dropdown being clicked
+    drivers_fn
+        kwarg - File path to csv file of drivers
+    maf_participant_id_col
+        kwarg - Name of the participant id column in the maf file
+    maf_hugo_col
+        kwarg - Name of the hugo symbol column in the maf file 
+    maf_chromosome_col
+        kwarg - Name of the chromosome column in the maf file 
+    maf_start_pos_col
+        kwarg - Name of the start position column in the maf file 
+    maf_cluster_col
+        kwarg - Name of the cluster assignment column in the maf file  
+
+    Returns
+    -------
+    Corresponding values to callback outputs (in corresponding order)
+
+    """
     df = data.participant_df
     samples_df = data.sample_df
 
     if df.loc[idx, 'cluster_ccfs_fn']:
-        ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
-        tree, possible_trees = gen_phylogic_tree(df, idx, 0, drivers_fn)
+        ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df, maf_participant_id_col, maf_hugo_col, maf_chromosome_col, maf_start_pos_col, maf_cluster_col)
+        tree, possible_trees = gen_phylogicNDT_tree(df, idx, 0, drivers_fn, maf_start_pos_col, maf_cluster_col, maf_hugo_col)
 
         return [ccf_plot, possible_trees, possible_trees[0], tree, dash.no_update]
     else:
         return [go.Figure, [], 0, '', dash.no_update]
 
-def internal_gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, chosen_tree, save_tree_button, drivers_fn):
-    """Phylogic graphics internal callback function with parameters being the callback inputs and returns being callback outputs."""
+def internal_gen_phylogicNDT_graphics(
+        data: PatientSampleData, 
+        idx, time_scaled, chosen_tree, save_tree_button, 
+        drivers_fn=None, maf_participant_id_col=None, maf_hugo_col=None, maf_chromosome_col=None, maf_start_pos_col=None, maf_cluster_col=None
+    ):
+    """Generate PhylogicNDT CCF plot and trees - interal callback.
+    
+    Parameters
+    ----------
+    data
+        PatientSampleData containing participant and sample dfs
+    idx
+        Index - current participant
+    time_scaled
+        Time scaled checkbox input (checked or not checked)
+    chosen_tree
+        Tree chosen in the tree dropdown
+    save_tree_button
+        Response from the 'save' button under the tree dropdown being clicked
+    drivers_fn
+        kwarg - File path to csv file of drivers
+    maf_participant_id_col
+        kwarg - Name of the participant id column in the maf file
+    maf_hugo_col
+        kwarg - Name of the hugo symbol column in the maf file 
+    maf_chromosome_col
+        kwarg - Name of the chromosome column in the maf file 
+    maf_start_pos_col
+        kwarg - Name of the start position column in the maf file 
+    maf_cluster_col
+        kwarg - Name of the cluster assignment column in the maf file  
+
+    Returns
+    -------
+    Corresponding values to callback outputs (in corresponding order)
+
+    """
     df = data.participant_df
     samples_df = data.sample_df
     if ctx.triggered:
@@ -488,8 +558,8 @@ def internal_gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, ch
                     if n.isdigit():
                         tree_num = int(n)
 
-                ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df)
-                tree, possible_trees = gen_phylogic_tree(df, idx, tree_num-1, drivers_fn)
+                ccf_plot = gen_ccf_plot(df, idx, time_scaled, samples_df, maf_participant_id_col, maf_hugo_col, maf_chromosome_col, maf_start_pos_col, maf_cluster_col)
+                tree, possible_trees = gen_phylogicNDT_tree(df, idx, tree_num-1, drivers_fn, maf_start_pos_col, maf_cluster_col, maf_hugo_col)
 
                 return [ccf_plot, possible_trees, chosen_tree, tree, dash.no_update]
             else:
@@ -498,7 +568,7 @@ def internal_gen_phylogic_graphics(data: PatientSampleData, idx, time_scaled, ch
             return [dash.no_update, dash.no_update, dash.no_update, dash.no_update, {'type': 'jpg', 'action': 'download'}]
 
 
-# -------------------------- Phylogic PMF Plot ----------------------------
+# -------------------------- PhylogicNDT PMF Plot ----------------------------
 def gen_ccf_pmf_component():
     return AppComponent(name='CCF pmf Mutation Plot',
                         layout=html.Div([
@@ -541,7 +611,7 @@ def gen_ccf_pmf_component():
                         )
 
 
-def ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids):
+def ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_ids, filtered_mut_ids, maf_sample_id_col, maf_cluster_col, maf_hugo_col, maf_chromosome_col, maf_start_pos_col):
 
     """Plots the CCF pmf distribution for the chosen mutation(s).
 
@@ -569,28 +639,28 @@ def ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_id
         mut_ccfs_df = mut_ccfs_df.loc[filtered_mut_ids].copy()
     # else (if all mutations in table are filtered out and none selected): use all mutations
 
-    sample_list = mut_ccfs_df['Sample_ID'].unique()  # todo ensure sorted by collection date
+    sample_list = mut_ccfs_df[maf_sample_id_col].unique()  # todo ensure sorted by collection date
     sample_selection = sample_list if not sample_selection else sample_selection
-    mut_ccfs_df = mut_ccfs_df[mut_ccfs_df['Sample_ID'].isin(sample_selection)].copy()
+    mut_ccfs_df = mut_ccfs_df[mut_ccfs_df[maf_sample_id_col].isin(sample_selection)].copy()
 
     ccfs_headers = [re.search('.*[01].[0-9]+', i) for i in mut_ccfs_df.columns]
     ccfs_headers = [x.group() for x in ccfs_headers if x]
     ccfs_header_dict = {i: re.search('[01].[0-9]+', i).group() for i in ccfs_headers}
 
-    stacked_muts = mut_ccfs_df.set_index(['Sample_ID', 'unique_mut_id', 'Cluster_Assignment'])[
+    stacked_muts = mut_ccfs_df.set_index([maf_sample_id_col, 'unique_mut_id', maf_cluster_col])[
         ccfs_headers].stack().reset_index().rename(columns={'level_3': 'CCF', 0: 'Probability'}).replace(
         ccfs_header_dict)
     if group_clusters:
-        stacked_muts['Cluster_Assignment'] = stacked_muts['Cluster_Assignment'].astype(str)
-        fig = px.histogram(stacked_muts, x='CCF', y='Probability', facet_row='Sample_ID', barmode='group',
-                           height=300 * len(sample_selection), color='Cluster_Assignment', histfunc='avg',
+        stacked_muts[maf_cluster_col] = stacked_muts[maf_cluster_col].astype(str)
+        fig = px.histogram(stacked_muts, x='CCF', y='Probability', facet_row=maf_sample_id_col, barmode='group',
+                           height=300 * len(sample_selection), color=maf_cluster_col, histfunc='avg',
                            color_discrete_map=cluster_color(),
-                           category_orders={'Cluster_Assignment': np.arange(1, 100)})
+                           category_orders={maf_cluster_col: np.arange(1, 100)})
     else:
-        fig = px.histogram(stacked_muts, x='CCF', y='Probability', facet_row='Sample_ID', barmode='group',
+        fig = px.histogram(stacked_muts, x='CCF', y='Probability', facet_row=maf_sample_id_col, barmode='group',
                            height=300 * len(sample_selection), color='unique_mut_id',
                            labels={'unique_mut_id': 'Mutation'})
-        mut_label_dict = {x['unique_mut_id']: f"{x['Hugo_Symbol']} - {x['Chromosome']}:{x['Start_position']}" for idx, x
+        mut_label_dict = {x['unique_mut_id']: f"{x[maf_hugo_col]} - {x[maf_chromosome_col]}:{x[maf_start_pos_col]}" for idx, x
                           in mut_ccfs_df.drop_duplicates('unique_mut_id').iterrows()}
         fig.for_each_trace(lambda t: t.update(name=mut_label_dict[t.name]))
 
@@ -601,25 +671,29 @@ def ccf_pmf_plot(data_df, idx, sample_selection, group_clusters, selected_mut_id
 
 
 def gen_pmf_component(data: PatientSampleData, idx, button_clicks, sample_selection,
-                      group_clusters, selected_mut_ids, filtered_mut_ids):
+                      group_clusters, selected_mut_ids, filtered_mut_ids,
+                      maf_sample_id_col=None, maf_cluster_col=None, maf_hugo_col=None, 
+                      maf_chromosome_col=None, maf_start_pos_col=None):
     # when changing participants, show all mutations at first
     # the filtered and selected mutations input to this function are from the old (previous participant's) MutationTable
     filtered_mut_ids = None
     selected_mut_ids = None
 
-    fig, sample_list = ccf_pmf_plot(data.participant_df, idx, None, group_clusters, selected_mut_ids, filtered_mut_ids)
+    fig, sample_list = ccf_pmf_plot(data.participant_df, idx, None, group_clusters, selected_mut_ids, filtered_mut_ids, maf_sample_id_col, maf_cluster_col, maf_hugo_col, maf_chromosome_col, maf_start_pos_col)
 
     return [fig, sample_list, sample_list]
 
 
 def update_pmf_component(data: PatientSampleData, idx, button_clicks, sample_selection,
-                         group_clusters, selected_mut_ids, filtered_mut_ids):
+                         group_clusters, selected_mut_ids, filtered_mut_ids, 
+                         maf_sample_id_col=None, maf_cluster_col=None, maf_hugo_col=None, 
+                         maf_chromosome_col=None, maf_start_pos_col=None):
     fig, sample_list = ccf_pmf_plot(data.participant_df, idx, sample_selection,
-                                    group_clusters, selected_mut_ids, filtered_mut_ids)
+                                    group_clusters, selected_mut_ids, filtered_mut_ids, maf_sample_id_col, maf_cluster_col, maf_hugo_col, maf_chromosome_col, maf_start_pos_col)
 
     return [fig, sample_list, sample_selection]
 
-# ----------------------------- Phylogic Cluster Metrics -------------------------------
+# ----------------------------- PhylogicNDT Cluster Metrics -------------------------------
 
 def gen_cluster_metrics_component():
     return AppComponent(name='Mutation Types by Cluster',
@@ -635,7 +709,7 @@ def gen_cluster_metrics_component():
                         )
 
 
-def gen_cluster_metric_fig(data: PatientSampleData, idx):
+def gen_cluster_metric_fig(data: PatientSampleData, idx, maf_variant_type_col=None, maf_variant_class_col=None, maf_cluster_col=None):
     """Generate a figure showing mutation type comparisons across clusters with indication of differences."""
     data_df = data.participant_df
 
@@ -644,11 +718,13 @@ def gen_cluster_metric_fig(data: PatientSampleData, idx):
     mut_ccfs_df.drop_duplicates('unique_mut_id', inplace=True)
 
     # apply functions to specify coding vs. non-coding; silent vs. nonsyn
-    mut_ccfs_df['snp_indel'] = mut_ccfs_df['Variant_Type'].apply(lambda x: 'SNP' if x == 'SNP' else 'INDEL')
-    mut_ccfs_df['class'] = mut_ccfs_df['Variant_Classification'].apply(classify_mut)
+    mut_ccfs_df['snp_indel'] = mut_ccfs_df[maf_variant_type_col].apply(lambda x: 'SNP' if x == 'SNP' else 'INDEL')
+    mut_ccfs_df['snp_indel'] = pd.Categorical(mut_ccfs_df['snp_indel'], categories=['SNP', 'INDEL'])
+    mut_ccfs_df['class'] = mut_ccfs_df[maf_variant_class_col].apply(classify_mut)
+    mut_ccfs_df['class'] = pd.Categorical(mut_ccfs_df['class'], categories=['non-coding', 'synonymous', 'non-synonymous'])
 
-    mut_type_counts = mut_ccfs_df.groupby(['Cluster_Assignment', 'snp_indel']).size().unstack(fill_value=0)
-    mut_classes_counts = mut_ccfs_df.groupby(['Cluster_Assignment', 'class']).size().unstack(fill_value=0)
+    mut_type_counts = mut_ccfs_df.groupby([maf_cluster_col, 'snp_indel']).size().unstack(fill_value=0)
+    mut_classes_counts = mut_ccfs_df.groupby([maf_cluster_col, 'class']).size().unstack(fill_value=0)
     mut_classes_counts['coding'] = mut_classes_counts['synonymous'] + mut_classes_counts['non-synonymous']
 
     mut_counts_df = mut_classes_counts.join(mut_type_counts)
@@ -659,7 +735,7 @@ def gen_cluster_metric_fig(data: PatientSampleData, idx):
         lambda x: 'Non/Coding' if 'coding' in x else ('Non/Syn' if 'syn' in x else 'SNP/INDEL'))
 
     # turn these into pie charts (one for each mut comparison type)
-    fig = px.pie(mut_counts_df_mod, names='annotation', values='count', facet_col='Cluster_Assignment', facet_row='type',
+    fig = px.pie(mut_counts_df_mod, names='annotation', values='count', facet_col=maf_cluster_col, facet_row='type',
                  height=500, facet_row_spacing=0.07)
     fig.for_each_annotation(lambda a: a.update(text=a.text.replace("Cluster_Assignment=", ""), y=1.05),
                             selector={'xanchor': 'center'})

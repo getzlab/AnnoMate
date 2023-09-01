@@ -114,7 +114,7 @@ def calculate_error(alt, ref, purity, percentile):
     else:
         return (beta.ppf(percentile, alt, ref) - alt / (alt + ref)) / purity
 
-def gen_mut_scatter(maf_df, mut_sigma, sample):
+def gen_mut_scatter(maf_df, mut_sigma, sample, maf_cluster_col, maf_hugo_col, maf_chromosome_col, maf_start_pos_col, maf_variant_class_col, maf_protein_change_col):
     """Generate mutation scatterplot trace.
 
     Parameters
@@ -131,14 +131,14 @@ def gen_mut_scatter(maf_df, mut_sigma, sample):
     mut_scatter : go.Scatter
 
     """
-    cluster_assignment = maf_df.columns[maf_df.columns.isin(['Cluster_Assignment', 'cluster'])][0]
+    # cluster_assignment = maf_df.columns[maf_df.columns.isin(['Cluster_Assignment', 'cluster'])][0]
 
     mut_scatter = go.Scatter(
         x=maf_df['x_loc'],
         y=maf_df['multiplicity_ccf'],
         mode='markers',
         marker_size=5,
-        marker_color=maf_df['cluster_color'] if cluster_assignment in list(maf_df) else 'Black',
+        marker_color=maf_df['cluster_color'] if maf_cluster_col in list(maf_df) else 'Black',
         name=f'Mutations ({sample})',
         error_y=dict(
             type='data',
@@ -149,14 +149,14 @@ def gen_mut_scatter(maf_df, mut_sigma, sample):
             width=0
         ),
         customdata=np.stack((
-            maf_df['Hugo_Symbol'].tolist(),
-            maf_df['Chromosome'].tolist(),
-            maf_df['Start_position'].tolist(),
+            maf_df[maf_hugo_col].tolist(),
+            maf_df[maf_chromosome_col].tolist(),
+            maf_df[maf_start_pos_col].tolist(),
             maf_df['VAF'].tolist() if 'VAF' in maf_df else ['N/A']*len(maf_df),
-            maf_df[cluster_assignment].tolist() if cluster_assignment in maf_df else ['N/A']*len(maf_df),
+            maf_df[maf_cluster_col].tolist() if maf_cluster_col in maf_df else ['N/A']*len(maf_df),
             maf_df['Variant_Type'].tolist() if 'Variant_Type' in maf_df else ['N/A']*len(maf_df),
-            maf_df['Variant_Classification'].tolist() if 'Variant_Classification' in maf_df else ['N/A']*len(maf_df),
-            maf_df['Protein_change'] if 'Protein_change' in maf_df else ['N/A']*len(maf_df)),
+            maf_df[maf_variant_class_col].tolist() if 'Variant_Classification' in maf_df else ['N/A']*len(maf_df),
+            maf_df[maf_protein_change_col] if 'Protein_change' in maf_df else ['N/A']*len(maf_df)),
             axis=-1
         ),
         hovertemplate='<extra></extra>' +
@@ -200,7 +200,7 @@ def gen_seg_figure(cnv_seg_fn, csize, purity=None, ploidy=None):
 
 @freezeargs
 @functools.lru_cache(maxsize=16)
-def gen_participant_cnv_and_maf(cnv_seg_filenames, maf_fn, sample_names, csize, purity_dict, ploidy_dict):
+def gen_participant_cnv_and_maf(cnv_seg_filenames, maf_fn, sample_names, csize, purity_dict, ploidy_dict, maf_start_pos_col, maf_sample_id_col, maf_chromosome_col, maf_cluster_col):
     """Generate a CNV Plot to be stored in a pickle file
 
     Parameters
@@ -235,12 +235,12 @@ def gen_participant_cnv_and_maf(cnv_seg_filenames, maf_fn, sample_names, csize, 
         trace_dict[sample] = (start_trace, end_trace)
 
     seg_trees = get_segment_interval_trees(pd.concat(cnv_seg_dict.values()))
-    participant_maf_df = gen_maf(maf_fn, purity_dict, ploidy_dict, seg_trees)
+    participant_maf_df = gen_maf(maf_fn, purity_dict, ploidy_dict, seg_trees, maf_start_pos_col, maf_sample_id_col, maf_chromosome_col, maf_cluster_col)
 
     return participant_maf_df, cnv_plot_dict, cnv_seg_dict, trace_dict
 
 
-def gen_maf(maf_fn, purity_dict, ploidy_dict, seg_trees):
+def gen_maf(maf_fn, purity_dict, ploidy_dict, seg_trees, maf_start_pos_col, maf_sample_id_col, maf_chromosome_col, maf_cluster_col):
     """
 
     Parameters
@@ -260,12 +260,12 @@ def gen_maf(maf_fn, purity_dict, ploidy_dict, seg_trees):
         Modified maf for this participant, including copy number data and additional annotations
     """
     maf_df = cached_read_csv(maf_fn, sep='\t')
-    start_pos = maf_df.columns[maf_df.columns.isin(['Start_position', 'Start_Position'])][0]
+    # start_pos = maf_df.columns[maf_df.columns.isin(['Start_position', 'Start_Position'])][0]
     alt = maf_df.columns[maf_df.columns.isin(['Tumor_Seq_Allele2', 'Tumor_Seq_Allele'])][0]
-    sample_id_col = maf_df.columns[maf_df.columns.isin(['Tumor_Sample_Barcode', 'Sample_ID', 'sample_id', 'Sample_id'])][0]
-    maf_df['id'] = maf_df.apply(lambda x: get_unique_identifier(x, start_pos=start_pos, alt=alt), axis=1)
+    # sample_id_col = maf_df.columns[maf_df.columns.isin(['Tumor_Sample_Barcode', 'Sample_ID', 'sample_id', 'Sample_id'])][0]
+    maf_df['id'] = maf_df.apply(lambda x: get_unique_identifier(x, start_pos=maf_start_pos_col, alt=alt), axis=1)
 
-    maf_df['Sample_ID'] = maf_df[sample_id_col]
+    maf_df['Sample_ID'] = maf_df[maf_sample_id_col]
 
     maf_sample_names = set(maf_df['Sample_ID'])
     given_sample_names = set(purity_dict.keys())
@@ -278,7 +278,7 @@ def gen_maf(maf_fn, purity_dict, ploidy_dict, seg_trees):
 
     # maf_df = switch_contigs(maf_df)
     # .replace giving: Series.replace cannot use dict-like to_replace and non-None value ?? todo
-    maf_df['Chromosome'] = maf_df['Chromosome'].apply(lambda x: '23' if x == 'X' else '24' if x == 'Y' else x)
+    maf_df[maf_chromosome_col] = maf_df[maf_chromosome_col].apply(lambda x: '23' if x == 'X' else '24' if x == 'Y' else x)
 
     maf_df = apply_segment_data_to_df(maf_df, seg_trees)
     maf_df.set_index('id', inplace=True, drop=False)
@@ -292,13 +292,13 @@ def gen_maf(maf_fn, purity_dict, ploidy_dict, seg_trees):
     maf_df['c_0'] = maf_df['Sample_ID'].replace(c_0)
     maf_df['c_delta'] = maf_df['Sample_ID'].replace(c_delta)
 
-    cluster_assignment = maf_df.columns[maf_df.columns.isin(['Cluster_Assignment', 'cluster'])][0]
-    maf_df['Chromosome'] = maf_df['Chromosome'].astype(int)
-    if cluster_assignment in maf_df:
-        maf_df['cluster_color'] = maf_df[cluster_assignment].astype(int).apply(lambda x: cluster_color(x))
+    # cluster_assignment = maf_df.columns[maf_df.columns.isin(['Cluster_Assignment', 'cluster'])][0]
+    maf_df[maf_chromosome_col] = maf_df[maf_chromosome_col].astype(int)
+    if maf_cluster_col in maf_df:
+        maf_df['cluster_color'] = maf_df[maf_cluster_col].astype(int).apply(lambda x: cluster_color(x))
 
     c_size_cumsum = np.cumsum([0] + list(csize.values()))
-    maf_df['x_loc'] = maf_df.apply(lambda x: c_size_cumsum[x['Chromosome'] - 1] + x['Start_position'], axis=1)
+    maf_df['x_loc'] = maf_df.apply(lambda x: c_size_cumsum[x[maf_chromosome_col] - 1] + x[maf_start_pos_col], axis=1)
     maf_df['VAF'] = maf_df['t_alt_count'] / (maf_df['t_alt_count'] + maf_df['t_ref_count'])
 
     maf_df['mu_major_adj'] = (maf_df['mu_major'] - maf_df['c_0']) / maf_df['c_delta']
@@ -314,7 +314,7 @@ def gen_maf(maf_fn, purity_dict, ploidy_dict, seg_trees):
     return maf_df
 
 
-def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df):
+def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, maf_sample_id_col, maf_start_pos_col, maf_chromosome_col, maf_cluster_col, maf_hugo_col, maf_variant_class_col, maf_protein_change_col):
     """Generate CNV Plot with all customizations.
 
     Parameters
@@ -364,7 +364,7 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     ploidy_dict = samples_df.loc[sample_list, 'wxs_ploidy'].to_dict()
     cnv_seg_filenames = samples_df.loc[sample_list, 'cnv_seg_fn'].values.tolist()
     maf_fn = df.loc[idx, 'maf_fn']
-    participant_maf_df, cnv_plot_dict, cnv_seg_dict, trace_dict = gen_participant_cnv_and_maf(cnv_seg_filenames, maf_fn, sample_list, csize, purity_dict, ploidy_dict)
+    participant_maf_df, cnv_plot_dict, cnv_seg_dict, trace_dict = gen_participant_cnv_and_maf(cnv_seg_filenames, maf_fn, sample_list, csize, purity_dict, ploidy_dict, maf_start_pos_col, maf_sample_id_col, maf_chromosome_col, maf_cluster_col)
 
     fig_list = []
     for sample_id in sample_selection_corrected:
@@ -384,8 +384,8 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     # else (if all mutations in table are filtered out and none selected): use all mutations
 
     for i, sample_id in enumerate(sample_selection_corrected):
-        sample_maf_df = participant_maf_df[participant_maf_df['Sample_ID'] == sample_id]
-        cnv_subplots_fig.add_trace(gen_mut_scatter(sample_maf_df, sigmas_val, sample_id), row=i+1, col=1)
+        sample_maf_df = participant_maf_df[participant_maf_df[maf_sample_id_col] == sample_id]
+        cnv_subplots_fig.add_trace(gen_mut_scatter(sample_maf_df, sigmas_val, sample_id, maf_cluster_col, maf_hugo_col, maf_chromosome_col, maf_start_pos_col, maf_variant_class_col, maf_protein_change_col), row=i+1, col=1)
 
     return [
         cnv_subplots_fig,
@@ -394,8 +394,54 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     ]
 
 def gen_absolute_components(
-    data: PatientSampleData, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, selected_mutation_rows, filtered_mutation_rows):
-    """Absolute components callback function with parameters being the callback inputs/states and returns being callback outputs."""
+    data: PatientSampleData, 
+    idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, selected_mutation_rows, filtered_mutation_rows, 
+    maf_sample_id_col=None, maf_start_pos_col=None, maf_chromosome_col=None, maf_cluster_col=None, maf_hugo_col=None, maf_variant_class_col=None, 
+    maf_protein_change_col=None):
+    """Generate CNV plot - new data callback.
+    
+    Parameters
+    ----------
+    data
+        PatientSampleData containing participant and sample dfs
+    idx
+        Index - current participant
+    sample_selection
+        Samples selected in checkboxes to be displayed 
+    sigmas
+        Sigma checkbox value (checked or unchecked)
+    color
+        Color seleceted in checkboxes to be displayed 
+    absolute
+        Display Absolute CN checkbox value (checked or unchecked)
+    button_clicks 
+        Submit button response 
+    cnv_plot
+    sample_list 
+    selected_mutation_rows 
+        Rows selected in the mutation table 
+    filtered_mutation_rows 
+        Rows displayed in the mutation table after filtering 
+    maf_sample_id_col
+        kwarg - Name of the sample id column in the maf file 
+    maf_start_pos_col
+        kwarg - Name of the start position column in the maf file
+    maf_chromosome_col
+        kwarg - Name of the chromosome column in the maf file
+    maf_cluster_col
+        kwarg - Name of the cluster assignment column in the maf file  
+    maf_hugo_col
+        kwarg - Name of the hugo symbol column in the maf file 
+    maf_variant_class_col
+        kwarg - Name of the variant classification column in the maf file 
+    maf_protein_change_col
+        kwarg - Name of the protein change column in the maf file 
+
+    Returns
+    -------
+    Corresponding values to callback outputs (in corresponding order)
+
+    """
     df = data.participant_df
     samples_df = data.sample_df
 
@@ -404,7 +450,7 @@ def gen_absolute_components(
     filtered_mutation_rows = None
     selected_mutation_rows = None
 
-    cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, [], sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df)
+    cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, [], sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, maf_sample_id_col, maf_start_pos_col, maf_chromosome_col, maf_cluster_col, maf_hugo_col, maf_variant_class_col, maf_protein_change_col)
     button_clicks = None
 
     return [
@@ -414,13 +460,56 @@ def gen_absolute_components(
         button_clicks
     ]
 
-def internal_gen_absolute_components(data: PatientSampleData, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, selected_mutation_rows, filtered_mutation_rows):
-    """Absolute components internal callback function with parameters being the callback inputs/states and returns being callback outputs."""
+def internal_gen_absolute_components(data: PatientSampleData, idx, sample_selection, sigmas, color, absolute, button_clicks, cnv_plot, sample_list, selected_mutation_rows, filtered_mutation_rows, maf_sample_id_col=None, maf_start_pos_col=None, maf_chromosome_col=None, maf_cluster_col=None, maf_hugo_col=None, maf_variant_class_col=None, maf_protein_change_col=None):
+    """Generate CNV plot - internal callback.
+    
+    Parameters
+    ----------
+    data
+        PatientSampleData containing participant and sample dfs
+    idx
+        Index - current participant
+    sample_selection
+        Samples selected in checkboxes to be displayed 
+    sigmas
+        Sigma checkbox value (checked or unchecked)
+    color
+        Color seleceted in checkboxes to be displayed 
+    absolute
+        Display Absolute CN checkbox value (checked or unchecked)
+    button_clicks 
+        Submit button response 
+    cnv_plot
+    sample_list 
+    selected_mutation_rows 
+        Rows selected in the mutation table 
+    filtered_mutation_rows 
+        Rows displayed in the mutation table after filtering 
+    maf_sample_id_col
+        kwarg - Name of the sample id column in the maf file 
+    maf_start_pos_col
+        kwarg - Name of the start position column in the maf file
+    maf_chromosome_col
+        kwarg - Name of the chromosome column in the maf file
+    maf_cluster_col
+        kwarg - Name of the cluster assignment column in the maf file  
+    maf_hugo_col
+        kwarg - Name of the hugo symbol column in the maf file 
+    maf_variant_class_col
+        kwarg - Name of the variant classification column in the maf file 
+    maf_protein_change_col
+        kwarg - Name of the protein change column in the maf file 
+
+    Returns
+    -------
+    Corresponding values to callback outputs (in corresponding order)
+
+    """
     df = data.participant_df
     samples_df = data.sample_df
 
     if button_clicks != None:
-        cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df)
+        cnv_plot, sample_list, sample_selection = gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mutation_rows, filtered_mutation_rows, samples_df, maf_sample_id_col, maf_start_pos_col, maf_chromosome_col, maf_cluster_col, maf_hugo_col, maf_variant_class_col, maf_protein_change_col)
         button_clicks = None
 
     return [
