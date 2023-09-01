@@ -465,11 +465,15 @@ class ReviewerTemplate(ABC):
         dry_run: bool
         """
         export_dir = f'{path}/{date.today()}' if export_by_day else path
-        if not os.path.isdir(export_dir):
-            print(f'Making new directory {export_dir}')
-            os.mkdir(export_dir)
-        else:
-            warnings.warn(f'Directory {export_dir} already exists')
+
+        is_gsurl = path[:5] == 'gs://'
+
+        if not is_gsurl:
+            if not os.path.isdir(export_dir):
+                print(f'Making new directory {export_dir}')
+                os.mkdir(export_dir)
+            else:
+                warnings.warn(f'Directory {export_dir} already exists')
             
         if not dry_run:
             self.review_data_interface.export_data(export_dir, **kwargs)
