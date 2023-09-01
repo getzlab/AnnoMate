@@ -96,7 +96,7 @@ def gen_cnv_plot_layout():
                     id='absolute-cnv-box'
                 ),
                 html.P(''),
-                html.Button('Submit', id='cnv-button')
+                html.Button('Reload Copy Number Plots', id='cnv-button')
             ], width=2)
         ]),
     ])
