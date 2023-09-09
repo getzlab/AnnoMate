@@ -14,6 +14,8 @@ import inspect
 import traceback
 import warnings
 from datetime import date
+import functools
+import gc # garbage collection
 
 
 def make_docstring(object_type_name, func1_doc, func2):
@@ -490,6 +492,14 @@ class ReviewerTemplate(ABC):
             print(f"Exported to {export_dir}")
         else:
             print(f"Export directory will be {export_dir}. Nothing exported yet.")
+
+    def clear_cache(self):
+        # All objects collected
+        objects = [i for i in gc.get_objects() if isinstance(i, functools._lru_cache_wrapper)]
+          
+        # All objects cleared
+        for object in objects:
+            object.cache_clear()
 
 
 def parse_lists(x):
