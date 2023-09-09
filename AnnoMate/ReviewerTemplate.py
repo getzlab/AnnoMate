@@ -200,11 +200,12 @@ class ReviewerTemplate(ABC):
             if isinstance(history_df, pd.DataFrame):
                 assert 'index' in history_df.columns
 
-            if annot_df.index.dtype == np.int64:
-                warnings.warn(f'annot_df has integers in the index. ' + 
-                              f'Check the table is formatted correctly such that the subjects (ie sample, patient ids) are in the first column.\n' + \
-                              f'annot_df.index.dtype == np.int64' 
-                             )
+            if isinstance(annot_df, pd.DataFrame) and (annot_df.index.dtype == np.int64):
+                warnings.warn(
+                    f'annot_df has integers in the index. ' + 
+                    f'Check the table is formatted correctly such that the subjects (ie sample, patient ids) are in the first column.\n' + \
+                    f'annot_df.index.dtype == np.int64' 
+                )
                 
             data = self.gen_data(
                 description=description,
