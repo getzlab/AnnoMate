@@ -296,13 +296,16 @@ class ReviewDataApp:
             )
         
         app.title = review_data.data_pkl_fn.split('/')[-1].split('.')[0]
-        
+
         if auto_export:
             if auto_export_path is None:
                 auto_export_path = f"{review_data.data_pkl_fn.rsplit('.', 1)[0]}.auto_export"
                 print(f'Setting auto_export_path to {auto_export_path}')
-            else:
-                print(f'Using {auto_export_path} for auto exporting.')
+            if not os.path.exists(auto_export_path):
+                print(f'Making directory {auto_export_path} for auto exporting.')
+                os.mkdir(auto_export_path)
+            
+            print(f'Using {auto_export_path} for auto exporting.')
         
         def validate_callback_outputs(
             component_output, 
