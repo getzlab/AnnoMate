@@ -203,7 +203,18 @@ def gen_seg_figure(cnv_seg_fn, csize, purity=None, ploidy=None):
 
 @freezeargs
 @functools.lru_cache(maxsize=16)
-def gen_participant_cnv_and_maf(cnv_seg_filenames, maf_fn, sample_names, csize, purity_dict, ploidy_dict, maf_start_pos_col, maf_sample_id_col, maf_chromosome_col, maf_cluster_col):
+def gen_participant_cnv_and_maf(
+    cnv_seg_filenames, 
+    maf_fn, 
+    sample_names, 
+    csize, 
+    purity_dict, 
+    ploidy_dict, 
+    maf_start_pos_col, 
+    maf_sample_id_col, 
+    maf_chromosome_col, 
+    maf_cluster_col
+):
     """Generate a CNV Plot to be stored in a pickle file
 
     Parameters
@@ -400,7 +411,18 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
     ploidy_dict = samples_df.loc[sample_list, 'wxs_ploidy'].to_dict()
     cnv_seg_filenames = samples_df.loc[sample_list, 'cnv_seg_fn'].values.tolist()
     maf_fn = df.loc[idx, 'maf_fn']
-    participant_maf_df, cnv_plot_dict, cnv_seg_dict, trace_dict = gen_participant_cnv_and_maf(cnv_seg_filenames, maf_fn, sample_list, csize, purity_dict, ploidy_dict, maf_start_pos_col, maf_sample_id_col, maf_chromosome_col, maf_cluster_col)
+    participant_maf_df, cnv_plot_dict, cnv_seg_dict, trace_dict = gen_participant_cnv_and_maf(
+        cnv_seg_filenames, 
+        maf_fn, 
+        sample_list, 
+        csize, 
+        purity_dict, 
+        ploidy_dict, 
+        maf_start_pos_col, 
+        maf_sample_id_col, 
+        maf_chromosome_col, 
+        maf_cluster_col
+    )
 
     fig_list = []
     for sample_id in sample_selection_corrected:
@@ -408,12 +430,16 @@ def gen_cnv_plot(df, idx, sample_selection, sigmas, color, absolute, selected_mu
         this_seg_df = cnv_seg_dict[sample_id]
         update_cnv_color_absolute(cnv_plot, this_seg_df, absolute_val, color,
                                   trace_dict[sample_id][0], trace_dict[sample_id][1])
+        if absolute_val:
+            cnv_plot.update_yaxes(title_text="Absolute Copy Number")
+        else:
+            cnv_plot.update_yaxes(title_text="Allelic Copy Ratio")
         fig_list.append(cnv_plot)
 
     cnv_subplots_fig = updated_plot_acr_subplots(fig_list, 'Copy Number Plots', sample_selection_corrected, csize)
     
     update_cnv_scatter_sigma_toggle(cnv_subplots_fig, sigmas_val)
-
+    
     if selected_mutation_rows:
         participant_maf_df = participant_maf_df.loc[selected_mutation_rows]
     elif filtered_mutation_rows:

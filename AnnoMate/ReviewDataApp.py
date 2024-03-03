@@ -296,7 +296,7 @@ class ReviewDataApp:
             )
         
         app.title = review_data.data_pkl_fn.split('/')[-1].split('.')[0]
-        
+
         if auto_export:
             if auto_export_path is None:
                 auto_export_path = f"{review_data.data_pkl_fn.rsplit('.', 1)[0]}.auto_export"

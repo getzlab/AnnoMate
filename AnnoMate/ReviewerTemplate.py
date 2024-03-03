@@ -14,6 +14,8 @@ import inspect
 import traceback
 import warnings
 from datetime import date
+import functools
+import gc # garbage collection
 
 
 def make_docstring(object_type_name, func1_doc, func2):
@@ -200,11 +202,12 @@ class ReviewerTemplate(ABC):
             if isinstance(history_df, pd.DataFrame):
                 assert 'index' in history_df.columns
 
-            if annot_df and annot_df.index.dtype == np.int64:
-                warnings.warn(f'annot_df has integers in the index. ' + 
-                              f'Check the table is formatted correctly such that the subjects (ie sample, patient ids) are in the first column.\n' + \
-                              f'annot_df.index.dtype == np.int64' 
-                             )
+            if isinstance(annot_df, pd.DataFrame) and (annot_df.index.dtype == np.int64):
+                warnings.warn(
+                    f'annot_df has integers in the index. ' + 
+                    f'Check the table is formatted correctly such that the subjects (ie sample, patient ids) are in the first column.\n' + \
+                    f'annot_df.index.dtype == np.int64' 
+                )
                 
             data = self.gen_data(
                 description=description,
@@ -489,6 +492,14 @@ class ReviewerTemplate(ABC):
             print(f"Exported to {export_dir}")
         else:
             print(f"Export directory will be {export_dir}. Nothing exported yet.")
+
+    def clear_cache(self):
+        # All objects collected
+        objects = [i for i in gc.get_objects() if isinstance(i, functools._lru_cache_wrapper)]
+          
+        # All objects cleared
+        for object in objects:
+            object.cache_clear()
 
 
 def parse_lists(x):

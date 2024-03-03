@@ -83,7 +83,7 @@ def gen_mutation_table_layout():
                 dbc.Col([
                     dcc.Dropdown(
                         id='table-size-dropdown',
-                        options=[5, 10,20,30],
+                        options=[5,10,20,30],
                         value=DEFAULT_PAGE_SIZE
                     )
                 ], width=2),
