@@ -725,12 +725,12 @@ def gen_cluster_metric_fig(data: PatientSampleData, idx, maf_variant_type_col=No
     mut_ccfs_df.drop_duplicates('unique_mut_id', inplace=True)
 
     # apply functions to specify coding vs. non-coding; silent vs. nonsyn
-    mut_ccfs_df['snp_indel'] = mut_ccfs_df[maf_variant_type_col].apply(lambda x: 'SNP' if x == 'SNP' else 'INDEL')
-    mut_ccfs_df['snp_indel'] = pd.Categorical(mut_ccfs_df['snp_indel'], categories=['SNP', 'INDEL'])
+    mut_ccfs_df['snv_indel'] = mut_ccfs_df[maf_variant_type_col].apply(lambda x: 'SNV' if x == 'SNP' or 'SNV' else 'INDEL')
+    mut_ccfs_df['snv_indel'] = pd.Categorical(mut_ccfs_df['snv_indel'], categories=['SNV', 'INDEL'])
     mut_ccfs_df['class'] = mut_ccfs_df[maf_variant_class_col].apply(classify_mut)
     mut_ccfs_df['class'] = pd.Categorical(mut_ccfs_df['class'], categories=['non-coding', 'synonymous', 'non-synonymous'])
 
-    mut_type_counts = mut_ccfs_df.groupby([maf_cluster_col, 'snp_indel']).size().unstack(fill_value=0)
+    mut_type_counts = mut_ccfs_df.groupby([maf_cluster_col, 'snv_indel']).size().unstack(fill_value=0)
     mut_classes_counts = mut_ccfs_df.groupby([maf_cluster_col, 'class']).size().unstack(fill_value=0)
     mut_classes_counts['coding'] = mut_classes_counts['synonymous'] + mut_classes_counts['non-synonymous']
 
@@ -739,21 +739,39 @@ def gen_cluster_metric_fig(data: PatientSampleData, idx, maf_variant_type_col=No
     mut_counts_df_mod.loc['ALL', :] = mut_counts_df_mod.sum()
     mut_counts_df_mod = mut_counts_df_mod.stack().reset_index().rename(columns={'level_1': 'annotation', 0: 'count'})
     mut_counts_df_mod['type'] = mut_counts_df_mod['annotation'].apply(
-        lambda x: 'Non/Coding' if 'coding' in x else ('Non/Syn' if 'syn' in x else 'SNP/INDEL'))
-
+        lambda x: 'Non/Coding' if 'coding' in x else ('Non/Syn' if 'syn' in x else 'SNV/INDEL'))
     # turn these into pie charts (one for each mut comparison type)
-    fig = px.pie(mut_counts_df_mod, names='annotation', values='count', facet_col=maf_cluster_col, facet_row='type',
-                 height=500, facet_row_spacing=0.07)
+    num_clusters = len(mut_counts_df_mod[maf_cluster_col].unique())
+    fig = make_subplots(
+        rows=2, cols=num_clusters, 
+        specs=[[{"type": "pie"} for _ in range(0, num_clusters)] for _ in range(0, 2)], 
+        subplot_titles=[i for i in mut_counts_df_mod[maf_cluster_col].unique()],
+        row_titles=[i for i in mut_counts_df_mod['type'].unique()]
+    )
+    for i, annotations in enumerate(zip(['non-coding', 'synonymous'], ['coding', 'non-synonymous'])):
+        for j, clust in enumerate(mut_counts_df_mod[maf_cluster_col].unique()):
+            filterby_annotation_df = mut_counts_df_mod[mut_counts_df_mod['annotation'].isin(annotations)]
+            filterby_cluster_df = filterby_annotation_df[filterby_annotation_df[maf_cluster_col] == clust]
+            filterby_cluster_df.set_index('annotation', inplace=True)
+            print(filterby_cluster_df)
+            fig.add_trace(go.Pie(
+                values=filterby_cluster_df['count'],
+                domain=dict(x=[i/num_clusters, (i+1)/num_clusters]),
+                labels=filterby_cluster_df['count'].index,
+                legendgroup=i,
+                textinfo='value',
+            ), row=(i+1), col=(j+1))
+            fig.update_layout(height=500)
+            
+    fig.for_each_annotation(lambda a: a.update(font_size=18))
     fig.for_each_annotation(lambda a: a.update(text=a.text.replace("Cluster_Assignment=", ""), y=1.05),
                             selector={'xanchor': 'center'})
     fig.for_each_annotation(lambda a: a.update(text=a.text.replace("type=", "")))
-    fig.for_each_annotation(lambda a: a.update(font_size=18))
-    fig.update_traces(textinfo='value')
 
     # annotate any cluster that is significantly different from all other clusters
     # using fisher exact test to compare each cluster to all other clusters
     fisher_p_df = pd.DataFrame()
-    for col1, col2 in zip(['non-coding', 'synonymous', 'INDEL'], ['coding', 'non-synonymous', 'SNP']):
+    for col1, col2 in zip(['non-coding', 'synonymous'], ['coding', 'non-synonymous']):
         for idx in mut_counts_df.index:
             odds_ratio, p_val = ss.fisher_exact([[mut_counts_df.loc[idx, col1], mut_counts_df[col1].drop(idx).sum()],
                                                  [mut_counts_df.loc[idx, col2], mut_counts_df[col2].drop(idx).sum()]])
@@ -769,9 +787,9 @@ def gen_cluster_metric_fig(data: PatientSampleData, idx, maf_variant_type_col=No
 
 
 def classify_mut(variant_class):
-    if variant_class in ['lincRNA', 'RNA', 'IGR', "3'UTR", "5'UTR", 'Intron', "5'Flank", "3'Flank"]:
+    if variant_class in ['lincRNA', 'RNA', 'IGR', "3'UTR", "5'UTR", 'Intron', "5'Flank", "3'Flank", 'intronic']:
         return 'non-coding'
-    elif variant_class == 'Silent':
+    elif variant_class in ['Silent', 'syn']:
         return 'synonymous'
     else:
         return 'non-synonymous'

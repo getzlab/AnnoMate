@@ -83,7 +83,7 @@ def gen_mutation_table_layout():
                 dbc.Col([
                     dcc.Dropdown(
                         id='table-size-dropdown',
-                        options=[10,20,30],
+                        options=[5, 10,20,30],
                         value=DEFAULT_PAGE_SIZE
                     )
                 ], width=2),
@@ -425,7 +425,8 @@ def update_mutation_tables(
 
     # generate sample-level dataframe (cols that differ between samples)
     if filtered_maf_empty:
-        sample_cols = default_maf_sample_cols.append(maf_sample_id_col)
+        sample_cols = default_maf_sample_cols.copy()
+        sample_cols.append(maf_sample_id_col)
         sample_maf = pd.DataFrame(columns=sample_cols)
         sample_maf.loc[:, maf_sample_id_col] = sample_options
         sample_maf.index.name = 'id'
