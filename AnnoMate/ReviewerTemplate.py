@@ -2,6 +2,7 @@ from .ReviewDataInterface import ReviewDataInterface, DataAnnotation, Data
 from .Data import validate_annot_data
 from .ReviewDataApp import ReviewDataApp, valid_annotation_app_display_types, AnnotationDisplayComponent
 from AnnoMate.AnnotationDisplayComponent import *
+from AnnoMate.MetadataHandler import MetadataHandler
 import pandas as pd
 import os
 from dash.dependencies import State
@@ -130,7 +131,8 @@ class ReviewerTemplate(ABC):
     
     # Public methods
     def set_review_data(self,
-                        data_pkl_fn: pathlib.Path,
+                        data_path: pathlib.Path,
+                        # data_pkl_fn: pathlib.Path,
                         description: str = None,
                         annot_df: pd.DataFrame = None,
                         annot_col_config_dict: pd.DataFrame = None,
@@ -169,7 +171,19 @@ class ReviewerTemplate(ABC):
 
         """
 
-        if os.path.exists(data_pkl_fn):
+        data_pkl_fn = f'{data_path}/data.pkl'
+        metadata_config_fn = f'{data_path}/metadata_config.yaml'
+
+        if not os.path.exists(data_path):
+            os.makedirs(data_path)
+        if not os.path.exists(metadata_config_fn):
+            mh = MetadataHandler(metadata_config_fn)
+            mh.set_attribute('freeze_data', False)
+            # can also add future defaults here 
+        else:
+            mh = MetadataHandler(metadata_config_fn)
+
+        if os.path.exists(data_pkl_fn) and mh.metadata['freeze_data']:
             f = open(data_pkl_fn, 'rb')
             data = pickle.load(f)
         else:
@@ -220,6 +234,7 @@ class ReviewerTemplate(ABC):
         self.review_data_interface = ReviewDataInterface(
             data_pkl_fn=data_pkl_fn,
             data=data,
+            mh=mh
         )
 
     def set_default_review_data_annotations_configuration(self):
