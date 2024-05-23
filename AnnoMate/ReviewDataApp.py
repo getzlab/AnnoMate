@@ -296,7 +296,9 @@ class ReviewDataApp:
                 multi_type_columns=multi_type_columns
             )
         
-        app.title = review_data.data_pkl_fn.split('/')[-2]
+        # data_pkl_fn = data_path/data.pkl where data_path is the path to data that is set in set_review_data
+        # e.g. if data_path = './reviewer_data' then data_pkl_fn = './reviewer_data/data.pkl' and app.title = 'reviewer_data'
+        app.title = review_data.data_pkl_fn.split('/')[-2] 
 
         if auto_export:
             if auto_export_path is None:
@@ -412,15 +414,19 @@ class ReviewDataApp:
             prevent_initial_call=True,
         )
         def freeze_data(freeze_confirm, annotations_confirm, history_display_table, dropdown_options, annot_panel):
-            subscript = 'TEST MODE  '
+            subscript = '  TEST MODE'
             subscript_color = {'color': 'red'}
             button = dbc.Button('Freeze Data', id='APP-freeze-button')
 
             if freeze_confirm:
                 if not annotations_confirm:
-                    review_data.data.annot_df.loc[:,:]=None
-                    review_data.data.history_df.loc[:,:]=None
+                    # remove data
+                    annot_cols = review_data.data.annot_df.columns.tolist()
+                    review_data.data.annot_df = pd.DataFrame(index=review_data.data.index, columns=annot_cols)
+                    review_data.data.history_df = pd.DataFrame(columns=['index', 'timestamp', 'source_data_fn']+annot_cols)
                     review_data.save_data()
+
+                    # removed displayed data
                     history_display_table = pd.DataFrame().to_dict('records')
                     reviewed_data_df['label'] = reviewed_data_df.index
                     dropdown_options = reviewed_data_df.reset_index().to_dict('records')
@@ -430,7 +436,7 @@ class ReviewDataApp:
                 review_data.mh.set_attribute('freeze_data_timestamp', datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
             if review_data.mh.metadata['freeze_data']:
-                subscript = f'Frozen at {review_data.mh.metadata["freeze_data_timestamp"]}'
+                subscript = f'  Frozen at {review_data.mh.metadata["freeze_data_timestamp"]}'
                 subscript_color = {'color': 'black'}
                 button = html.Div([])
 
@@ -727,6 +733,11 @@ class ReviewDataApp:
                         validate_callback_outputs(component_output, component, which_callback='internal_callback')
                         output_dict['more_component_outputs'][component.name] = component_output
             return output_dict
+        
+        if not review_data.mh.metadata['freeze_data']:
+            warnings.warn(
+                'You are in test mode. Your data will not be saved.'
+            )
 
         jupyter_dash.default_mode = mode
         app.run(host=host, port=port, debug=True)
@@ -748,22 +759,18 @@ class ReviewDataApp:
         review_data_title = html.Div([
             dbc.Alert('This is a test mode. You must freeze your data to save your annotations.', color='danger', id='APP-test-mode-alert', is_open=False, duration=4000),
             html.H1(review_data.data_pkl_fn.split('/')[-2], style={'display': 'inline'}),
-            html.Sub('TEST MODE  ', style={'color': 'red'}, id='APP-title-subscript') if not review_data.mh.metadata['freeze_data'] else html.Sub(f'Frozen at {review_data.mh.metadata["freeze_data_timestamp"]}', style={'color': 'black'}, id='APP-title-subscript'),
             dbc.Modal([
                 dbc.ModalHeader("Are you sure you want to freeze the data?"),
                 dbc.ModalBody("Input data will not be changable once data is frozen."),
-                dbc.Checkbox(id='APP-annotations-checkbox', label='Save current annotations', value=True),
+                html.Div([
+                    dbc.Checkbox(id='APP-annotations-checkbox', label='Save current annotations', value=True)
+                ], style={'margin-left': '15px'}),
                 dbc.ModalFooter([
                     dbc.Button("Freeze data", id="APP-freeze-confirm", n_clicks=0, className="ml-auto"),
-                    dbc.Button("Close", id="APP-freeze-close", n_clicks=0, className="ml-auto")
+                    dbc.Button("Cancel, I am still testing", id="APP-freeze-close", n_clicks=0, className="ml-auto")
                 ]),
             ], id="APP-freeze-modal"),
             html.Div(children=html.Button('Freeze data') if not review_data.mh.metadata['freeze_data'] else html.Div([]), id='APP-freeze-button')
-            # dcc.ConfirmDialogProvider(
-            #     id='APP-freeze-confirm', 
-            #     children=html.Button('Freeze data') if not review_data.mh.metadata['freeze_data'] else html.Div([]), 
-            #     message='Are you sure you want to freeze the data? Input data will not be changable once data is frozen.',
-            # ),
         ])
         review_data_path = html.Div([html.P(f'Path: {review_data.data_pkl_fn}')])
         review_data_description = html.Div([html.P(f'Description: {review_data.data.description}')])
@@ -1004,10 +1011,22 @@ class ReviewDataApp:
                 f'Make sure to run reviewer.set_default_review_data_annotations_configuration(), '
                 f'or manually set up your annotations'
             )
-        submit_annot_button = html.Button(id='APP-submit-button-state', 
-                                          n_clicks=0, 
-                                          children='Submit', 
-                                          style={"marginBottom": "15px"})
+        submit_annot_button = html.Div([
+            html.Button(id='APP-submit-button-state', 
+                n_clicks=0, 
+                children='Submit', 
+                style={"marginBottom": "15px"}
+            ),
+            html.Sub(
+                '  TEST MODE', 
+                style={'color': 'red'}, 
+                id='APP-title-subscript'
+            ) if not review_data.mh.metadata['freeze_data'] else html.Sub(
+                f'  Frozen at {review_data.mh.metadata["freeze_data_timestamp"]}', 
+                style={'color': 'black'}, 
+                id='APP-title-subscript'
+            ),
+        ])
         
         def annotation_display_component_input(annot_name, annot, annot_app_display_type):
             input_component_id = f"APP-{annot_name}-{annot_app_display_type}-input-state"

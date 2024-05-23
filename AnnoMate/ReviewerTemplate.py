@@ -132,7 +132,6 @@ class ReviewerTemplate(ABC):
     # Public methods
     def set_review_data(self,
                         data_path: pathlib.Path,
-                        # data_pkl_fn: pathlib.Path,
                         description: str = None,
                         annot_df: pd.DataFrame = None,
                         annot_col_config_dict: pd.DataFrame = None,
@@ -144,8 +143,9 @@ class ReviewerTemplate(ABC):
 
         Parameters
         ----------
-        data_pkl_fn : Union[str, Path]
-            path to pickle file to save data for current review session
+        data_path : Union[str, Path]
+            path to a directory where data pickle file and metadata 
+            config file will be saved for current review session
 
         description : str,
             description of the data being reviewed
@@ -473,9 +473,19 @@ class ReviewerTemplate(ABC):
         return vars(self.review_data_interface.data).keys()
 
     def get_annot(self):
+        if not self.review_data_interface.mh.metadata['freeze_data']:
+            warnings.warn(
+                'Data is not frozen. Annotations will not be saved. '
+                'Please freeze data in the dashboard to save annotations.'
+            )
         return self.get_data_attribute('annot_df')
 
     def get_history(self):
+        if not self.review_data_interface.mh.metadata['freeze_data']:
+            warnings.warn(
+                'Data is not frozen. History will not be saved. '
+                'Please freeze data in the dashboard to save history.'
+            )
         return self.get_data_attribute('history_df')
     
     def export_data(self, path: Union[str, Path], export_by_day=False, dry_run=True, **kwargs):
