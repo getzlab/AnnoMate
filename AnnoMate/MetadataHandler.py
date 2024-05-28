@@ -24,4 +24,3 @@ class MetadataHandler:
     def save_metadata(self):
         with open(self.fn, 'w') as file:
             yaml.dump(self.metadata, file)
-        print(self.metadata)
