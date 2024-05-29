@@ -1,8 +1,5 @@
+import pandas as pd
 from AnnoMate.Reviewers.ExampleReviewer import ExampleReviewer
-
-def f():
-    return 3
-
 
 def test_reviewer():
     my_reviewer = ExampleReviewer()
