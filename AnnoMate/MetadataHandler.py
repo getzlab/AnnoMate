@@ -2,13 +2,14 @@ import yaml
 import os
 
 class MetadataHandler:
-    def __init__(self, fn):
+    def __init__(self, fn, overwrite=False):
         self.fn = fn
-        self.metadata = self.load_metadata() # dict of metadata
+        self.metadata = self.load_metadata(overwrite=overwrite) # dict of metadata
 
-    def load_metadata(self):
-        if not os.path.exists(self.fn):
+    def load_metadata(self, overwrite=False):
+        if not os.path.exists(self.fn) or overwrite:
             with open(self.fn, 'w'): pass
+                
         with open(self.fn, 'r') as file:
             try:
                 metadata = yaml.safe_load(file)

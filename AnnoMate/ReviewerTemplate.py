@@ -176,8 +176,8 @@ class ReviewerTemplate(ABC):
 
         if not os.path.exists(data_path):
             os.makedirs(data_path)
-        if not os.path.exists(metadata_config_fn):
-            mh = MetadataHandler(metadata_config_fn)
+        if not os.path.exists(metadata_config_fn) or not os.path.exists(data_pkl_fn):
+            mh = MetadataHandler(metadata_config_fn, overwrite=True)
             mh.set_attribute('freeze_data', False)
             # can also add future defaults here 
         else:
