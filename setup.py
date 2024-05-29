@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="AnnoMate",
-    version="0.0.3",
+    version="0.1.0",
     author="Claudia Chu",
     author_email="cchu@broadinstitute.org",
     description="A general tool to create dashboards for manual review",
@@ -46,8 +46,8 @@ setuptools.setup(
                         'setuptools',
                         'frozendict',
                         # fixes jupyter-dash bug when repeat calls to run_server hangs
-                        # see: https://github.com/plotly/jupyter-dash/issues/103
-                        'flask<=2.2.1',
-                        'werkzeug<=2.2.1']
+                        'flask>=3.0.3',
+                        'werkzeug>=2.3.3', # security vulnerability with 2.2.2
+                       ]
 )   
 
