@@ -46,8 +46,8 @@ setuptools.setup(
                         'setuptools',
                         'frozendict',
                         # fixes jupyter-dash bug when repeat calls to run_server hangs
-                        # see: https://github.com/plotly/jupyter-dash/issues/103
-                        'flask<=2.2.1',
-                        'werkzeug>=2.2.3']
+                        'flask>=3.0.3',
+                        'werkzeug>=2.3.3', # security vulnerability with 2.2.2
+                       ]
 )   
 
