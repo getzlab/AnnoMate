@@ -48,6 +48,6 @@ setuptools.setup(
                         # fixes jupyter-dash bug when repeat calls to run_server hangs
                         # see: https://github.com/plotly/jupyter-dash/issues/103
                         'flask<=2.2.1',
-                        'werkzeug<=2.2.1']
+                        'werkzeug>=2.2.3']
 )   
 
