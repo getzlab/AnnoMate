@@ -106,3 +106,25 @@ The `AnnoMate` package makes it simple to create dashboards for reviewing data. 
 ### Get Started
 
 See `tutorial_notebooks/` for documentation and tutorials.
+
+# For AnnoMate Developers
+
+New features to AnnoMate are pushed to `dev_branch`. Any separate large features being developed simultaneously can be done in separate branches, and merged to `dev_branch` first. 
+
+Only when we merge the `dev_branch` to master, we also push to pypi. At this time we decide the new version number.
+
+Semantic versioning (https://packaging.python.org/en/latest/discussions/versioning/)
+The idea of semantic versioning (or SemVer) is to use 3-part version numbers, major.minor.patch, where the project author increments:
+- major when they make incompatible API changes,
+- minor when they add functionality in a backwards-compatible manner, and
+- patch, when they make backwards-compatible bug fixes.
+
+For AnnoMate:
+- Major: Not backwards compatible
+- Minor: up to 3 functionality changes with backwards compatibility within a year
+    - pickle versioning in reviewdatainterface
+    - hot keys
+    - Adding components or new custom pre-built reviewers 
+- Patch: up to 5 bug fixes within 6 months
+
+Github continuous integration: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python

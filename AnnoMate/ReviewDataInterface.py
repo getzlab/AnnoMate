@@ -7,13 +7,15 @@ import pickle
 from pathlib import Path
 from typing import List, Dict, Union
 from AnnoMate.Data import Data, DataAnnotation, validate_annot_data
+from AnnoMate.MetadataHandler import MetadataHandler
 
 
 class ReviewDataInterface:
     
     def __init__(self,
                  data_pkl_fn: Union[str, Path],
-                 data: Data):
+                 data: Data,
+                 mh: MetadataHandler,):
         """
         Object that saves, loads, and edits Data objects
 
@@ -31,7 +33,8 @@ class ReviewDataInterface:
         This is to prevent accidentally overwriting annotations and the data being currently reviewed.
         """
         self.data_pkl_fn = data_pkl_fn
-        if os.path.exists(data_pkl_fn):
+        self.mh = mh
+        if os.path.exists(data_pkl_fn) and mh.metadata['freeze_data']:
             f = open(data_pkl_fn, 'rb')
             self.data = pickle.load(f)
             f.close()
