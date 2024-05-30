@@ -753,7 +753,7 @@ def gen_cluster_metric_fig(data: PatientSampleData, idx, maf_variant_type_col=No
             filterby_annotation_df = mut_counts_df_mod[mut_counts_df_mod['annotation'].isin(annotations)]
             filterby_cluster_df = filterby_annotation_df[filterby_annotation_df[maf_cluster_col] == clust]
             filterby_cluster_df.set_index('annotation', inplace=True)
-            print(filterby_cluster_df)
+
             fig.add_trace(go.Pie(
                 values=filterby_cluster_df['count'],
                 domain=dict(x=[i/num_clusters, (i+1)/num_clusters]),
