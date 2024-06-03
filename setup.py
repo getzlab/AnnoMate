@@ -43,7 +43,7 @@ setuptools.setup(
                         'pip',
                         'plotly>=5.15.0',
                         'scipy',
-                        'setuptools',
+                        'setuptools<60.0', # https://numpy.org/doc/stable/reference/distutils_status_migration.html
                         'frozendict',
                         # fixes jupyter-dash bug when repeat calls to run_server hangs
                         'flask>=3.0.3',
