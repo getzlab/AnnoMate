@@ -85,20 +85,26 @@ Make sure to add conda environment to ipykernel (see **3. Add conda environment 
 
 ### Run with a Docker container
 
-Below are the commands needed to run the tutorial notebooks in a docker container. You need at 2 ports:
+Below are the commands needed to run the tutorial notebooks in a docker container. You need to open at least 2 ports if you are using Mac or Windows:
 1. A port to open jupyter lab (in this case, `<jupyter_port>`)
 2. A port to open the dash app (`<dash_port>`)
 ```
 docker run -it -p <jupyter_port>:<jupyter_port> -p <dash_port>:<dash_port> gcr.io/broad-getzlab-workflows/annomate:tests_v381
-git clone https://github.com/getzlab/AnnoMate.git
 cd AnnoMate/tutorial_notebooks
 jupyter lab --ip 0.0.0.0 --port <jupyter_port> --no-browser --allow-root
 ```
-In the notebooks, you can set the port to open the Dash app in `reviewer.run(port=<dash_port>, ...)`
+In the notebooks, you can set the port to open the Dash app in `reviewer.run(port=<dash_port>, ...)`.
+
+If you are running on Linux, you can open all ports.
+```
+docker run -it --network host gcr.io/broad-getzlab-workflows/annomate:tests_v381
+cd AnnoMate/tutorial_notebooks
+jupyter lab --ip 0.0.0.0 --port <jupyter_port> --no-browser --allow-root
+```
 
 ### Tutorials and Documentation
 
-To run tutorial notebooks, clone the repository if you have not already.
+To run tutorial notebooks, clone the repository if you have not already. If you are running from the docker container, the repo has already been cloned.
 
 ```
 git clone git@github.com:getzlab/AnnoMate.git
