@@ -89,7 +89,7 @@ Below are the commands needed to run the tutorial notebooks in a docker containe
 1. A port to open jupyter lab (in this case, `<jupyter_port>`)
 2. A port to open the dash app (`<dash_port>`)
 ```
-docker run -it -p <jupyter_port>:<jupyter_port> -p <dash_port>:<dash_port> gcr.io/broad-getzlab-workflows/annomate:tests_v381
+docker run -it -p <jupyter_port>:<jupyter_port> -p <dash_port>:<dash_port> gcr.io/broad-getzlab-workflows/annomate:dev_branch_v385
 cd AnnoMate/tutorial_notebooks
 jupyter lab --ip 0.0.0.0 --port <jupyter_port> --no-browser --allow-root
 ```
