@@ -23,7 +23,8 @@ setuptools.setup(
     package_dir={"": "."},
     packages=setuptools.find_packages(where=".", exclude=['zeption.examples', '']),
     python_requires=">=3.8", # last tested version: 3.9
-    install_requires = ['cnv-suite',
+    install_requires = ['setuptools<60.0', # https://numpy.org/doc/stable/reference/distutils_status_migration.html. Install before numpy
+                        'cnv-suite',
                         'dash>=2.11.0',
                         'dash-bootstrap-components',
                         'dash-cytoscape',
@@ -43,7 +44,6 @@ setuptools.setup(
                         'pip',
                         'plotly>=5.15.0',
                         'scipy',
-                        'setuptools<60.0', # https://numpy.org/doc/stable/reference/distutils_status_migration.html
                         'frozendict',
                         # fixes jupyter-dash bug when repeat calls to run_server hangs
                         'flask>=3.0.3',
