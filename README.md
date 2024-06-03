@@ -4,7 +4,11 @@ A package for using and creating interactive dashboards for manual review.
 
 ![Purity AnnoMate Reviewer](https://github.com/getzlab/AnnoMate/blob/master/images/ezgif.com-gif-maker.gif)
 
-# Quick Start
+## Quick Start
+
+You can run the Intro_to_AnoMate_Reviewers.ipynb notebook on Google Colab: [Google Colab Intro_to_AnnoMate_Reviewers.ipynb](https://colab.research.google.com/drive/1h2XFkFZycMvRbErUBNUngSwqcY12Ryd1?usp=sharing)
+- Open the link, which gives Viewer access.
+- Next to the title of notebook it will say `Changes will not be saved`. Click the link to make a copy that is saved to your google drive.
 
 ## Install
 
