@@ -12,7 +12,7 @@ A package for using and creating interactive dashboards for manual review.
 
 This is _highly_ recommended to manage different dependencies required by different reviewers.
 
-1. Install conda
+1. Install conda if you do not have it already
 
     Credit to Raymond Chu this article: https://medium.com/google-cloud/set-up-anaconda-under-google-cloud-vm-on-windows-f71fc1064bd7
 
@@ -35,7 +35,7 @@ This is _highly_ recommended to manage different dependencies required by differ
     conda create --name <your_env> python==<py_version>
     ```
 
-    `<your_env>` is the name of your environment (ie purity_review_env). Check the corresponding reviewer's `setup.py` file to get the proper python version for `py_version`.
+    `<your_env>` is the name of your environment (ie purity_review_env). Check the corresponding reviewer's `setup.py` file to get the proper python version for `py_version`. Reviewers have been tested on `3.8` and `3.9`. 
 
 3. Add conda environment to ipykernel 
 
@@ -69,6 +69,20 @@ git clone git@github.com:getzlab/AnnoMate.git
 cd AnnoMate
 pip install -e .
 ```
+
+### Install with Conda
+
+Assuming you already have a conda environment:
+```
+conda activate <your_env>
+conda env update --name <your_env> --file annomate_conda_environment.yml
+```
+
+If you have not made a new conda environment:
+```
+conda env create --file annomate_conda_environment.yml --name <your_env>
+```
+Make sure to add conda environment to ipykernel (see **3. Add conda environment to ipykernel**)
 
 ### Tutorials and Documentation
 
