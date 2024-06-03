@@ -50,7 +50,6 @@ This is _highly_ recommended to manage different dependencies required by differ
 
     When you open a jupyter notebook, you can change the environment the notebook cells are run in to `<your_env>`
 
-
 ### Install AnnoMate with pip
 
 If you are developing a brand new reviewer, you can install from PyPi
@@ -84,13 +83,33 @@ conda env create --file annomate_conda_environment.yml --name <your_env>
 ```
 Make sure to add conda environment to ipykernel (see **3. Add conda environment to ipykernel**)
 
+### Run with a Docker container
+
+Below are the commands needed to run the tutorial notebooks in a docker container. You need at 2 ports:
+1. A port to open jupyter lab (in this case, `<jupyter_port>`)
+2. A port to open the dash app (`<dash_port>`)
+```
+docker run -it -p <jupyter_port>:<jupyter_port> -p <dash_port>:<dash_port> gcr.io/broad-getzlab-workflows/annomate:tests_v381
+git clone https://github.com/getzlab/AnnoMate.git
+cd AnnoMate/tutorial_notebooks
+jupyter lab --ip 0.0.0.0 --port <jupyter_port> --no-browser --allow-root
+```
+In the notebooks, you can set the port to open the Dash app in `reviewer.run(port=<dash_port>, ...)`
+
 ### Tutorials and Documentation
 
-See a more detailed tutorial in `tutorial_notebooks/Intro_to_Reviewers.ipynb`.
+To run tutorial notebooks, clone the repository if you have not already.
 
-View the catalog of existing reviewers at [catalog/ReviewerCatalog.ipynb](https://github.com/getzlab/AnnoMate/blob/master/catalog/ReviewerCatalog.ipynb).
+```
+git clone git@github.com:getzlab/AnnoMate.git
+cd AnnoMate/tutorial_notebooks
+```
 
-For developers, see `tutorial_notebooks/Developer_Jupyter_Reviewer_Tutorial.ipynb`.
+Make sure to set the notebook kernels to the environment with the `AnnoMate` package.
+
+- See a more detailed tutorial in `tutorial_notebooks/Intro_to_Reviewers.ipynb`. 
+- View the catalog of existing reviewers at [catalog/ReviewerCatalog.ipynb](https://github.com/getzlab/AnnoMate/blob/master/catalog/ReviewerCatalog.ipynb).
+- For developers, see `tutorial_notebooks/Developer_Jupyter_Reviewer_Tutorial.ipynb`.
 
 ## Why AnnoMate
 ### Why and how we review data
