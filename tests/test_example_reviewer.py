@@ -2,7 +2,7 @@ import pandas as pd
 from AnnoMate.Reviewers.ExampleReviewer import ExampleReviewer
 
 def test_reviewer():
-    fn = '../tutorial_notebooks/example_data/AnnoMate_Tutorial/data_to_review_example.tsv'
+    fn = 'tutorial_notebooks/example_data/AnnoMate_Tutorial/data_to_review_example.tsv'
     df = pd.read_csv(fn, sep='\t')
     df = df.set_index('sample_id')
     assert df.shape[0] > 0
