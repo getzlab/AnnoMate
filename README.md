@@ -16,20 +16,7 @@ You can run the Intro_to_AnoMate_Reviewers.ipynb notebook on Google Colab: [Goog
 
 This is _highly_ recommended to manage different dependencies required by different reviewers.
 
-1. Install conda if you do not have it already
-
-    Credit to Raymond Chu this article: https://medium.com/google-cloud/set-up-anaconda-under-google-cloud-vm-on-windows-f71fc1064bd7
-
-    ```
-    sudo apt-get update
-    sudo apt-get install bzip2 libxml2-dev
-
-    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-    bash Miniconda3-latest-Linux-x86_64.sh
-    rm Miniconda3-latest-Linux-x86_64.sh
-    source .bashrc
-    conda install scikit-learn pandas jupyter ipython
-    ```
+1. Install conda if you do not have it already<sup>1</sup>
 
 2. Create a conda environment
 
@@ -38,32 +25,28 @@ This is _highly_ recommended to manage different dependencies required by differ
     ```
     conda create --name <your_env> python==<py_version>
     ```
+    
+    `<your_env>` is the name of your environment (ie purity_review_env). Check the corresponding reviewer's `setup.py` file to get the proper python version for `py_version`. Reviewers have been tested on `3.8` and `3.9`.
+   
+4. Activate your conda environment
+   ```
+   conda activate <your_env>
+   ```
+   **You'll want your environment activated when you install AnnoMate in any of the below mentioned ways** 
 
-    `<your_env>` is the name of your environment (ie purity_review_env). Check the corresponding reviewer's `setup.py` file to get the proper python version for `py_version`. Reviewers have been tested on `3.8` and `3.9`. 
-
-3. Add conda environment to ipykernel 
-
-    Credit to Nihal Sangeeth from StackOverflow: https://stackoverflow.com/questions/53004311/how-to-add-conda-environment-to-jupyter-lab.
-
-    ```
-    conda activate <your_env>
-    conda install ipykernel
-    ipython kernel install --user --name=<your_env>
-    conda deactivate
-    ```
+5. Add conda environment to ipykernel<sup>2</sup>
 
     When you open a jupyter notebook, you can change the environment the notebook cells are run in to `<your_env>`
-
-### Install AnnoMate with pip
+    
+### Option 1: Install AnnoMate with pip
 
 If you are developing a brand new reviewer, you can install from PyPi
 
 ```
-conda activate <your_env>
 pip install AnnoMate
 ```
 
-### Install with Git
+### Option 2: Install with Git
 
 AnnoMate and most prebuilt reviewers can be downloaded with git. 
 
@@ -73,21 +56,21 @@ cd AnnoMate
 pip install -e .
 ```
 
-### Install with Conda
+### Option 3: Install with Conda
 
-Assuming you already have a conda environment:
+Assuming you already have a conda environment and it is activated:
 ```
-conda activate <your_env>
 conda env update --name <your_env> --file annomate_conda_environment.yml
 ```
 
 If you have not made a new conda environment:
 ```
 conda env create --file annomate_conda_environment.yml --name <your_env>
+conda activate <your_env>
 ```
 Make sure to add conda environment to ipykernel (see **3. Add conda environment to ipykernel**)
 
-### Run with a Docker container
+### Option 4: Run with a Docker container
 
 Below are the commands needed to run the tutorial notebooks in a docker container. You need to open at least 2 ports if you are using Mac or Windows:
 1. A port to open jupyter lab (in this case, `<jupyter_port>`)
@@ -171,3 +154,25 @@ For AnnoMate:
 - Patch: up to 5 bug fixes within 6 months
 
 Github continuous integration: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+# Supplements 
+
+1. Credit to Raymond Chu this article: https://medium.com/google-cloud/set-up-anaconda-under-google-cloud-vm-on-windows-f71fc1064bd7
+
+    ```
+    sudo apt-get update
+    sudo apt-get install bzip2 libxml2-dev
+
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    bash Miniconda3-latest-Linux-x86_64.sh
+    rm Miniconda3-latest-Linux-x86_64.sh
+    source .bashrc
+    conda install scikit-learn pandas jupyter ipython
+
+2. Credit to Nihal Sangeeth from StackOverflow: https://stackoverflow.com/questions/53004311/how-to-add-conda-environment-to-jupyter-lab.
+
+    ```
+    conda install ipykernel
+    ipython kernel install --user --name=<your_env>
+    conda deactivate
+    ```
