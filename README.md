@@ -25,7 +25,7 @@ This is _highly_ recommended to manage different dependencies required by differ
     ```
     conda create --name <your_env> python==<py_version>
     ```
-
+    
     `<your_env>` is the name of your environment (ie purity_review_env). Check the corresponding reviewer's `setup.py` file to get the proper python version for `py_version`. Reviewers have been tested on `3.8` and `3.9`.
    
 4. Activate your conda environment
@@ -37,7 +37,7 @@ This is _highly_ recommended to manage different dependencies required by differ
 5. Add conda environment to ipykernel<sup>2</sup>
 
     When you open a jupyter notebook, you can change the environment the notebook cells are run in to `<your_env>`
-
+    
 ### Option 1: Install AnnoMate with pip
 
 If you are developing a brand new reviewer, you can install from PyPi
