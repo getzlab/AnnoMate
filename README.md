@@ -38,7 +38,7 @@ This is _highly_ recommended to manage different dependencies required by differ
 
     When you open a jupyter notebook, you can change the environment the notebook cells are run in to `<your_env>`
     
-### Option 1: Install AnnoMate with pip
+#### Option 1: Install AnnoMate with pip
 
 If you are developing a brand new reviewer, you can install from PyPi
 
@@ -46,7 +46,7 @@ If you are developing a brand new reviewer, you can install from PyPi
 pip install AnnoMate
 ```
 
-### Option 2: Install with Git
+#### Option 2: Install with Git
 
 AnnoMate and most prebuilt reviewers can be downloaded with git. 
 
@@ -56,7 +56,7 @@ cd AnnoMate
 pip install -e .
 ```
 
-### Option 3: Install with Conda
+#### Option 3: Install with Conda
 
 Assuming you already have a conda environment and it is activated:
 ```
@@ -70,26 +70,26 @@ conda activate <your_env>
 ```
 Make sure to add conda environment to ipykernel (see **3. Add conda environment to ipykernel**)
 
-### Option 4: Run with a Docker container
+### Run with a Docker container
 
 Below are the commands needed to run the tutorial notebooks in a docker container. You need to open at least 2 ports if you are using Mac or Windows:
-1. A port to open jupyter lab (in this case, `<jupyter_port>`)
+1. A port to open jupyter lab (in this case, `<jupyter_port>`, i.e. 8890. We recommend to NOT use port 8888, and make sure to not use other ports in use)
 2. A port to open the dash app (`<dash_port>`)
 ```
-docker run -it -p <jupyter_port>:<jupyter_port> -p <dash_port>:<dash_port> gcr.io/broad-getzlab-workflows/annomate:dev_branch_v385
+docker run -it -p <jupyter_port>:<jupyter_port> -p <dash_port>:<dash_port> ghcr.io/getzlab/annomate:latest
 cd AnnoMate/tutorial_notebooks
 jupyter lab --ip 0.0.0.0 --port <jupyter_port> --no-browser --allow-root
 ```
-In the notebooks, you can set the port to open the Dash app in `reviewer.run(port=<dash_port>, ...)`.
+Copy the provided link to a browser to open and run the jupyter notebooks. In the notebooks, you can set the port to open the Dash app in `reviewer.run(port=<dash_port>, ...)`.
 
 If you are running on Linux, you can open all ports.
 ```
-docker run -it --network host gcr.io/broad-getzlab-workflows/annomate:tests_v381
+docker run -it --network host ghcr.io/getzlab/annomate:latest
 cd AnnoMate/tutorial_notebooks
 jupyter lab --ip 0.0.0.0 --port <jupyter_port> --no-browser --allow-root
 ```
 
-### Tutorials and Documentation
+## Tutorials and Documentation
 
 To run tutorial notebooks, clone the repository if you have not already. If you are running from the docker container, the repo has already been cloned.
 
@@ -168,6 +168,8 @@ Github continuous integration: https://docs.github.com/en/actions/automating-bui
     rm Miniconda3-latest-Linux-x86_64.sh
     source .bashrc
     conda install scikit-learn pandas jupyter ipython
+    ```
+    
 
 2. Credit to Nihal Sangeeth from StackOverflow: https://stackoverflow.com/questions/53004311/how-to-add-conda-environment-to-jupyter-lab.
 
