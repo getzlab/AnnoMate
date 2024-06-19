@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@v3
       - name: Build and push image
         run: |
-          docker login --username cchu70 --pasword ${{ secrets.GHCR_LOGIN_TOKEN }} ghcr.io
+          docker login --username cchu70 --password ${{ secrets.GHCR_LOGIN_TOKEN }} ghcr.io
           docker build . --tag ghcr.io/getzlab/AnnoMate:latest
           docker push ghcr.io/getzlab/AnnoMate:latest
 
