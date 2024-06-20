@@ -1,0 +1,17 @@
+name: Deploy AnnoMate Docker to GHCR
+
+on:
+  [workflow_dispatch]
+
+jobs:
+  build_and_publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build and push image
+        run: |
+          docker login --username cchu70 --password ${{ secrets.GHCR_LOGIN_TOKEN }} ghcr.io
+          docker build . --tag ghcr.io/getzlab/annomate:latest
+          docker push ghcr.io/getzlab/annomate:latest
+
+
