@@ -68,7 +68,7 @@ If you have not made a new conda environment:
 conda env create --file annomate_conda_environment.yml --name <your_env>
 conda activate <your_env>
 ```
-Make sure to add conda environment to ipykernel (see **3. Add conda environment to ipykernel**)
+Make sure to add conda environment to ipykernel (see **4. Add conda environment to ipykernel**)
 
 ### Run with a Docker container
 
