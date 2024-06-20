@@ -86,6 +86,7 @@ docker run -it --network host ghcr.io/getzlab/annomate:latest
 cd AnnoMate/tutorial_notebooks
 jupyter lab --ip 0.0.0.0 --port <jupyter_port> --no-browser --allow-root
 ```
+Make sure to try both available links. In the past we have been able to open the notebook using the `http://127.0.0.1` link.
 
 ## Tutorials and Documentation
 
