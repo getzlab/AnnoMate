@@ -2,9 +2,11 @@
 
 A package for using and creating interactive dashboards for manual review.
 
-![Purity AnnoMate Reviewer](https://github.com/getzlab/AnnoMate/blob/master/images/ezgif.com-gif-maker.gif)
+## Quick Start
 
-# Quick Start
+You can run the Intro_to_AnoMate_Reviewers.ipynb notebook on Google Colab: [Google Colab Intro_to_AnnoMate_Reviewers.ipynb](https://colab.research.google.com/drive/1h2XFkFZycMvRbErUBNUngSwqcY12Ryd1?usp=sharing)
+- Open the link, which gives Viewer access.
+- Next to the title of notebook it will say `Changes will not be saved`. Click the link to make a copy that is saved to your google drive.
 
 ## Install
 
@@ -12,20 +14,7 @@ A package for using and creating interactive dashboards for manual review.
 
 This is _highly_ recommended to manage different dependencies required by different reviewers.
 
-1. Install conda
-
-    Credit to Raymond Chu this article: https://medium.com/google-cloud/set-up-anaconda-under-google-cloud-vm-on-windows-f71fc1064bd7
-
-    ```
-    sudo apt-get update
-    sudo apt-get install bzip2 libxml2-dev
-
-    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-    bash Miniconda3-latest-Linux-x86_64.sh
-    rm Miniconda3-latest-Linux-x86_64.sh
-    source .bashrc
-    conda install scikit-learn pandas jupyter ipython
-    ```
+1. Install conda if you do not have it already<sup>1</sup>
 
 2. Create a conda environment
 
@@ -34,33 +23,28 @@ This is _highly_ recommended to manage different dependencies required by differ
     ```
     conda create --name <your_env> python==<py_version>
     ```
+    
+    `<your_env>` is the name of your environment (ie purity_review_env). Check the corresponding reviewer's `setup.py` file to get the proper python version for `py_version`. Reviewers have been tested on `3.8` and `3.9`.
+   
+4. Activate your conda environment
+   ```
+   conda activate <your_env>
+   ```
+   **You'll want your environment activated when you install AnnoMate in any of the below mentioned ways** 
 
-    `<your_env>` is the name of your environment (ie purity_review_env). Check the corresponding reviewer's `setup.py` file to get the proper python version for `py_version`.
-
-3. Add conda environment to ipykernel 
-
-    Credit to Nihal Sangeeth from StackOverflow: https://stackoverflow.com/questions/53004311/how-to-add-conda-environment-to-jupyter-lab.
-
-    ```
-    conda activate <your_env>
-    conda install ipykernel
-    ipython kernel install --user --name=<your_env>
-    conda deactivate
-    ```
+5. Add conda environment to ipykernel<sup>2</sup>
 
     When you open a jupyter notebook, you can change the environment the notebook cells are run in to `<your_env>`
-
-
-### Install AnnoMate with pip
+    
+#### Option 1: Install AnnoMate with pip
 
 If you are developing a brand new reviewer, you can install from PyPi
 
 ```
-conda activate <your_env>
 pip install AnnoMate
 ```
 
-### Install with Git
+#### Option 2: Install with Git
 
 AnnoMate and most prebuilt reviewers can be downloaded with git. 
 
@@ -70,13 +54,54 @@ cd AnnoMate
 pip install -e .
 ```
 
-### Tutorials and Documentation
+#### Option 3: Install with Conda
 
-See a more detailed tutorial in `tutorial_notebooks/Intro_to_Reviewers.ipynb`.
+Assuming you already have a conda environment and it is activated:
+```
+conda env update --name <your_env> --file annomate_conda_environment.yml
+```
 
-View the catalog of existing reviewers at [catalog/ReviewerCatalog.ipynb](https://github.com/getzlab/AnnoMate/blob/master/catalog/ReviewerCatalog.ipynb).
+If you have not made a new conda environment:
+```
+conda env create --file annomate_conda_environment.yml --name <your_env>
+conda activate <your_env>
+```
+Make sure to add conda environment to ipykernel (see **4. Add conda environment to ipykernel**)
 
-For developers, see `tutorial_notebooks/Developer_Jupyter_Reviewer_Tutorial.ipynb`.
+### Run with a Docker container
+
+Below are the commands needed to run the tutorial notebooks in a docker container. You need to open at least 2 ports if you are using Mac or Windows:
+1. A port to open jupyter lab (in this case, `<jupyter_port>`, i.e. 8890. We recommend to NOT use port 8888, and make sure to not use other ports in use)
+2. A port to open the dash app (`<dash_port>`)
+```
+docker run -it -p <jupyter_port>:<jupyter_port> -p <dash_port>:<dash_port> ghcr.io/getzlab/annomate:latest
+cd AnnoMate/tutorial_notebooks
+jupyter lab --ip 0.0.0.0 --port <jupyter_port> --no-browser --allow-root
+```
+Copy the provided link to a browser to open and run the jupyter notebooks. In the notebooks, you can set the port to open the Dash app in `reviewer.run(port=<dash_port>, ...)`.
+
+If you are running on Linux, you can open all ports.
+```
+docker run -it --network host ghcr.io/getzlab/annomate:latest
+cd AnnoMate/tutorial_notebooks
+jupyter lab --ip 0.0.0.0 --port <jupyter_port> --no-browser --allow-root
+```
+Make sure to try both available links. In the past we have been able to open the notebook using the `http://127.0.0.1` link.
+
+## Tutorials and Documentation
+
+To run tutorial notebooks, clone the repository if you have not already. If you are running from the docker container, the repo has already been cloned.
+
+```
+git clone git@github.com:getzlab/AnnoMate.git
+cd AnnoMate/tutorial_notebooks
+```
+
+Make sure to set the notebook kernels to the environment with the `AnnoMate` package.
+
+- See a more detailed tutorial in `tutorial_notebooks/Intro_to_Reviewers.ipynb`. 
+- View the catalog of existing reviewers at [catalog/ReviewerCatalog.ipynb](https://github.com/getzlab/AnnoMate/blob/master/catalog/ReviewerCatalog.ipynb).
+- For developers, see `tutorial_notebooks/Developer_Jupyter_Reviewer_Tutorial.ipynb`.
 
 ## Why AnnoMate
 ### Why and how we review data
@@ -128,3 +153,27 @@ For AnnoMate:
 - Patch: up to 5 bug fixes within 6 months
 
 Github continuous integration: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+# Supplements 
+
+1. Credit to Raymond Chu this article: https://medium.com/google-cloud/set-up-anaconda-under-google-cloud-vm-on-windows-f71fc1064bd7
+
+    ```
+    sudo apt-get update
+    sudo apt-get install bzip2 libxml2-dev
+
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    bash Miniconda3-latest-Linux-x86_64.sh
+    rm Miniconda3-latest-Linux-x86_64.sh
+    source .bashrc
+    conda install scikit-learn pandas jupyter ipython
+    ```
+    
+
+2. Credit to Nihal Sangeeth from StackOverflow: https://stackoverflow.com/questions/53004311/how-to-add-conda-environment-to-jupyter-lab.
+
+    ```
+    conda install ipykernel
+    ipython kernel install --user --name=<your_env>
+    conda deactivate
+    ```

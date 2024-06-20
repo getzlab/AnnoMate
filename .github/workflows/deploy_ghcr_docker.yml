@@ -13,3 +13,5 @@ jobs:
           docker login --username cchu70 --password ${{ secrets.GHCR_LOGIN_TOKEN }} ghcr.io
           docker build . --tag ghcr.io/getzlab/annomate:latest
           docker push ghcr.io/getzlab/annomate:latest
+
+
