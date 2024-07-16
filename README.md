@@ -28,13 +28,13 @@ This is _highly_ recommended to manage different dependencies required by differ
     
     `<your_env>` is the name of your environment (ie purity_review_env). Check the corresponding reviewer's `setup.py` file to get the proper python version for `py_version`. Reviewers have been tested on `3.8` and `3.9`.
    
-4. Activate your conda environment
+3. Activate your conda environment
    ```
    conda activate <your_env>
    ```
    **You'll want your environment activated when you install AnnoMate in any of the below mentioned ways** 
 
-5. Add conda environment to ipykernel<sup>2</sup>
+4. Add conda environment to ipykernel<sup>2</sup>
 
     When you open a jupyter notebook, you can change the environment the notebook cells are run in to `<your_env>`
     
@@ -68,7 +68,7 @@ If you have not made a new conda environment:
 conda env create --file annomate_conda_environment.yml --name <your_env>
 conda activate <your_env>
 ```
-Make sure to add conda environment to ipykernel (see **5. Add conda environment to ipykernel**)
+Make sure to add conda environment to ipykernel (see **4. Add conda environment to ipykernel**)
 
 ### Run with a Docker container
 
