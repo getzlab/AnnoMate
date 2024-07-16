@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="AnnoMate",
-    version="1.0.1",
+    version="1.0.0",
     author="Claudia Chu",
     author_email="cchu@broadinstitute.org",
     description="A general tool to create dashboards for manual review",
@@ -23,8 +23,9 @@ setuptools.setup(
     package_dir={"": "."},
     packages=setuptools.find_packages(where=".", exclude=['zeption.examples', '']),
     python_requires=">=3.8", # last tested version: 3.9
-    install_requires = ['setuptools<60.0', # https://numpy.org/doc/stable/reference/distutils_status_migration.html. Install before numpy
-                        'cnv-suite>=0.2.0',
+    install_requires = ['setuptools>=70.0.0', # security vulnerability with versions up to 69.1.1 
+                        # 'setuptools<60.0', # https://numpy.org/doc/stable/reference/distutils_status_migration.html. Install before numpy
+                        'cnv-suite',
                         'dash>=2.11.0',
                         'dash-bootstrap-components',
                         'dash-cytoscape',
