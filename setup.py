@@ -25,7 +25,7 @@ setuptools.setup(
     python_requires=">=3.8", # last tested version: 3.9
     install_requires = ['setuptools>=70.0.0', # security vulnerability with versions up to 69.1.1 
                         # 'setuptools<60.0', # https://numpy.org/doc/stable/reference/distutils_status_migration.html. Install before numpy
-                        'cnv-suite',
+                        'cnv-suite>=0.2.0',
                         'dash>=2.11.0',
                         'dash-bootstrap-components',
                         'dash-cytoscape',
