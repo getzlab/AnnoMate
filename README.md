@@ -5,7 +5,7 @@ A package for using and creating interactive dashboards for manual review.
 ## Quick Start
 
 You can run the Quick Example notebook on Google Colab: [Quick_Example_AnnoMate_Reviewer.ipynb](https://colab.research.google.com/github/getzlab/AnnoMate/blob/master/tutorial_notebooks/Quick_Example_AnnoMate_Reviewer.ipynb) [Last confirmed installation in Colab default environment worked on June 21, 2024]
-- Open the link, which gives Viewer access.
+- Open the link (Google Chrome is the prefered browser to avoid issues), which gives Viewer access.
 - Next to the title of notebook it will say `Changes will not be saved`. Click the link to make a copy that is saved to your google drive.
 - Follow the Google Colab instructions to install AnnoMate in your Colab instance.
 - Work through the tutorial to understand how to use a pre-built Reviewer and make simple modifications within a notebook.
